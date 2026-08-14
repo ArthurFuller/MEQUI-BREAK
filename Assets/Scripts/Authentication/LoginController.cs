@@ -6,17 +6,25 @@ using UnityEngine;
 /// </summary>
 public sealed class LoginController : MonoBehaviour
 {
+    [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private TMP_InputField employeeIdInput;
     [SerializeField] private TMP_InputField passwordInput;
     [SerializeField] private TMP_Text errorText;
+
+    [Header("Demo Login")]
     [SerializeField] private string demoEmployeeId = "DEMO-1234";
     [SerializeField] private string demoPassword = "1234";
     [SerializeField] private string hubScene = "Hub";
 
     public void Login()
     {
-        string employeeId = employeeIdInput != null ? employeeIdInput.text.Trim() : string.Empty;
-        string password = passwordInput != null ? passwordInput.text : string.Empty;
+        string employeeId = employeeIdInput != null
+            ? employeeIdInput.text.Trim()
+            : string.Empty;
+
+        string password = passwordInput != null
+            ? passwordInput.text
+            : string.Empty;
 
         if (employeeId != demoEmployeeId || password != demoPassword)
         {
@@ -28,9 +36,11 @@ public sealed class LoginController : MonoBehaviour
             return;
 
         PlayerManager.Instance.SaveProfile();
+
         AudioManager.Instance?.PlayConfirm();
         ClearError();
-        SceneLoader.Instance.Load(hubScene);
+
+        sceneLoader.Load(hubScene);
     }
 
     private void SetError(string message)
