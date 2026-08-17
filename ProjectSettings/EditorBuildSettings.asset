@@ -24,7 +24,7 @@ EditorBuildSettings:
     path: Assets/Scenes/EnergyStation/EnergyStation.unity
     guid: cd33356f80145ca4991285701a59261f
   - enabled: 1
-    path: Assets/Scenes/Minigames/MinigameSelection.unity
+    path: Assets/Scenes/Minigames/Minigames.unity
     guid: 4e24f6b40a890d64282585726305b3b1
   - enabled: 1
     path: Assets/Scenes/Profile/Profile.unity
