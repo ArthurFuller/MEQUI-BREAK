@@ -6,12 +6,11 @@ public sealed class EnergyStationController : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private SceneLoader sceneLoader;
-    [SerializeField] private EventLogger eventLogger;
-    [SerializeField] private PointsService pointsService;
 
     [Header("UI")]
     [SerializeField] private TMP_Text timerLabel;
-    [SerializeField] private Slider progressBar;
+    [SerializeField] private RectTransform progressBackground;
+    [SerializeField] private RectTransform progressFill;
     [SerializeField] private TMP_Text feedbackLabel;
     [SerializeField] private Button completeButton;
 
@@ -31,22 +30,37 @@ public sealed class EnergyStationController : MonoBehaviour
 
     private void Awake()
     {
-        completeButton?.onClick.AddListener(CompleteSession);
+        if (completeButton != null)
+            completeButton.onClick.AddListener(CompleteSession);
+
         SetCompleteButton(false);
+        UpdateTimer();
+        UpdateProgress();
     }
 
     private void Start()
     {
-        if (eventLogger == null)
-            return;
-
-        eventLogger.BeginSession(activityId);
-        gameplayActive = true;
-        sessionActive = true;
         elapsedTime = 0f;
         lastInteractionTime = 0f;
         interactionCount = 0;
 
+        gameplayActive = true;
+        sessionActive = true;
+        completeAvailable = false;
+
+        if (EventLogger.Instance != null)
+        {
+            EventLogger.Instance.BeginSession(activityId);
+        }
+        else
+        {
+            Debug.LogError(
+                "EnergyStationController: EventLogger.Instance não foi encontrado. " +
+                "Verifique se o EventLogger foi inicializado pelo Boot."
+            );
+        }
+
+        UpdateTimer();
         UpdateProgress();
     }
 
@@ -56,7 +70,8 @@ public sealed class EnergyStationController : MonoBehaviour
             return;
 
         elapsedTime += Time.unscaledDeltaTime;
-        UpdateProgress();
+
+        UpdateTimer();
 
         if (elapsedTime >= maxDurationSeconds)
             EndGameplayByTimeLimit();
@@ -64,24 +79,31 @@ public sealed class EnergyStationController : MonoBehaviour
 
     private void OnDestroy()
     {
-        completeButton?.onClick.RemoveListener(CompleteSession);
+        if (completeButton != null)
+            completeButton.onClick.RemoveListener(CompleteSession);
     }
 
     public void RegisterInteraction(string interactionId, string feedbackMessage)
     {
-        if (!gameplayActive || eventLogger == null)
+        if (!gameplayActive)
             return;
 
-        float gap = interactionCount == 0 ? elapsedTime : elapsedTime - lastInteractionTime;
-        if (gap >= inactivityThresholdSeconds)
-            eventLogger.RecordInactive(gap);
+        float gap = interactionCount == 0
+            ? elapsedTime
+            : elapsedTime - lastInteractionTime;
 
-        eventLogger.RecordUserAction(interactionId);
+        if (gap >= inactivityThresholdSeconds)
+            EventLogger.Instance?.RecordInactive(gap);
+
+        EventLogger.Instance?.RecordUserAction(interactionId);
+
         interactionCount++;
         lastInteractionTime = elapsedTime;
 
         if (feedbackLabel != null)
             feedbackLabel.text = feedbackMessage ?? string.Empty;
+
+        UpdateProgress();
 
         if (interactionCount >= interactionsToComplete)
             EndGameplayEarly();
@@ -89,8 +111,10 @@ public sealed class EnergyStationController : MonoBehaviour
 
     public void RegisterOptionalClarity(string choiceId)
     {
-        if (sessionActive)
-            eventLogger?.RecordOptionalClarity(choiceId);
+        if (!sessionActive)
+            return;
+
+        EventLogger.Instance?.RecordOptionalClarity(choiceId);
     }
 
     public void AbandonSession()
@@ -100,7 +124,8 @@ public sealed class EnergyStationController : MonoBehaviour
 
         sessionActive = false;
         gameplayActive = false;
-        eventLogger?.AbandonSession();
+
+        EventLogger.Instance?.AbandonSession();
     }
 
     private void EndGameplayEarly()
@@ -110,9 +135,12 @@ public sealed class EnergyStationController : MonoBehaviour
 
         gameplayActive = false;
         completeAvailable = true;
-        eventLogger?.MarkActivityCompletedEarly();
-        eventLogger?.MarkCompleteButtonAvailable();
+
+        EventLogger.Instance?.MarkActivityCompletedEarly();
+        EventLogger.Instance?.MarkCompleteButtonAvailable();
+
         SetCompleteButton(true);
+        UpdateProgress();
     }
 
     private void EndGameplayByTimeLimit()
@@ -123,9 +151,12 @@ public sealed class EnergyStationController : MonoBehaviour
         elapsedTime = maxDurationSeconds;
         gameplayActive = false;
         completeAvailable = true;
-        eventLogger?.MarkTimeLimitReached();
-        eventLogger?.MarkCompleteButtonAvailable();
+
+        EventLogger.Instance?.MarkTimeLimitReached();
+        EventLogger.Instance?.MarkCompleteButtonAvailable();
+
         SetCompleteButton(true);
+        UpdateTimer();
     }
 
     private void CompleteSession()
@@ -134,9 +165,32 @@ public sealed class EnergyStationController : MonoBehaviour
             return;
 
         sessionActive = false;
-        eventLogger?.CompleteSession();
-        pointsService?.AwardParticipation();
-        sceneLoader?.Load(resultScene);
+        completeAvailable = false;
+
+        EventLogger.Instance?.CompleteSession();
+
+        if (PointsService.Instance != null)
+        {
+            PointsService.Instance.AwardParticipation();
+        }
+        else
+        {
+            Debug.LogError(
+                "EnergyStationController: PointsService.Instance não foi encontrado. " +
+                "Verifique se o PointsService foi inicializado pelo Boot."
+            );
+        }
+
+        if (sceneLoader != null)
+        {
+            sceneLoader.Load(resultScene);
+        }
+        else
+        {
+            Debug.LogError(
+                "EnergyStationController: SceneLoader não está configurado no Inspector."
+            );
+        }
     }
 
     private void SetCompleteButton(bool enabled)
@@ -145,15 +199,33 @@ public sealed class EnergyStationController : MonoBehaviour
             completeButton.gameObject.SetActive(enabled);
     }
 
+    private void UpdateTimer()
+    {
+        if (timerLabel == null)
+            return;
+
+        float remaining = Mathf.Max(
+            0f,
+            maxDurationSeconds - elapsedTime);
+
+        timerLabel.text = Mathf.CeilToInt(remaining).ToString();
+    }
+
     private void UpdateProgress()
     {
-        if (timerLabel != null)
-        {
-            float remaining = Mathf.Max(0f, maxDurationSeconds - elapsedTime);
-            timerLabel.text = Mathf.CeilToInt(remaining).ToString();
-        }
+        if (progressBackground == null || progressFill == null)
+            return;
 
-        if (progressBar != null)
-            progressBar.value = maxDurationSeconds <= 0f ? 1f : Mathf.Clamp01(elapsedTime / maxDurationSeconds);
+        if (interactionsToComplete <= 0)
+            return;
+
+        float progress = Mathf.Clamp01(
+            (float)interactionCount / interactionsToComplete);
+
+        float targetWidth = progressBackground.rect.width * progress;
+
+        Vector2 sizeDelta = progressFill.sizeDelta;
+        sizeDelta.x = targetWidth;
+        progressFill.sizeDelta = sizeDelta;
     }
 }
