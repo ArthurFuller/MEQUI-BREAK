@@ -388,7 +388,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AppBootstrapper
   gameManager: {fileID: 1495266007}
-  sceneLoader: {fileID: 1495266008}
   saveManager: {fileID: 1948607009}
   playerManager: {fileID: 960397237}
   pointsService: {fileID: 1086838487}
@@ -717,7 +716,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1495266006}
   - component: {fileID: 1495266007}
-  - component: {fileID: 1495266008}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -752,18 +750,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44ef855b3722fc946822f9090bf6040f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
---- !u!114 &1495266008
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1495266005}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ea4787bbd5e5c514abfc5282a9f68d8d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SceneLoader
 --- !u!1 &1786049607
 GameObject:
   m_ObjectHideFlags: 0

@@ -21,7 +21,6 @@ public sealed class AudioManager : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
 
         if (musicSource != null)
         {

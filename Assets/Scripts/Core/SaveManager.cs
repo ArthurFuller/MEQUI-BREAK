@@ -17,7 +17,6 @@ public sealed class SaveManager : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
     }
 
     public void SaveProfile(PlayerProfileData profile)

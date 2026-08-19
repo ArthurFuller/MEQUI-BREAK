@@ -21,7 +21,6 @@ public sealed class SettingsManager : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
         Load();
     }
 

@@ -33,7 +33,7 @@ public sealed class EventLogger : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        
     }
 
     public void BeginSession(string id)

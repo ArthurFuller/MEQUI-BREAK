@@ -1,10 +1,10 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public sealed class AppBootstrapper : MonoBehaviour
 {
     [Header("Global Services")]
     [SerializeField] private GameManager gameManager;
-    [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private SaveManager saveManager;
     [SerializeField] private PlayerManager playerManager;
     [SerializeField] private PointsService pointsService;
@@ -16,6 +16,11 @@ public sealed class AppBootstrapper : MonoBehaviour
     [Header("Startup")]
     [SerializeField] private string firstScene = "Login";
 
+    private void Awake()
+    {
+        DontDestroyOnLoad(transform.root.gameObject);
+    }
+
     private void Start()
     {
         if (playerManager != null)
@@ -24,7 +29,7 @@ public sealed class AppBootstrapper : MonoBehaviour
         if (settingsManager != null)
             settingsManager.Apply();
 
-        if (sceneLoader != null)
-            sceneLoader.Load(firstScene);
+        if (!string.IsNullOrWhiteSpace(firstScene))
+            SceneManager.LoadScene(firstScene);
     }
 }

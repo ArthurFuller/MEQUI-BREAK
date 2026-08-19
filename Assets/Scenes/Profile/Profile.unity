@@ -1091,6 +1091,7 @@ MonoBehaviour:
   roleText: {fileID: 385389481}
   levelText: {fileID: 521702222}
   pointsText: {fileID: 1497320379}
+  avatarView: {fileID: 0}
   customizationScene: Customization
   hubScene: Hub
 --- !u!1 &779422792
@@ -1313,10 +1314,10 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 434220928}
-        m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
-        m_MethodName: Load
-        m_Mode: 5
+      - m_Target: {fileID: 647161014}
+        m_TargetAssemblyTypeName: ProfileController, Assembly-CSharp
+        m_MethodName: BackToHub
+        m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
@@ -1750,10 +1751,10 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 434220928}
-        m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
-        m_MethodName: Load
-        m_Mode: 5
+      - m_Target: {fileID: 647161014}
+        m_TargetAssemblyTypeName: ProfileController, Assembly-CSharp
+        m_MethodName: OpenCustomization
+        m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine

@@ -17,7 +17,6 @@ public sealed class PointsService : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
     }
 
     public int AwardParticipation()

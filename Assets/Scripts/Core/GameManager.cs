@@ -14,7 +14,6 @@ public sealed class GameManager : MonoBehaviour
         }
 
         Instance = this;
-        DontDestroyOnLoad(gameObject);
         IsInitialized = true;
     }
 }

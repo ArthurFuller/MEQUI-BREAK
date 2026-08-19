@@ -10,9 +10,11 @@ public sealed class ProfileController : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private TMP_Text nameText;
+    [SerializeField] private TMP_Text employeeIdText;
     [SerializeField] private TMP_Text roleText;
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text pointsText;
+    [SerializeField] private AvatarView avatarView;
 
     [Header("Scenes")]
     [SerializeField] private string customizationScene = "Customization";
@@ -33,6 +35,9 @@ public sealed class ProfileController : MonoBehaviour
         if (nameText != null)
             nameText.text = profile.DisplayName;
 
+        if (employeeIdText != null)
+            employeeIdText.text = profile.EmployeeId;
+
         if (roleText != null)
             roleText.text = profile.Role;
 
@@ -41,6 +46,8 @@ public sealed class ProfileController : MonoBehaviour
 
         if (pointsText != null)
             pointsText.text = $"{profile.BreakPoints} PB";
+
+        avatarView?.Apply(profile.Avatar);
     }
 
     public void OpenCustomization()

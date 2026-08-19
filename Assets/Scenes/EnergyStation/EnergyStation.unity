@@ -1172,8 +1172,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnergyStationController
   sceneLoader: {fileID: 1306440143}
   timerLabel: {fileID: 907991988}
-  progressBackground: {fileID: 0}
-  progressFill: {fileID: 0}
+  progressBackground: {fileID: 658179062}
+  progressFill: {fileID: 959626581}
   feedbackLabel: {fileID: 1597322652}
   completeButton: {fileID: 492764795}
   maxDurationSeconds: 45
@@ -1808,6 +1808,7 @@ MonoBehaviour:
   outfitOptions: []
   accessoryOptions: []
   animator: {fileID: 0}
+  reactionAnimation: {fileID: 0}
 --- !u!114 &1998008790
 MonoBehaviour:
   m_ObjectHideFlags: 0
