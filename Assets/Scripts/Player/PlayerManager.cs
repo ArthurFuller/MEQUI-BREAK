@@ -7,6 +7,9 @@ public sealed class PlayerManager : MonoBehaviour
     public PlayerProfileData Profile { get; private set; }
     public bool IsLoggedIn { get; private set; }
 
+    // Pending points to be animated when entering HUB
+    public int PendingBreakPoints { get; private set; }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -52,5 +55,21 @@ public sealed class PlayerManager : MonoBehaviour
             return;
 
         Profile.BreakPoints += amount;
+    }
+
+    /// <summary>
+    /// Sets the amount of points to be animated when entering HUB
+    /// </summary>
+    public void SetPendingPoints(int amount)
+    {
+        PendingBreakPoints = amount;
+    }
+
+    /// <summary>
+    /// Clears the pending points after animation is triggered
+    /// </summary>
+    public void ClearPendingPoints()
+    {
+        PendingBreakPoints = 0;
     }
 }

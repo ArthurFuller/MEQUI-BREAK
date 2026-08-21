@@ -5,7 +5,7 @@ using UnityEngine.UI;
 public sealed class EnergyStationController : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private SceneLoader sceneLoader;
+    [SerializeField] private ResultPopup resultPopup;
 
     [Header("UI")]
     [SerializeField] private TMP_Text timerLabel;
@@ -19,7 +19,6 @@ public sealed class EnergyStationController : MonoBehaviour
     [SerializeField, Min(1)] private int interactionsToComplete = 3;
     [SerializeField, Min(0.1f)] private float inactivityThresholdSeconds = 2f;
     [SerializeField] private string activityId = "energy_station";
-    [SerializeField] private string resultScene = "Result";
 
     private float elapsedTime;
     private float lastInteractionTime;
@@ -169,9 +168,10 @@ public sealed class EnergyStationController : MonoBehaviour
 
         EventLogger.Instance?.CompleteSession();
 
+        int pointsEarned = 0;
         if (PointsService.Instance != null)
         {
-            PointsService.Instance.AwardParticipation();
+            pointsEarned = PointsService.Instance.AwardParticipation();
         }
         else
         {
@@ -181,14 +181,20 @@ public sealed class EnergyStationController : MonoBehaviour
             );
         }
 
-        if (sceneLoader != null)
+        // Set pending points for animation when entering Hub
+        if (PlayerManager.Instance != null && pointsEarned > 0)
         {
-            sceneLoader.Load(resultScene);
+            PlayerManager.Instance.SetPendingPoints(pointsEarned);
+        }
+
+        if (resultPopup != null)
+        {
+            resultPopup.Show(pointsEarned);
         }
         else
         {
             Debug.LogError(
-                "EnergyStationController: SceneLoader não está configurado no Inspector."
+                "EnergyStationController: ResultPopup não está configurado no Inspector."
             );
         }
     }
