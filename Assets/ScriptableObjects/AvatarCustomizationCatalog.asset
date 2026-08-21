@@ -1,0 +1,269 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c67242130bdcc84bb75c63e25ccde11, type: 3}
+  m_Name: AvatarCustomizationCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::AvatarCustomizationCatalog
+  hairItems:
+  - Id: hair_00
+    Category: 0
+    OptionIndex: 0
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: hair 0
+  - Id: hair_01
+    Category: 0
+    OptionIndex: 1
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: hair 1
+  - Id: hair_02
+    Category: 0
+    OptionIndex: 2
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: hair 2
+  - Id: hair_03
+    Category: 0
+    OptionIndex: 3
+    UnlockType: 1
+    BreakPointCost: 40
+    RequiredLevel: 1
+    DisplayName: hair 3
+  - Id: hair_04
+    Category: 0
+    OptionIndex: 4
+    UnlockType: 1
+    BreakPointCost: 60
+    RequiredLevel: 1
+    DisplayName: hair 4
+  - Id: hair_05
+    Category: 0
+    OptionIndex: 5
+    UnlockType: 1
+    BreakPointCost: 80
+    RequiredLevel: 1
+    DisplayName: hair 5
+  - Id: hair_06
+    Category: 0
+    OptionIndex: 6
+    UnlockType: 1
+    BreakPointCost: 100
+    RequiredLevel: 1
+    DisplayName: hair 6
+  - Id: hair_07
+    Category: 0
+    OptionIndex: 7
+    UnlockType: 1
+    BreakPointCost: 120
+    RequiredLevel: 1
+    DisplayName: hair 7
+  - Id: hair_08
+    Category: 0
+    OptionIndex: 8
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 2
+    DisplayName: hair 8
+  - Id: hair_09
+    Category: 0
+    OptionIndex: 9
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 3
+    DisplayName: hair 9
+  - Id: hair_10
+    Category: 0
+    OptionIndex: 10
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 4
+    DisplayName: hair 10
+  - Id: hair_11
+    Category: 0
+    OptionIndex: 11
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 5
+    DisplayName: hair 11
+  outfitItems:
+  - Id: outfit_00
+    Category: 1
+    OptionIndex: 0
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: outfit 0
+  - Id: outfit_01
+    Category: 1
+    OptionIndex: 1
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: outfit 1
+  - Id: outfit_02
+    Category: 1
+    OptionIndex: 2
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: outfit 2
+  - Id: outfit_03
+    Category: 1
+    OptionIndex: 3
+    UnlockType: 1
+    BreakPointCost: 40
+    RequiredLevel: 1
+    DisplayName: outfit 3
+  - Id: outfit_04
+    Category: 1
+    OptionIndex: 4
+    UnlockType: 1
+    BreakPointCost: 60
+    RequiredLevel: 1
+    DisplayName: outfit 4
+  - Id: outfit_05
+    Category: 1
+    OptionIndex: 5
+    UnlockType: 1
+    BreakPointCost: 80
+    RequiredLevel: 1
+    DisplayName: outfit 5
+  - Id: outfit_06
+    Category: 1
+    OptionIndex: 6
+    UnlockType: 1
+    BreakPointCost: 100
+    RequiredLevel: 1
+    DisplayName: outfit 6
+  - Id: outfit_07
+    Category: 1
+    OptionIndex: 7
+    UnlockType: 1
+    BreakPointCost: 120
+    RequiredLevel: 1
+    DisplayName: outfit 7
+  - Id: outfit_08
+    Category: 1
+    OptionIndex: 8
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 2
+    DisplayName: outfit 8
+  - Id: outfit_09
+    Category: 1
+    OptionIndex: 9
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 3
+    DisplayName: outfit 9
+  - Id: outfit_10
+    Category: 1
+    OptionIndex: 10
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 4
+    DisplayName: outfit 10
+  - Id: outfit_11
+    Category: 1
+    OptionIndex: 11
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 5
+    DisplayName: outfit 11
+  accessoryItems:
+  - Id: accessory_00
+    Category: 2
+    OptionIndex: 0
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: accessory 0
+  - Id: accessory_01
+    Category: 2
+    OptionIndex: 1
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: accessory 1
+  - Id: accessory_02
+    Category: 2
+    OptionIndex: 2
+    UnlockType: 0
+    BreakPointCost: 0
+    RequiredLevel: 1
+    DisplayName: accessory 2
+  - Id: accessory_03
+    Category: 2
+    OptionIndex: 3
+    UnlockType: 1
+    BreakPointCost: 40
+    RequiredLevel: 1
+    DisplayName: accessory 3
+  - Id: accessory_04
+    Category: 2
+    OptionIndex: 4
+    UnlockType: 1
+    BreakPointCost: 60
+    RequiredLevel: 1
+    DisplayName: accessory 4
+  - Id: accessory_05
+    Category: 2
+    OptionIndex: 5
+    UnlockType: 1
+    BreakPointCost: 80
+    RequiredLevel: 1
+    DisplayName: accessory 5
+  - Id: accessory_06
+    Category: 2
+    OptionIndex: 6
+    UnlockType: 1
+    BreakPointCost: 100
+    RequiredLevel: 1
+    DisplayName: accessory 6
+  - Id: accessory_07
+    Category: 2
+    OptionIndex: 7
+    UnlockType: 1
+    BreakPointCost: 120
+    RequiredLevel: 1
+    DisplayName: accessory 7
+  - Id: accessory_08
+    Category: 2
+    OptionIndex: 8
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 2
+    DisplayName: accessory 8
+  - Id: accessory_09
+    Category: 2
+    OptionIndex: 9
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 3
+    DisplayName: accessory 9
+  - Id: accessory_10
+    Category: 2
+    OptionIndex: 10
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 4
+    DisplayName: accessory 10
+  - Id: accessory_11
+    Category: 2
+    OptionIndex: 11
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 5
+    DisplayName: accessory 11
