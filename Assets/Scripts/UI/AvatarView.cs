@@ -12,7 +12,6 @@ public sealed class AvatarView : MonoBehaviour
     [SerializeField] private Sprite[] outfitOptions;
     [SerializeField] private Sprite[] accessoryOptions;
     [SerializeField] private Animator animator;
-    [SerializeField] private AvatarReactionAnimation reactionAnimation;
 
     public int GetNextBodyIndex(int current, int direction) => GetNextIndex(current, direction, bodyOptions);
     public int GetNextHairIndex(int current, int direction) => GetNextIndex(current, direction, hairOptions);
@@ -35,7 +34,6 @@ public sealed class AvatarView : MonoBehaviour
         if (animator != null && !string.IsNullOrWhiteSpace(triggerName))
             animator.SetTrigger(triggerName);
 
-        reactionAnimation?.Play();
     }
 
     private static int GetNextIndex(int current, int direction, Sprite[] options)

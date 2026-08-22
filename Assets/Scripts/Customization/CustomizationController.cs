@@ -1,3 +1,4 @@
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,6 +8,9 @@ using UnityEngine.UI;
 /// Locked items (Break Points or Level) are checked against the catalog before
 /// a selection is applied; PB items open a short confirmation, Level items just
 /// explain what's needed.
+///
+/// Orchestrates the customization screen, option selection, unlock rules,
+/// purchase confirmation and preview persistence.
 /// </summary>
 public sealed class CustomizationController : MonoBehaviour
 {
@@ -43,6 +47,16 @@ public sealed class CustomizationController : MonoBehaviour
     [SerializeField] private Button purchaseConfirmYesButton;
     [SerializeField] private Button purchaseConfirmNoButton;
 
+    [Header("Purchase Panel Animation")]
+    [Tooltip("Duration of purchase panel entrance")]
+    [SerializeField, Min(0.05f)] private float purchasePanelEnterDuration = 0.25f;
+
+    [Tooltip("Duration of purchase panel exit")]
+    [SerializeField, Min(0.05f)] private float purchasePanelExitDuration = 0.2f;
+
+    [Tooltip("Scale factor for purchase panel entrance")]
+    [SerializeField, Min(1f)] private float purchasePanelEnterScale = 1.1f;
+
     private readonly AvatarCustomizationData previewData = new AvatarCustomizationData();
     private AvatarCustomizationCategory selectedCategory = AvatarCustomizationCategory.Hair;
     private AvatarCustomizationItem pendingPurchaseItem;
@@ -53,6 +67,12 @@ public sealed class CustomizationController : MonoBehaviour
     private AvatarOptionButton[] outfitButtons;
     private AvatarOptionButton[] accessoryButtons;
 
+    // Cached RectTransform for purchase panel animation
+    private RectTransform _purchasePanelRect;
+
+    // Cached CanvasGroup for fade animation
+    private CanvasGroup _purchasePanelCanvasGroup;
+
     private void Start()
     {
         CopyFromSavedAvatar();
@@ -61,12 +81,38 @@ public sealed class CustomizationController : MonoBehaviour
         BindButtons();
         RefreshVisibleOptions();
         RefreshLockVisuals();
+        CachePanelReferences();
+
+        // Ensure purchase panel starts hidden
+        if (purchaseConfirmPanel != null)
+            purchaseConfirmPanel.SetActive(false);
+
     }
 
     private void OnDestroy()
     {
         UnbindButtons();
     }
+
+    /// <summary>
+    /// Caches RectTransform and CanvasGroup for the purchase panel.
+    /// </summary>
+    private void CachePanelReferences()
+    {
+        if (purchaseConfirmPanel == null) return;
+
+        _purchasePanelRect = purchaseConfirmPanel.GetComponent<RectTransform>();
+        if (_purchasePanelRect == null)
+            _purchasePanelRect = purchaseConfirmPanel.GetComponentInParent<RectTransform>();
+
+        _purchasePanelCanvasGroup = purchaseConfirmPanel.GetComponent<CanvasGroup>();
+        if (_purchasePanelCanvasGroup == null && _purchasePanelRect != null)
+            _purchasePanelCanvasGroup = purchaseConfirmPanel.AddComponent<CanvasGroup>();
+    }
+
+    // ============================================================
+    // TAB SWITCHING
+    // ============================================================
 
     public void SelectHair()
     {
@@ -85,6 +131,10 @@ public sealed class CustomizationController : MonoBehaviour
         selectedCategory = AvatarCustomizationCategory.Accessory;
         RefreshVisibleOptions();
     }
+
+    // ============================================================
+    // OPTION SELECTION
+    // ============================================================
 
     /// <summary>
     /// Entry point for swatch buttons. Checks the catalog first: unlocked items
@@ -132,7 +182,44 @@ public sealed class CustomizationController : MonoBehaviour
         }
 
         ApplyPreview();
+
+        // Play selection confirmed animation on the clicked button
+        AnimateSelectionConfirmed(optionIndex);
+
     }
+
+    /// <summary>
+    /// Animates the selection confirmed on a specific option button.
+    /// </summary>
+    private void AnimateSelectionConfirmed(int optionIndex)
+    {
+        AvatarOptionButton[] buttons = GetButtonsForCategory(selectedCategory);
+        if (buttons == null) return;
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            if (buttons[i] != null && buttons[i].OptionIndex == optionIndex)
+            {
+                buttons[i].AnimateSelectionConfirmed();
+                break;
+            }
+        }
+    }
+
+    private AvatarOptionButton[] GetButtonsForCategory(AvatarCustomizationCategory category)
+    {
+        return category switch
+        {
+            AvatarCustomizationCategory.Hair => hairButtons,
+            AvatarCustomizationCategory.Outfit => outfitButtons,
+            AvatarCustomizationCategory.Accessory => accessoryButtons,
+            _ => null
+        };
+    }
+
+    // ============================================================
+    // CONFIRM / CANCEL
+    // ============================================================
 
     public void Confirm()
     {
@@ -146,6 +233,7 @@ public sealed class CustomizationController : MonoBehaviour
 
         PlayerManager.Instance.SaveProfile();
         AudioManager.Instance?.PlayConfirm();
+
         sceneLoader?.Load(profileScene);
     }
 
@@ -155,42 +243,80 @@ public sealed class CustomizationController : MonoBehaviour
         // so simply leaving without calling Confirm() already discards every change
         // made this session and keeps whatever was saved before entering this scene.
         AudioManager.Instance?.PlayClick();
+
         sceneLoader?.Load(profileScene);
     }
 
     public void Back() => Cancel();
 
+
+
+    // ============================================================
+    // PURCHASE FLOW
+    // ============================================================
+
     /// <summary>Confirms the pending Break Points purchase (wire to the Yes button).</summary>
     public void ConfirmPurchase()
     {
-        purchaseConfirmPanel?.SetActive(false);
-
         AvatarCustomizationItem item = pendingPurchaseItem;
         pendingPurchaseItem = null;
 
         if (item == null || PlayerManager.Instance == null)
+        {
+            purchaseConfirmPanel?.SetActive(false);
             return;
+        }
 
         if (!PlayerManager.Instance.TrySpendBreakPoints(item.BreakPointCost))
         {
             ShowFeedback("PB insuficiente.");
+            AnimatePurchasePanelExit();
             return;
         }
 
         PlayerManager.Instance.UnlockCustomization(item.Id);
         PlayerManager.Instance.SaveProfile();
 
-        SelectOption(item.OptionIndex);
-        RefreshLockVisuals();
-        ShowFeedback($"{DisplayNameOrFallback(item)} desbloqueado!");
+        // Animate panel exit, then update visuals
+        AnimatePurchasePanelExit(() =>
+        {
+            SelectOption(item.OptionIndex);
+            RefreshLockVisuals();
+            ShowFeedback($"{DisplayNameOrFallback(item)} desbloqueado!");
+
+            // Animate the newly unlocked button
+            AnimateUnlockedButton(item.OptionIndex);
+        });
     }
 
     /// <summary>Cancels the pending Break Points purchase (wire to the No button).</summary>
     public void CancelPurchase()
     {
         pendingPurchaseItem = null;
-        purchaseConfirmPanel?.SetActive(false);
+        AnimatePurchasePanelExit();
     }
+
+    /// <summary>
+    /// Animates a newly unlocked button after purchase.
+    /// </summary>
+    private void AnimateUnlockedButton(int optionIndex)
+    {
+        AvatarOptionButton[] buttons = GetButtonsForCategory(selectedCategory);
+        if (buttons == null) return;
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            if (buttons[i] != null && buttons[i].OptionIndex == optionIndex)
+            {
+                buttons[i].AnimateUnlock();
+                break;
+            }
+        }
+    }
+
+    // ============================================================
+    // PRIVATE HELPERS
+    // ============================================================
 
     private bool IsItemUnlocked(AvatarCustomizationItem item)
     {
@@ -251,7 +377,110 @@ public sealed class CustomizationController : MonoBehaviour
         if (purchaseConfirmLabel != null)
             purchaseConfirmLabel.text = $"Comprar {DisplayNameOrFallback(item)} por {item.BreakPointCost} PB?";
 
+        AnimatePurchasePanelEnter();
+    }
+
+    /// <summary>
+    /// Animates the purchase confirmation panel entrance with scale + fade.
+    /// </summary>
+    private void AnimatePurchasePanelEnter()
+    {
+        if (purchaseConfirmPanel == null) return;
+
+        // Activate panel
         purchaseConfirmPanel.SetActive(true);
+
+        // Setup CanvasGroup if not cached
+        if (_purchasePanelCanvasGroup == null)
+        {
+            _purchasePanelCanvasGroup = purchaseConfirmPanel.GetComponent<CanvasGroup>();
+            if (_purchasePanelCanvasGroup == null)
+                _purchasePanelCanvasGroup = purchaseConfirmPanel.AddComponent<CanvasGroup>();
+        }
+
+        // Setup RectTransform if not cached
+        if (_purchasePanelRect == null)
+        {
+            _purchasePanelRect = purchaseConfirmPanel.GetComponent<RectTransform>();
+            if (_purchasePanelRect == null)
+                _purchasePanelRect = purchaseConfirmPanel.GetComponentInParent<RectTransform>();
+        }
+
+        // Kill any existing tweens
+        _purchasePanelCanvasGroup.DOKill();
+        _purchasePanelRect?.DOKill();
+
+        // Set initial state
+        _purchasePanelCanvasGroup.alpha = 0f;
+        _purchasePanelRect.localScale = Vector3.one * purchasePanelEnterScale;
+
+        // Animate in
+        var seq = DOTween.Sequence();
+        seq.SetUpdate(UpdateType.Late);
+
+        // Fade in
+        seq.Join(_purchasePanelCanvasGroup.DOFade(1f, purchasePanelEnterDuration)
+            .SetEase(Ease.OutQuad)
+            .SetUpdate(UpdateType.Late));
+
+        // Scale down from overshoot
+        seq.Join(_purchasePanelRect.DOScale(Vector3.one, purchasePanelEnterDuration)
+            .SetEase(Ease.OutBack)
+            .SetUpdate(UpdateType.Late));
+
+        seq.Play();
+    }
+
+    /// <summary>
+    /// Animates the purchase confirmation panel exit with scale + fade.
+    /// </summary>
+    private void AnimatePurchasePanelExit(System.Action onComplete = null)
+    {
+        if (purchaseConfirmPanel == null)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        // Setup references if needed
+        if (_purchasePanelCanvasGroup == null)
+            _purchasePanelCanvasGroup = purchaseConfirmPanel.GetComponent<CanvasGroup>();
+        if (_purchasePanelRect == null)
+            _purchasePanelRect = purchaseConfirmPanel.GetComponent<RectTransform>();
+
+        if (_purchasePanelCanvasGroup == null || _purchasePanelRect == null)
+        {
+            purchaseConfirmPanel.SetActive(false);
+            onComplete?.Invoke();
+            return;
+        }
+
+        // Kill any existing tweens
+        _purchasePanelCanvasGroup.DOKill();
+        _purchasePanelRect.DOKill();
+
+        var seq = DOTween.Sequence();
+        seq.SetUpdate(UpdateType.Late);
+
+        // Fade out
+        seq.Join(_purchasePanelCanvasGroup.DOFade(0f, purchasePanelExitDuration)
+            .SetEase(Ease.InQuad)
+            .SetUpdate(UpdateType.Late));
+
+        // Scale up slightly before disappearing
+        seq.Join(_purchasePanelRect.DOScale(Vector3.one * 0.95f, purchasePanelExitDuration)
+            .SetEase(Ease.InQuad)
+            .SetUpdate(UpdateType.Late));
+
+        seq.OnComplete(() =>
+        {
+            purchaseConfirmPanel.SetActive(false);
+            // Reset scale for next time
+            _purchasePanelRect.localScale = Vector3.one;
+            onComplete?.Invoke();
+        });
+
+        seq.Play();
     }
 
     private static string DisplayNameOrFallback(AvatarCustomizationItem item)
@@ -262,7 +491,27 @@ public sealed class CustomizationController : MonoBehaviour
     private void ShowFeedback(string message)
     {
         if (feedbackLabel != null)
+        {
             feedbackLabel.text = message;
+
+            // Animate feedback text
+            var cg = feedbackLabel.GetComponent<CanvasGroup>();
+            if (cg == null)
+                cg = feedbackLabel.gameObject.AddComponent<CanvasGroup>();
+
+            cg.alpha = 0f;
+            cg.DOFade(1f, 0.2f)
+                .SetEase(Ease.OutQuad)
+                .SetUpdate(UpdateType.Late)
+                .OnComplete(() =>
+                {
+                    // Fade out after delay
+                    cg.DOFade(0f, 0.3f)
+                        .SetDelay(1.5f)
+                        .SetEase(Ease.InQuad)
+                        .SetUpdate(UpdateType.Late);
+                });
+        }
     }
 
     private void CopyFromSavedAvatar()
