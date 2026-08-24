@@ -81,6 +81,12 @@ public sealed class PlayerManager : MonoBehaviour
     /// </summary>
     public bool TrySpendBreakPoints(int amount)
     {
+        // The PlayerManager normally initializes from AppBootstrapper, but the
+        // purchase flow must also be safe if Customization is opened directly
+        // during development/testing.
+        if (Profile == null)
+            Initialize();
+
         if (Profile == null || amount <= 0)
             return false;
 

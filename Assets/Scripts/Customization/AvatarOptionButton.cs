@@ -234,14 +234,13 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         if (_button == null || !_button.interactable)
             return;
 
-        // Locked item.
-        if (_isLocked)
-        {
-            AnimateLockedFeedback();
-            return;
-        }
-
-        // Normal item.
+        // IMPORTANT: we no longer gate on the cached _isLocked flag here.
+        // _isLocked is only refreshed by RefreshLockVisuals() (on scene Start()
+        // and right after a purchase), so it can go stale if the player's
+        // unlock state (e.g. Level) changes without that refresh running.
+        // The click always goes to the controller, which re-checks the catalog
+        // + profile live. If it's actually locked, the controller calls back
+        // into AnimateLockedFeedback() via HandleLockedOptionClicked().
         controller?.HandleOptionClicked(optionIndex);
     }
 
@@ -359,7 +358,12 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     // LOCKED FEEDBACK
     // ============================================================
 
-    private void AnimateLockedFeedback()
+    /// <summary>
+    /// Plays the shake + lock-pulse feedback. Called by CustomizationController
+    /// after it confirms (live, against catalog + profile) that this option is
+    /// actually locked — see HandleLockedOptionClicked().
+    /// </summary>
+    public void AnimateLockedFeedback()
     {
         KillAnimationSequences();
 

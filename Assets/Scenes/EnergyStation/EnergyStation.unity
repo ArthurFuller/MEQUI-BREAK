@@ -2324,6 +2324,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AvatarInteractionReceiver
   avatarView: {fileID: 1998008789}
   stationController: {fileID: 1281164544}
+  itemTemplate: {fileID: 2043999782}
 --- !u!1 &2043999782
 GameObject:
   m_ObjectHideFlags: 0

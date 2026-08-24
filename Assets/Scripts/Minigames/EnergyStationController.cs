@@ -1,3 +1,4 @@
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,12 +21,17 @@ public sealed class EnergyStationController : MonoBehaviour
     [SerializeField, Min(0.1f)] private float inactivityThresholdSeconds = 2f;
     [SerializeField] private string activityId = "energy_station";
 
+    [Header("Progress Animation")]
+    [SerializeField, Min(0.05f)] private float progressAnimationDuration = 0.4f;
+
     private float elapsedTime;
     private float lastInteractionTime;
     private bool gameplayActive;
     private bool sessionActive;
     private bool completeAvailable;
     private int interactionCount;
+    private Tween _progressTween;
+    private float _currentProgressWidth;
 
     private void Awake()
     {
@@ -34,7 +40,7 @@ public sealed class EnergyStationController : MonoBehaviour
 
         SetCompleteButton(false);
         UpdateTimer();
-        UpdateProgress();
+        UpdateProgress(immediate: true);
     }
 
     private void Start()
@@ -80,6 +86,9 @@ public sealed class EnergyStationController : MonoBehaviour
     {
         if (completeButton != null)
             completeButton.onClick.RemoveListener(CompleteSession);
+
+        if (_progressTween != null && _progressTween.IsActive())
+            _progressTween.Kill();
     }
 
     public void RegisterInteraction(string interactionId, string feedbackMessage)
@@ -217,7 +226,7 @@ public sealed class EnergyStationController : MonoBehaviour
         timerLabel.text = Mathf.CeilToInt(remaining).ToString();
     }
 
-    private void UpdateProgress()
+    private void UpdateProgress(bool immediate = false)
     {
         if (progressBackground == null || progressFill == null)
             return;
@@ -230,8 +239,36 @@ public sealed class EnergyStationController : MonoBehaviour
 
         float targetWidth = progressBackground.rect.width * progress;
 
-        Vector2 sizeDelta = progressFill.sizeDelta;
-        sizeDelta.x = targetWidth;
-        progressFill.sizeDelta = sizeDelta;
+        if (immediate || progressAnimationDuration <= 0f)
+        {
+            // Instant update for initialization or when animation disabled
+            Vector2 sizeDelta = progressFill.sizeDelta;
+            sizeDelta.x = targetWidth;
+            progressFill.sizeDelta = sizeDelta;
+            _currentProgressWidth = targetWidth;
+
+            // Kill any running tween
+            if (_progressTween != null && _progressTween.IsActive())
+                _progressTween.Kill();
+        }
+        else
+        {
+            // Animate with DOTween (OutCubic for smooth settle feel)
+            if (_progressTween != null && _progressTween.IsActive())
+                _progressTween.Kill();
+
+            _progressTween = DOTween.To(
+                getter: () => _currentProgressWidth,
+                setter: value =>
+                {
+                    _currentProgressWidth = value;
+                    Vector2 sizeDelta = progressFill.sizeDelta;
+                    sizeDelta.x = value;
+                    progressFill.sizeDelta = sizeDelta;
+                },
+                endValue: targetWidth,
+                duration: progressAnimationDuration
+            ).SetEase(Ease.OutCubic);
+        }
     }
 }

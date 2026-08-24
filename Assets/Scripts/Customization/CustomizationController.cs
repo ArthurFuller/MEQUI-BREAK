@@ -1,5 +1,6 @@
 using DG.Tweening;
 using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -47,6 +48,25 @@ public sealed class CustomizationController : MonoBehaviour
     [SerializeField] private Button purchaseConfirmYesButton;
     [SerializeField] private Button purchaseConfirmNoButton;
 
+    [Header("Option Grid Wave Animation")]
+    [Tooltip("Plays a bottom-to-top wave when a customization category becomes visible.")]
+    [SerializeField] private bool animateOptionWave = true;
+
+    [Tooltip("Duration of each option's entrance movement.")]
+    [SerializeField, Min(0.05f)] private float optionWaveDuration = 0.32f;
+
+    [Tooltip("Delay between options inside the same row.")]
+    [SerializeField, Min(0f)] private float optionWaveItemDelay = 0.045f;
+
+    [Tooltip("Additional delay when the wave advances to the next row.")]
+    [SerializeField, Min(0f)] private float optionWaveRowDelay = 0.08f;
+
+    [Tooltip("How far below the final position each option starts.")]
+    [SerializeField, Min(0f)] private float optionWaveStartOffset = 80f;
+
+    [Tooltip("Ease used by the option entrance movement.")]
+    [SerializeField] private Ease optionWaveEase = Ease.OutCubic;
+
     [Header("Purchase Panel Animation")]
     [Tooltip("Duration of purchase panel entrance")]
     [SerializeField, Min(0.05f)] private float purchasePanelEnterDuration = 0.25f;
@@ -73,6 +93,19 @@ public sealed class CustomizationController : MonoBehaviour
     // Cached CanvasGroup for fade animation
     private CanvasGroup _purchasePanelCanvasGroup;
 
+    // Single DOTween Sequence controlling the currently visible option wave.
+    private Sequence _optionWaveSequence;
+    private readonly List<OptionWaveTarget> _activeOptionWaveTargets = new List<OptionWaveTarget>();
+
+    private sealed class OptionWaveTarget
+    {
+        public RectTransform RectTransform;
+        public CanvasGroup CanvasGroup;
+        public Vector2 FinalPosition;
+        public float X;
+        public float Y;
+    }
+
     private void Start()
     {
         CopyFromSavedAvatar();
@@ -82,6 +115,7 @@ public sealed class CustomizationController : MonoBehaviour
         RefreshVisibleOptions();
         RefreshLockVisuals();
         CachePanelReferences();
+        PlayOptionWave();
 
         // Ensure purchase panel starts hidden
         if (purchaseConfirmPanel != null)
@@ -89,8 +123,16 @@ public sealed class CustomizationController : MonoBehaviour
 
     }
 
+    private void OnDisable()
+    {
+        // Restore any in-progress wave so disabling/re-enabling the screen
+        // cannot leave options offset or transparent.
+        KillOptionWave(true);
+    }
+
     private void OnDestroy()
     {
+        KillOptionWave(false);
         UnbindButtons();
     }
 
@@ -118,18 +160,21 @@ public sealed class CustomizationController : MonoBehaviour
     {
         selectedCategory = AvatarCustomizationCategory.Hair;
         RefreshVisibleOptions();
+        PlayOptionWave();
     }
 
     public void SelectOutfit()
     {
         selectedCategory = AvatarCustomizationCategory.Outfit;
         RefreshVisibleOptions();
+        PlayOptionWave();
     }
 
     public void SelectAccessory()
     {
         selectedCategory = AvatarCustomizationCategory.Accessory;
         RefreshVisibleOptions();
+        PlayOptionWave();
     }
 
     // ============================================================
@@ -258,33 +303,58 @@ public sealed class CustomizationController : MonoBehaviour
     /// <summary>Confirms the pending Break Points purchase (wire to the Yes button).</summary>
     public void ConfirmPurchase()
     {
+        // Keep a local reference until the transaction has completed. This is
+        // important because the confirmation panel is animated out and the
+        // pending item must never be lost before the purchase is processed.
         AvatarCustomizationItem item = pendingPurchaseItem;
-        pendingPurchaseItem = null;
 
-        if (item == null || PlayerManager.Instance == null)
+        if (item == null)
         {
-            purchaseConfirmPanel?.SetActive(false);
-            return;
-        }
-
-        if (!PlayerManager.Instance.TrySpendBreakPoints(item.BreakPointCost))
-        {
-            ShowFeedback("PB insuficiente.");
+            ShowFeedback("Nenhum item de compra selecionado.");
             AnimatePurchasePanelExit();
             return;
         }
 
-        PlayerManager.Instance.UnlockCustomization(item.Id);
-        PlayerManager.Instance.SaveProfile();
+        PlayerManager player = PlayerManager.Instance;
+        if (player == null)
+        {
+            ShowFeedback("Sistema de jogador indisponível.");
+            AnimatePurchasePanelExit();
+            return;
+        }
 
-        // Animate panel exit, then update visuals
+        // Do not clear pendingPurchaseItem until the transaction has actually
+        // succeeded. This makes repeated clicks and UI animation safe.
+        if (item.UnlockType != AvatarUnlockType.BreakPoints)
+        {
+            pendingPurchaseItem = null;
+            AnimatePurchasePanelExit();
+            return;
+        }
+
+        if (!player.TrySpendBreakPoints(item.BreakPointCost))
+        {
+            // Purchase was rejected: no profile data is changed and the item
+            // remains locked. This is the expected result for insufficient PB.
+            ShowFeedback($"PB insuficiente. Necessário: {item.BreakPointCost} PB.");
+            pendingPurchaseItem = null;
+            AnimatePurchasePanelExit();
+            RefreshLockVisuals();
+            return;
+        }
+
+        // Transaction succeeded: unlock the catalog item and persist both the
+        // new unlock and the reduced spendable PB balance.
+        player.UnlockCustomization(item.Id);
+        player.SaveProfile();
+        pendingPurchaseItem = null;
+
+        // Update the UI only after the transaction has succeeded.
         AnimatePurchasePanelExit(() =>
         {
             SelectOption(item.OptionIndex);
             RefreshLockVisuals();
             ShowFeedback($"{DisplayNameOrFallback(item)} desbloqueado!");
-
-            // Animate the newly unlocked button
             AnimateUnlockedButton(item.OptionIndex);
         });
     }
@@ -352,6 +422,11 @@ public sealed class CustomizationController : MonoBehaviour
             return;
         }
 
+        // The button itself no longer decides "locked" on its own cached state —
+        // we just confirmed it live here, so tell the button to play the shake/
+        // pulse feedback now.
+        AnimateLockedFeedbackOnButton(optionIndex);
+
         if (item.UnlockType == AvatarUnlockType.Level)
         {
             ShowFeedback($"Disponível no nível {item.RequiredLevel}.");
@@ -360,6 +435,25 @@ public sealed class CustomizationController : MonoBehaviour
 
         if (item.UnlockType == AvatarUnlockType.BreakPoints)
             OpenPurchaseConfirmation(item);
+    }
+
+    /// <summary>
+    /// Plays the locked-feedback animation on the swatch button matching
+    /// optionIndex in the currently selected category.
+    /// </summary>
+    private void AnimateLockedFeedbackOnButton(int optionIndex)
+    {
+        AvatarOptionButton[] buttons = GetButtonsForCategory(selectedCategory);
+        if (buttons == null) return;
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            if (buttons[i] != null && buttons[i].OptionIndex == optionIndex)
+            {
+                buttons[i].AnimateLockedFeedback();
+                break;
+            }
+        }
     }
 
     private void OpenPurchaseConfirmation(AvatarCustomizationItem item)
@@ -529,6 +623,170 @@ public sealed class CustomizationController : MonoBehaviour
     private void ApplyPreview()
     {
         avatarPreview?.Apply(previewData);
+    }
+
+    /// <summary>
+    /// Plays the customization option entrance as a spatial wave.
+    /// The actual GridLayoutGroup remains untouched: we first force Unity to
+    /// calculate the final layout, capture those positions, then animate each
+    /// visible option from below back to its final position.
+    ///
+    /// Ordering is based on the real anchored positions, not the Hierarchy
+    /// order. The bottom row is animated first, left-to-right, followed by the
+    /// next row upward. This makes the effect resilient to GridLayoutGroup
+    /// Start Corner / child ordering changes.
+    /// </summary>
+    private void PlayOptionWave()
+    {
+        if (!animateOptionWave)
+            return;
+
+        AvatarOptionButton[] buttons = GetButtonsForCategory(selectedCategory);
+        if (buttons == null || buttons.Length == 0)
+            return;
+
+        KillOptionWave(true);
+
+        Canvas.ForceUpdateCanvases();
+
+        List<OptionWaveTarget> targets = new List<OptionWaveTarget>(buttons.Length);
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            AvatarOptionButton button = buttons[i];
+            if (button == null || !button.gameObject.activeInHierarchy)
+                continue;
+
+            RectTransform rect = button.GetComponent<RectTransform>();
+            if (rect == null)
+                continue;
+
+            CanvasGroup canvasGroup = button.GetComponent<CanvasGroup>();
+            if (canvasGroup == null)
+                canvasGroup = button.gameObject.AddComponent<CanvasGroup>();
+
+            Vector2 finalPosition = rect.anchoredPosition;
+
+            targets.Add(new OptionWaveTarget
+            {
+                RectTransform = rect,
+                CanvasGroup = canvasGroup,
+                FinalPosition = finalPosition,
+                X = finalPosition.x,
+                Y = finalPosition.y
+            });
+        }
+
+        if (targets.Count == 0)
+            return;
+
+        _activeOptionWaveTargets.Clear();
+        _activeOptionWaveTargets.AddRange(targets);
+
+        // Sort by actual screen/layout position: bottom first, then left-to-right.
+        targets.Sort((a, b) =>
+        {
+            int yCompare = a.Y.CompareTo(b.Y);
+            if (yCompare != 0)
+                return yCompare;
+
+            return a.X.CompareTo(b.X);
+        });
+
+        _optionWaveSequence = DOTween.Sequence();
+        _optionWaveSequence.SetUpdate(UpdateType.Late);
+
+        float currentDelay = 0f;
+        float previousY = targets[0].Y;
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            OptionWaveTarget target = targets[i];
+
+            // A meaningful Y change means the wave has moved to another row.
+            // The GridLayoutGroup gives all items in the same row the same Y.
+            if (i > 0)
+            {
+                bool newRow = !Mathf.Approximately(target.Y, previousY);
+                currentDelay += newRow ? optionWaveRowDelay : optionWaveItemDelay;
+            }
+
+            previousY = target.Y;
+
+            target.CanvasGroup.DOKill();
+            target.RectTransform.DOKill();
+
+            target.CanvasGroup.alpha = 0f;
+            target.RectTransform.anchoredPosition =
+                target.FinalPosition + Vector2.down * optionWaveStartOffset;
+
+            Tween moveTween = target.RectTransform
+                .DOAnchorPos(target.FinalPosition, optionWaveDuration)
+                .SetEase(optionWaveEase)
+                .SetUpdate(UpdateType.Late);
+
+            Tween fadeTween = target.CanvasGroup
+                .DOFade(1f, optionWaveDuration * 0.75f)
+                .SetEase(Ease.OutQuad)
+                .SetUpdate(UpdateType.Late);
+
+            _optionWaveSequence.Insert(currentDelay, moveTween);
+            _optionWaveSequence.Insert(currentDelay, fadeTween);
+        }
+
+        _optionWaveSequence.OnComplete(() =>
+        {
+            for (int i = 0; i < targets.Count; i++)
+            {
+                OptionWaveTarget target = targets[i];
+                if (target.RectTransform != null)
+                    target.RectTransform.anchoredPosition = target.FinalPosition;
+                if (target.CanvasGroup != null)
+                    target.CanvasGroup.alpha = 1f;
+            }
+
+            _activeOptionWaveTargets.Clear();
+            _optionWaveSequence = null;
+        });
+
+        _optionWaveSequence.Play();
+    }
+
+    private void KillOptionWave(bool restoreTargets)
+    {
+        if (_optionWaveSequence != null && _optionWaveSequence.IsActive())
+        {
+            _optionWaveSequence.Kill(false);
+        }
+
+        _optionWaveSequence = null;
+
+        if (!restoreTargets)
+        {
+            _activeOptionWaveTargets.Clear();
+            return;
+        }
+
+        for (int i = 0; i < _activeOptionWaveTargets.Count; i++)
+        {
+            OptionWaveTarget target = _activeOptionWaveTargets[i];
+            if (target == null)
+                continue;
+
+            if (target.RectTransform != null)
+            {
+                target.RectTransform.DOKill();
+                target.RectTransform.anchoredPosition = target.FinalPosition;
+            }
+
+            if (target.CanvasGroup != null)
+            {
+                target.CanvasGroup.DOKill();
+                target.CanvasGroup.alpha = 1f;
+            }
+        }
+
+        _activeOptionWaveTargets.Clear();
     }
 
     private void RefreshVisibleOptions()
