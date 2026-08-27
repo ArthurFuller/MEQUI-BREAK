@@ -14,7 +14,7 @@ using UnityEngine.UI;
 /// - Press: scale down slightly
 /// - Release: scale up with overshoot
 /// - Click confirmed: pop + punch
-/// - Locked attempt: shake + lock overlay pulse
+/// - Locked attempt: shake only
 /// </summary>
 [RequireComponent(typeof(Button))]
 [RequireComponent(typeof(RectTransform))]
@@ -71,15 +71,12 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     [SerializeField, Min(0.01f)]
     private float shakeDuration = 0.3f;
 
-    [Tooltip("Lock overlay pulse duration when locked")]
-    [SerializeField, Min(0.01f)]
-    private float lockPulseDuration = 0.15f;
-
     // Internal state
     private Button _button;
     private RectTransform _rectTransform;
 
     private Vector3 _originalScale;
+    private Quaternion _originalRotation;
 
     private bool _isLocked;
 
@@ -99,6 +96,7 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         _rectTransform = GetComponent<RectTransform>();
 
         _originalScale = _rectTransform.localScale;
+        _originalRotation = _rectTransform.localRotation;
 
         if (controller == null)
         {
@@ -153,12 +151,9 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
         if (lockOverlay != null)
         {
+            // Preserve the UnlockOverlay alpha exactly as configured in the Inspector.
+            // Locked-state refresh only controls visibility; it never changes alpha.
             lockOverlay.SetActive(isLocked);
-
-            if (isLocked)
-            {
-                ResetCanvasGroupAlpha(lockOverlay);
-            }
         }
 
         if (unlockLabel != null)
@@ -172,7 +167,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
             if (showLabel)
             {
                 unlockLabel.text = label;
-                ResetCanvasGroupAlpha(unlockLabel.gameObject);
             }
         }
 
@@ -218,15 +212,31 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         if (_button == null || !_button.interactable)
             return;
 
+        // Locked items never start the normal press animation, so there is
+        // nothing to release when the pointer exits.
+        if (_isLocked)
+            return;
+
         KillPressTween();
 
-        if (_rectTransform != null)
-        {
+        if (_rectTransform == null)
+            return;
+
+        // Pointer exit is a cancelled press, so return using the same release
+        // timing as PointerUp, but without the click overshoot. Keep it inside
+        // the tracked press sequence so subsequent interactions can kill it
+        // cleanly instead of leaving an independent scale tween running.
+        _pressSequence = DOTween.Sequence();
+        _pressSequence.SetUpdate(UpdateType.Late);
+
+        _pressSequence.Append(
             _rectTransform
-                .DOScale(_originalScale, pressDuration)
+                .DOScale(_originalScale, releaseDuration)
                 .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late);
-        }
+                .SetUpdate(UpdateType.Late)
+        );
+
+        _pressSequence.Play();
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -359,109 +369,51 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     // ============================================================
 
     /// <summary>
-    /// Plays the shake + lock-pulse feedback. Called by CustomizationController
+    /// Plays the locked-item shake feedback. Called by CustomizationController
     /// after it confirms (live, against catalog + profile) that this option is
     /// actually locked — see HandleLockedOptionClicked().
     /// </summary>
-    public void AnimateLockedFeedback()
+    public void AnimateLockedFeedback(System.Action onComplete = null)
     {
+        // Locked feedback intentionally uses SHAKE only.
+        // Use localRotation instead of anchoredPosition because these buttons
+        // are children of a GridLayoutGroup and PlayOptionWave also animates
+        // anchoredPosition. Shaking position here would make multiple systems
+        // compete for the same RectTransform property.
+        // Do not fade or pulse the lock overlay/label here.
         KillAnimationSequences();
+
+        if (_rectTransform == null)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        _rectTransform.localRotation = _originalRotation;
 
         _lockedSequence = DOTween.Sequence();
         _lockedSequence.SetUpdate(UpdateType.Late);
 
-        // Shake button.
         _lockedSequence.Append(
             _rectTransform
-                .DOShakeAnchorPos(
+                .DOShakeRotation(
                     shakeDuration,
-                    shakeStrength,
+                    new Vector3(0f, 0f, shakeStrength),
                     20,
                     90f,
-                    false,
                     true
                 )
                 .SetEase(Ease.OutQuad)
                 .SetUpdate(UpdateType.Late)
         );
 
-        // Pulse lock overlay.
-        if (lockOverlay != null &&
-            lockOverlay.activeInHierarchy)
+        _lockedSequence.OnComplete(() =>
         {
-            CanvasGroup lockCanvasGroup =
-                lockOverlay.GetComponent<CanvasGroup>();
+            if (_rectTransform != null)
+                _rectTransform.localRotation = _originalRotation;
 
-            if (lockCanvasGroup == null)
-            {
-                lockCanvasGroup =
-                    lockOverlay.AddComponent<CanvasGroup>();
-            }
-
-            lockCanvasGroup.alpha = 1f;
-
-            _lockPulseTween?.Kill(true);
-
-            _lockPulseTween =
-                lockCanvasGroup
-                    .DOFade(
-                        0.3f,
-                        lockPulseDuration
-                    )
-                    .SetEase(Ease.OutQuad)
-                    .SetLoops(
-                        2,
-                        LoopType.Yoyo
-                    )
-                    .SetUpdate(UpdateType.Late)
-                    .OnComplete(() =>
-                    {
-                        if (lockCanvasGroup != null)
-                        {
-                            lockCanvasGroup.alpha = 1f;
-                        }
-                    });
-
-            _lockedSequence.Join(_lockPulseTween);
-        }
-
-        // Pulse unlock label.
-        if (unlockLabel != null &&
-            unlockLabel.gameObject.activeInHierarchy)
-        {
-            CanvasGroup labelCanvasGroup =
-                unlockLabel.GetComponent<CanvasGroup>();
-
-            if (labelCanvasGroup == null)
-            {
-                labelCanvasGroup =
-                    unlockLabel.gameObject.AddComponent<CanvasGroup>();
-            }
-
-            labelCanvasGroup.alpha = 1f;
-
-            _lockedSequence.Join(
-                labelCanvasGroup
-                    .DOFade(
-                        0.3f,
-                        lockPulseDuration
-                    )
-                    .SetEase(Ease.OutQuad)
-                    .SetLoops(
-                        2,
-                        LoopType.Yoyo
-                    )
-                    .SetUpdate(UpdateType.Late)
-                    .OnComplete(() =>
-                    {
-                        if (labelCanvasGroup != null)
-                        {
-                            labelCanvasGroup.alpha = 1f;
-                        }
-                    })
-            );
-        }
-
+            onComplete?.Invoke();
+        });
         _lockedSequence.Play();
     }
 
@@ -481,70 +433,17 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         Sequence seq = DOTween.Sequence();
         seq.SetUpdate(UpdateType.Late);
 
-        // Fade out lock overlay.
-        if (lockOverlay != null &&
-            lockOverlay.activeInHierarchy)
+        // UnlockOverlay/UnlockLabel alpha is intentionally never modified.
+        // When the item becomes unlocked, simply hide the lock visuals and preserve
+        // their Inspector alpha (e.g. 0.8) for any future activation.
+        if (lockOverlay != null)
         {
-            CanvasGroup lockCanvasGroup =
-                lockOverlay.GetComponent<CanvasGroup>();
-
-            if (lockCanvasGroup == null)
-            {
-                lockCanvasGroup =
-                    lockOverlay.AddComponent<CanvasGroup>();
-            }
-
-            lockCanvasGroup.alpha = 1f;
-
-            seq.Append(
-                lockCanvasGroup
-                    .DOFade(
-                        0f,
-                        0.25f
-                    )
-                    .SetEase(Ease.OutQuad)
-                    .SetUpdate(UpdateType.Late)
-                    .OnComplete(() =>
-                    {
-                        if (lockOverlay != null)
-                        {
-                            lockOverlay.SetActive(false);
-                        }
-                    })
-            );
+            lockOverlay.SetActive(false);
         }
 
-        // Fade out unlock label.
-        if (unlockLabel != null &&
-            unlockLabel.gameObject.activeInHierarchy)
+        if (unlockLabel != null)
         {
-            CanvasGroup labelCanvasGroup =
-                unlockLabel.GetComponent<CanvasGroup>();
-
-            if (labelCanvasGroup == null)
-            {
-                labelCanvasGroup =
-                    unlockLabel.gameObject.AddComponent<CanvasGroup>();
-            }
-
-            labelCanvasGroup.alpha = 1f;
-
-            seq.Join(
-                labelCanvasGroup
-                    .DOFade(
-                        0f,
-                        0.2f
-                    )
-                    .SetEase(Ease.OutQuad)
-                    .SetUpdate(UpdateType.Late)
-                    .OnComplete(() =>
-                    {
-                        if (unlockLabel != null)
-                        {
-                            unlockLabel.gameObject.SetActive(false);
-                        }
-                    })
-            );
+            unlockLabel.gameObject.SetActive(false);
         }
 
         // Pop after unlocking.
@@ -607,9 +506,15 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         if (_lockedSequence != null &&
             _lockedSequence.IsActive())
         {
-            _lockedSequence.Kill(true);
+            // Do not complete an interrupted locked shake: completing it would
+            // invoke its popup callback early. A new click should restart the
+            // shake and produce only one popup when that shake finishes.
+            _lockedSequence.Kill(false);
             _lockedSequence = null;
         }
+
+        if (_rectTransform != null)
+            _rectTransform.localRotation = _originalRotation;
 
         _lockPulseTween?.Kill(true);
         _lockPulseTween = null;
@@ -629,20 +534,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     // ============================================================
     // HELPERS
     // ============================================================
-
-    private void ResetCanvasGroupAlpha(GameObject target)
-    {
-        if (target == null)
-            return;
-
-        CanvasGroup canvasGroup =
-            target.GetComponent<CanvasGroup>();
-
-        if (canvasGroup != null)
-        {
-            canvasGroup.alpha = 1f;
-        }
-    }
 
     // ============================================================
     // RUNTIME SETTERS

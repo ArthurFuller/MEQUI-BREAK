@@ -1,5 +1,6 @@
 using DG.Tweening;
 using TMPro;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,6 +19,7 @@ public sealed class CustomizationController : MonoBehaviour
     [Header("Scene")]
     [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private string profileScene = "Profile";
+    [SerializeField] private string hubScene = "HUB";
 
     [Header("Preview")]
     [SerializeField] private AvatarView avatarPreview;
@@ -97,6 +99,10 @@ public sealed class CustomizationController : MonoBehaviour
     private Sequence _optionWaveSequence;
     private readonly List<OptionWaveTarget> _activeOptionWaveTargets = new List<OptionWaveTarget>();
 
+    // Single tracked sequence for the temporary feedback label. Replacing it
+    // prevents delayed fade-outs from older messages from fighting newer ones.
+    private Sequence _feedbackSequence;
+
     private sealed class OptionWaveTarget
     {
         public RectTransform RectTransform;
@@ -104,6 +110,18 @@ public sealed class CustomizationController : MonoBehaviour
         public Vector2 FinalPosition;
         public float X;
         public float Y;
+    }
+
+    private void Awake()
+    {
+        // Customization can be loaded additively while the previous scene is still
+        // sliding away. Hide the option cards before the first rendered frame so
+        // they never flash at their final state before the entrance wave begins.
+        // This uses a CanvasGroup on the option root only; it does not rewrite the
+        // Image alpha configured on children such as UnlockOverlay (0.8 in scene).
+        PrepareOptionsHiddenForInitialWave(hairOptions);
+        PrepareOptionsHiddenForInitialWave(outfitOptions);
+        PrepareOptionsHiddenForInitialWave(accessoryOptions);
     }
 
     private void Start()
@@ -115,7 +133,7 @@ public sealed class CustomizationController : MonoBehaviour
         RefreshVisibleOptions();
         RefreshLockVisuals();
         CachePanelReferences();
-        PlayOptionWave();
+        StartCoroutine(PlayInitialOptionWaveWhenReady());
 
         // Ensure purchase panel starts hidden
         if (purchaseConfirmPanel != null)
@@ -123,16 +141,63 @@ public sealed class CustomizationController : MonoBehaviour
 
     }
 
+
+    /// <summary>
+    /// Places option roots in an invisible pre-wave state before the first frame.
+    /// The objects remain active so GridLayoutGroup can calculate their final
+    /// positions normally when PlayOptionWave starts.
+    /// </summary>
+    private void PrepareOptionsHiddenForInitialWave(GameObject[] options)
+    {
+        if (!animateOptionWave || options == null)
+            return;
+
+        for (int i = 0; i < options.Length; i++)
+        {
+            GameObject option = options[i];
+            if (option == null)
+                continue;
+
+            CanvasGroup canvasGroup = option.GetComponent<CanvasGroup>();
+            if (canvasGroup == null)
+                canvasGroup = option.AddComponent<CanvasGroup>();
+
+            // Only the parent CanvasGroup is used as the wave visibility gate.
+            // Child graphic alpha values remain exactly as authored in the scene.
+            canvasGroup.alpha = 0f;
+        }
+    }
+
+
+    /// <summary>
+    /// When Customization is loaded as the incoming side of the global scene
+    /// transition, wait until the slide/scale settles before starting the option
+    /// wave. The wave itself is unchanged; this only prevents two entrance motions
+    /// from playing on top of each other.
+    /// </summary>
+    private IEnumerator PlayInitialOptionWaveWhenReady()
+    {
+        while (SceneLoader.IsTransitionInProgress)
+            yield return null;
+
+        // Let the final layout settle for one frame after the transition root is
+        // reset/unloaded before capturing option positions for the existing wave.
+        yield return null;
+        PlayOptionWave();
+    }
+
     private void OnDisable()
     {
         // Restore any in-progress wave so disabling/re-enabling the screen
         // cannot leave options offset or transparent.
         KillOptionWave(true);
+        KillFeedbackTween();
     }
 
     private void OnDestroy()
     {
         KillOptionWave(false);
+        KillFeedbackTween();
         UnbindButtons();
     }
 
@@ -268,15 +333,33 @@ public sealed class CustomizationController : MonoBehaviour
 
     public void Confirm()
     {
-        AvatarCustomizationData savedAvatar = PlayerManager.Instance?.Profile?.Avatar;
-        if (savedAvatar == null)
+        PlayerManager player = PlayerManager.Instance;
+        if (player == null)
+        {
+            Debug.LogError("CustomizationController.Confirm: PlayerManager.Instance is null. Avatar was not saved.");
             return;
+        }
 
+        // Be defensive when the Customization scene is opened directly during
+        // development/testing or when loading an older profile.
+        if (player.Profile == null)
+            player.Initialize();
+
+        if (player.Profile == null)
+        {
+            Debug.LogError("CustomizationController.Confirm: Player profile is unavailable. Avatar was not saved.");
+            return;
+        }
+
+        player.Profile.Avatar ??= new AvatarCustomizationData();
+
+        AvatarCustomizationData savedAvatar = player.Profile.Avatar;
+        savedAvatar.BodyIndex = previewData.BodyIndex;
         savedAvatar.HairIndex = previewData.HairIndex;
         savedAvatar.OutfitIndex = previewData.OutfitIndex;
         savedAvatar.AccessoryIndex = previewData.AccessoryIndex;
 
-        PlayerManager.Instance.SaveProfile();
+        player.SaveProfile();
         AudioManager.Instance?.PlayConfirm();
 
         sceneLoader?.Load(profileScene);
@@ -289,7 +372,7 @@ public sealed class CustomizationController : MonoBehaviour
         // made this session and keeps whatever was saved before entering this scene.
         AudioManager.Instance?.PlayClick();
 
-        sceneLoader?.Load(profileScene);
+        sceneLoader?.Load(hubScene);
     }
 
     public void Back() => Cancel();
@@ -422,38 +505,54 @@ public sealed class CustomizationController : MonoBehaviour
             return;
         }
 
-        // The button itself no longer decides "locked" on its own cached state —
-        // we just confirmed it live here, so tell the button to play the shake/
-        // pulse feedback now.
-        AnimateLockedFeedbackOnButton(optionIndex);
-
+        // Locked interaction is intentionally sequential: SHAKE first, then the
+        // relevant popup/message. The locked option itself receives no alpha/fade.
         if (item.UnlockType == AvatarUnlockType.Level)
         {
-            ShowFeedback($"Disponível no nível {item.RequiredLevel}.");
+            if (!AnimateLockedFeedbackOnButton(
+                    optionIndex,
+                    () => ShowFeedback($"Disponível no nível {item.RequiredLevel}.")))
+            {
+                ShowFeedback($"Disponível no nível {item.RequiredLevel}.");
+            }
+
             return;
         }
 
         if (item.UnlockType == AvatarUnlockType.BreakPoints)
-            OpenPurchaseConfirmation(item);
+        {
+            if (!AnimateLockedFeedbackOnButton(
+                    optionIndex,
+                    () => OpenPurchaseConfirmation(item)))
+            {
+                OpenPurchaseConfirmation(item);
+            }
+        }
     }
 
     /// <summary>
     /// Plays the locked-feedback animation on the swatch button matching
     /// optionIndex in the currently selected category.
+    /// Returns true when the matching button was found.
     /// </summary>
-    private void AnimateLockedFeedbackOnButton(int optionIndex)
+    private bool AnimateLockedFeedbackOnButton(
+        int optionIndex,
+        System.Action onComplete = null)
     {
         AvatarOptionButton[] buttons = GetButtonsForCategory(selectedCategory);
-        if (buttons == null) return;
+        if (buttons == null)
+            return false;
 
         for (int i = 0; i < buttons.Length; i++)
         {
             if (buttons[i] != null && buttons[i].OptionIndex == optionIndex)
             {
-                buttons[i].AnimateLockedFeedback();
-                break;
+                buttons[i].AnimateLockedFeedback(onComplete);
+                return true;
             }
         }
+
+        return false;
     }
 
     private void OpenPurchaseConfirmation(AvatarCustomizationItem item)
@@ -584,27 +683,44 @@ public sealed class CustomizationController : MonoBehaviour
 
     private void ShowFeedback(string message)
     {
+        if (feedbackLabel == null)
+            return;
+
+        feedbackLabel.text = message;
+
+        var cg = feedbackLabel.GetComponent<CanvasGroup>();
+        if (cg == null)
+            cg = feedbackLabel.gameObject.AddComponent<CanvasGroup>();
+
+        // A new message owns the feedback label completely. Kill the previous
+        // sequence before starting another one so delayed fade-outs cannot
+        // overlap or hide a newer message.
+        KillFeedbackTween();
+        cg.alpha = 0f;
+
+        _feedbackSequence = DOTween.Sequence();
+        _feedbackSequence.SetUpdate(UpdateType.Late);
+        _feedbackSequence.Append(cg.DOFade(1f, 0.2f).SetEase(Ease.OutQuad));
+        _feedbackSequence.AppendInterval(1.5f);
+        _feedbackSequence.Append(cg.DOFade(0f, 0.3f).SetEase(Ease.InQuad));
+        _feedbackSequence.OnComplete(() => _feedbackSequence = null);
+        _feedbackSequence.Play();
+    }
+
+    private void KillFeedbackTween()
+    {
+        if (_feedbackSequence != null && _feedbackSequence.IsActive())
+            _feedbackSequence.Kill();
+
+        _feedbackSequence = null;
+
+        // If the screen is disabled while a feedback message is mid-animation,
+        // leave the temporary label in its neutral hidden state.
         if (feedbackLabel != null)
         {
-            feedbackLabel.text = message;
-
-            // Animate feedback text
-            var cg = feedbackLabel.GetComponent<CanvasGroup>();
-            if (cg == null)
-                cg = feedbackLabel.gameObject.AddComponent<CanvasGroup>();
-
-            cg.alpha = 0f;
-            cg.DOFade(1f, 0.2f)
-                .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late)
-                .OnComplete(() =>
-                {
-                    // Fade out after delay
-                    cg.DOFade(0f, 0.3f)
-                        .SetDelay(1.5f)
-                        .SetEase(Ease.InQuad)
-                        .SetUpdate(UpdateType.Late);
-                });
+            CanvasGroup cg = feedbackLabel.GetComponent<CanvasGroup>();
+            if (cg != null)
+                cg.alpha = 0f;
         }
     }
 
@@ -873,22 +989,17 @@ public sealed class CustomizationController : MonoBehaviour
 
     private void BindButtons()
     {
-        hairButton?.onClick.AddListener(SelectHair);
-        outfitButton?.onClick.AddListener(SelectOutfit);
-        accessoryButton?.onClick.AddListener(SelectAccessory);
+        // Tabs remain wired persistently in the scene. Confirm is intentionally
+        // bound here at runtime so there is one reliable source of truth for the
+        // save action (the persistent Confirm callback is removed from the scene).
         confirmButton?.onClick.AddListener(Confirm);
-        cancelButton?.onClick.AddListener(Cancel);
         purchaseConfirmYesButton?.onClick.AddListener(ConfirmPurchase);
         purchaseConfirmNoButton?.onClick.AddListener(CancelPurchase);
     }
 
     private void UnbindButtons()
     {
-        hairButton?.onClick.RemoveListener(SelectHair);
-        outfitButton?.onClick.RemoveListener(SelectOutfit);
-        accessoryButton?.onClick.RemoveListener(SelectAccessory);
         confirmButton?.onClick.RemoveListener(Confirm);
-        cancelButton?.onClick.RemoveListener(Cancel);
         purchaseConfirmYesButton?.onClick.RemoveListener(ConfirmPurchase);
         purchaseConfirmNoButton?.onClick.RemoveListener(CancelPurchase);
     }

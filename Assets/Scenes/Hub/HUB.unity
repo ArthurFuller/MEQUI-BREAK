@@ -2203,6 +2203,7 @@ GameObject:
   - component: {fileID: 1269645559}
   - component: {fileID: 1269645558}
   - component: {fileID: 1269645557}
+  - component: {fileID: 910000000001}
   m_Layer: 5
   m_Name: GamesButton
   m_TagString: Untagged
@@ -2336,6 +2337,7 @@ GameObject:
   - component: {fileID: 1383564147}
   - component: {fileID: 1383564146}
   - component: {fileID: 1383564145}
+  - component: {fileID: 910000000002}
   m_Layer: 5
   m_Name: SettingsButton
   m_TagString: Untagged
@@ -3028,6 +3030,7 @@ GameObject:
   - component: {fileID: 1871427028}
   - component: {fileID: 1871427027}
   - component: {fileID: 1871427026}
+  - component: {fileID: 910000000003}
   m_Layer: 5
   m_Name: PlayButton
   m_TagString: Untagged
@@ -3334,6 +3337,8 @@ MonoBehaviour:
   roleText: {fileID: 1682021164}
   levelText: {fileID: 533106138}
   pointsText: {fileID: 1140056798}
+  profileButton: {fileID: 1647485530}
+  customizationButton: {fileID: 2145313297}
 --- !u!1 &2145313295
 GameObject:
   m_ObjectHideFlags: 0
@@ -3467,6 +3472,57 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2145313295}
   m_CullTransparentMesh: 1
+--- !u!114 &910000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1269645555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d80d59df9e42448da2e3b389a2cc8a20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIInteractionFeedback
+  pressScale: 0.96
+  pressDuration: 0.07
+  releaseDuration: 0.1
+  pressEase: 6
+  releaseEase: 6
+--- !u!114 &910000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1383564143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d80d59df9e42448da2e3b389a2cc8a20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIInteractionFeedback
+  pressScale: 0.96
+  pressDuration: 0.07
+  releaseDuration: 0.1
+  pressEase: 6
+  releaseEase: 6
+--- !u!114 &910000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1871427024}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d80d59df9e42448da2e3b389a2cc8a20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIInteractionFeedback
+  pressScale: 0.96
+  pressDuration: 0.07
+  releaseDuration: 0.1
+  pressEase: 6
+  releaseEase: 6
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -305,8 +305,6 @@ MonoBehaviour:
   sceneLoader: {fileID: 1435858370}
   definitions:
   - {fileID: 11400000, guid: 520697b2626251845a139767f9298072, type: 2}
-  - {fileID: 11400000, guid: 881fb51776fae2e42885aa075a7cc598, type: 2}
-  - {fileID: 11400000, guid: ae5ba5e13f55fd04bb80fd4c9ef206f7, type: 2}
   cardPrefab: {fileID: -3390230580442647410, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
   contentRoot: {fileID: 846070815}
   backScene: Hub
@@ -859,6 +857,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
+  - component: {fileID: 3000000000}
   - component: {fileID: 1635995807}
   - component: {fileID: 1635995810}
   - component: {fileID: 1635995809}
@@ -870,6 +869,23 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &3000000000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1635995806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d80d59df9e42448da2e3b389a2cc8a20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIInteractionFeedback
+  pressScale: 0.96
+  pressDuration: 0.07
+  releaseDuration: 0.1
+  pressEase: 6
+  releaseEase: 6
 --- !u!224 &1635995807
 RectTransform:
   m_ObjectHideFlags: 0

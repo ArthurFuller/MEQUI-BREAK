@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Displays the current profile on the Hub.
@@ -11,7 +12,24 @@ public sealed class HubController : MonoBehaviour
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text pointsText;
 
-    private void Start() => Refresh();
+    [Header("Interaction Feedback")]
+    [SerializeField] private Button profileButton;
+    [SerializeField] private Button customizationButton;
+
+    private void Start()
+    {
+        EnsureInteractionFeedback(profileButton);
+        EnsureInteractionFeedback(customizationButton);
+        Refresh();
+    }
+
+    private static void EnsureInteractionFeedback(Button button)
+    {
+        if (button == null || button.GetComponent<UIInteractionFeedback>() != null)
+            return;
+
+        button.gameObject.AddComponent<UIInteractionFeedback>();
+    }
 
     public void Refresh()
     {

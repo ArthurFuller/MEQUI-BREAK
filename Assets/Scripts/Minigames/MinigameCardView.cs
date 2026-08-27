@@ -25,6 +25,19 @@ public sealed class MinigameCardView : MonoBehaviour
 
     private void Play()
     {
+        if (definition == null || sceneLoader == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(definition.SceneName)
+            || !Application.CanStreamedLevelBeLoaded(definition.SceneName))
+        {
+            Debug.LogWarning(
+                $"Cannot open minigame '{definition.DisplayName}': scene " +
+                $"'{definition.SceneName}' is not available in Build Settings.",
+                definition);
+            return;
+        }
+
         sceneLoader.Load(definition.SceneName);
     }
 }

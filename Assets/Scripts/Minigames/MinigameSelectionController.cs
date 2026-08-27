@@ -15,11 +15,24 @@ public sealed class MinigameSelectionController : MonoBehaviour
 
         for (int i = 0; i < definitions.Length; i++)
         {
-            if (definitions[i] == null)
+            MinigameDefinition definition = definitions[i];
+            if (definition == null)
                 continue;
 
+            // A definition can exist before its minigame scene is implemented.
+            // Do not create a clickable card that can only lead to a broken load.
+            if (string.IsNullOrWhiteSpace(definition.SceneName)
+                || !Application.CanStreamedLevelBeLoaded(definition.SceneName))
+            {
+                Debug.LogWarning(
+                    $"Minigame '{definition.DisplayName}' was skipped because scene " +
+                    $"'{definition.SceneName}' is not available in Build Settings.",
+                    definition);
+                continue;
+            }
+
             MinigameCardView card = Instantiate(cardPrefab, contentRoot);
-            card.Bind(definitions[i], sceneLoader);
+            card.Bind(definition, sceneLoader);
         }
     }
 
