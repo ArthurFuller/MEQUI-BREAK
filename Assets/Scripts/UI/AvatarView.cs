@@ -13,11 +13,6 @@ public sealed class AvatarView : MonoBehaviour
     [SerializeField] private Sprite[] accessoryOptions;
     [SerializeField] private Animator animator;
 
-    public int GetNextBodyIndex(int current, int direction) => GetNextIndex(current, direction, bodyOptions);
-    public int GetNextHairIndex(int current, int direction) => GetNextIndex(current, direction, hairOptions);
-    public int GetNextOutfitIndex(int current, int direction) => GetNextIndex(current, direction, outfitOptions);
-    public int GetNextAccessoryIndex(int current, int direction) => GetNextIndex(current, direction, accessoryOptions);
-
     public void Apply(AvatarCustomizationData data)
     {
         if (data == null)
@@ -34,14 +29,6 @@ public sealed class AvatarView : MonoBehaviour
         if (animator != null && !string.IsNullOrWhiteSpace(triggerName))
             animator.SetTrigger(triggerName);
 
-    }
-
-    private static int GetNextIndex(int current, int direction, Sprite[] options)
-    {
-        if (options == null || options.Length == 0)
-            return 0;
-
-        return (current + direction % options.Length + options.Length) % options.Length;
     }
 
     private static void SetSprite(Image target, Sprite[] options, int index)

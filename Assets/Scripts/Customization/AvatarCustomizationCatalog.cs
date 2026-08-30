@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Central, data-driven source of truth for which avatar customization options
-/// are free, purchasable with Break Points, or unlocked by Level. Keeping this
-/// as one asset avoids hardcoding unlock rules inside buttons or controllers.
+/// Fonte central das regras que definem opções gratuitas, compráveis com
+/// Break Points ou desbloqueadas por nível.
 /// </summary>
 [CreateAssetMenu(fileName = "AvatarCustomizationCatalog", menuName = "Mequi Break/Avatar Customization Catalog")]
 public sealed class AvatarCustomizationCatalog : ScriptableObject
@@ -25,9 +24,8 @@ public sealed class AvatarCustomizationCatalog : ScriptableObject
     }
 
     /// <summary>
-    /// Returns the catalog entry for a given category/option index, or null if
-    /// none is configured yet (treated as Free by the controller, so the picker
-    /// stays usable while the catalog is still being filled in).
+    /// Retorna a entrada correspondente à categoria e ao índice informados.
+    /// Sem entrada configurada, o controlador considera a opção gratuita.
     /// </summary>
     public AvatarCustomizationItem GetItem(AvatarCustomizationCategory category, int optionIndex)
     {
@@ -42,11 +40,8 @@ public sealed class AvatarCustomizationCatalog : ScriptableObject
     }
 
     /// <summary>
-    /// Fills all three categories with the 12-item layout proposed in the plan:
-    /// indices 0-2 Free, 3-7 Break Points (40/60/80/100/120), 8-11 Level (2/3/4/5).
-    /// Right-click the asset (or the gear icon) and choose this to seed sensible
-    /// defaults instead of creating 36 entries by hand — adjust costs/levels
-    /// afterward as needed.
+    /// Preenche as três categorias com 12 itens: índices 0 a 2 gratuitos,
+    /// 3 a 7 por Break Points e 8 a 11 por nível. Os valores podem ser ajustados depois.
     /// </summary>
     [ContextMenu("Generate Default 12/12/12 (3 Free + 5 PB + 4 Level)")]
     private void GenerateDefaults()

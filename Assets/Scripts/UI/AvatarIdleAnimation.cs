@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Gives a layered UI avatar a reusable idle motion without animating its sprites.
-/// Children of the head anchor, such as hair and hats, follow its motion automatically.
+/// Aplica um movimento ocioso ao avatar em camadas sem animar seus sprites.
+/// Os elementos filhos da cabeça acompanham o movimento automaticamente.
 /// </summary>
 public sealed class AvatarIdleAnimation : MonoBehaviour
 {
@@ -30,16 +30,17 @@ public sealed class AvatarIdleAnimation : MonoBehaviour
     private void Update()
     {
         float phase = Time.unscaledTime * Mathf.PI * 2f / cycleDuration;
+        float wave = Mathf.Sin(phase);
 
         if (avatarRoot != null)
         {
-            float verticalOffset = Mathf.Sin(phase) * bobDistance;
+            float verticalOffset = wave * bobDistance;
             avatarRoot.anchoredPosition = initialRootPosition + Vector2.up * verticalOffset;
         }
 
         if (headAnchor != null)
         {
-            float tilt = Mathf.Sin(phase) * headTiltDegrees;
+            float tilt = wave * headTiltDegrees;
             headAnchor.localRotation = initialHeadRotation * Quaternion.Euler(0f, 0f, tilt);
         }
     }

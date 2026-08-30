@@ -19,7 +19,7 @@ public sealed class MinigameCardView : MonoBehaviour
         icon.sprite = data.Icon;
         titleText.text = data.DisplayName;
 
-        iconButton.onClick.RemoveAllListeners();
+        iconButton.onClick.RemoveListener(Play);
         iconButton.onClick.AddListener(Play);
     }
 
@@ -32,12 +32,18 @@ public sealed class MinigameCardView : MonoBehaviour
             || !Application.CanStreamedLevelBeLoaded(definition.SceneName))
         {
             Debug.LogWarning(
-                $"Cannot open minigame '{definition.DisplayName}': scene " +
-                $"'{definition.SceneName}' is not available in Build Settings.",
+                $"Não foi possível abrir o minigame '{definition.DisplayName}': a cena " +
+                $"'{definition.SceneName}' não está disponível no Build Settings.",
                 definition);
             return;
         }
 
         sceneLoader.Load(definition.SceneName);
+    }
+
+    private void OnDestroy()
+    {
+        if (iconButton != null)
+            iconButton.onClick.RemoveListener(Play);
     }
 }

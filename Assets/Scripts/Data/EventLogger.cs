@@ -22,7 +22,6 @@ public sealed class EventLogger : MonoBehaviour
     private bool completedEarly;
     private bool timeLimitReached;
     private string optionalClarityChoiceId;
-    private int completeButtonAvailableCount;
 
     private void Awake()
     {
@@ -49,7 +48,6 @@ public sealed class EventLogger : MonoBehaviour
         completedEarly = false;
         timeLimitReached = false;
         optionalClarityChoiceId = null;
-        completeButtonAvailableCount = 0;
 
         interactionIds.Clear();
         eventTypes.Clear();
@@ -104,7 +102,6 @@ public sealed class EventLogger : MonoBehaviour
 
     public void MarkCompleteButtonAvailable()
     {
-        completeButtonAvailableCount++;
         eventTypes.Add("COMPLETE_BUTTON_AVAILABLE");
     }
 
@@ -121,31 +118,15 @@ public sealed class EventLogger : MonoBehaviour
 
     public void CompleteSession()
     {
-        if (string.IsNullOrEmpty(sessionId))
-            return;
-
-        float now = Time.realtimeSinceStartup;
-        float activityDuration = activityEnded
-            ? gameplayEndTime - sessionStartTime
-            : now - sessionStartTime;
-        float completionTime = now - sessionStartTime;
-        float postActivityTime = activityEnded
-            ? Mathf.Max(0f, now - gameplayEndTime)
-            : 0f;
-        float activeTime = Mathf.Max(0f, activityDuration - inactiveTime);
-
-        eventTypes.Add("SESSION_COMPLETED");
-
-        SaveSession(
-            "Completed",
-            activityDuration,
-            completionTime,
-            activeTime,
-            inactiveTime,
-            postActivityTime);
+        FinishSession("Completed", "SESSION_COMPLETED", includePostActivityTime: true);
     }
 
     public void AbandonSession()
+    {
+        FinishSession("Abandoned", "SESSION_ABANDONED", includePostActivityTime: false);
+    }
+
+    private void FinishSession(string status, string eventType, bool includePostActivityTime)
     {
         if (string.IsNullOrEmpty(sessionId))
             return;
@@ -157,15 +138,19 @@ public sealed class EventLogger : MonoBehaviour
         float completionTime = now - sessionStartTime;
         float activeTime = Mathf.Max(0f, activityDuration - inactiveTime);
 
-        eventTypes.Add("SESSION_ABANDONED");
+        float postActivityTime = includePostActivityTime && activityEnded
+            ? Mathf.Max(0f, now - gameplayEndTime)
+            : 0f;
+
+        eventTypes.Add(eventType);
 
         SaveSession(
-            "Abandoned",
+            status,
             activityDuration,
             completionTime,
             activeTime,
             inactiveTime,
-            0f);
+            postActivityTime);
     }
 
     private void SaveSession(
@@ -185,8 +170,8 @@ public sealed class EventLogger : MonoBehaviour
             SessionId = sessionId,
             AnonymousParticipantId = localStorage.GetAnonymousParticipantId(),
             ActivityId = activityId,
-            StoreGroupId = PlayerManager.Instance?.Profile?.StoreId,
-            Shift = PlayerManager.Instance?.Profile?.Shift,
+            StoreGroupId = PlayerManager.Instance?.StoreId,
+            Shift = PlayerManager.Instance?.Shift,
             StartedAtUtc = startedAtUtc,
             ActivityDurationSeconds = Mathf.Max(0f, activityDuration),
             CompletionTimeSeconds = Mathf.Max(0f, completionTime),

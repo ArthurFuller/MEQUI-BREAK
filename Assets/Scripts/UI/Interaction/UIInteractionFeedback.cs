@@ -4,12 +4,12 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Provides a small, reusable press/release feedback for interactive UI elements.
-/// It is intentionally limited to scale feedback so it does not own the element's functional behaviour.
+/// Fornece um pequeno feedback reutilizável de pressionar e soltar para elementos interativos.
+/// Atua somente sobre a escala e não interfere no comportamento funcional do elemento.
 /// </summary>
 public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
 {
-    [Header("Press Feedback")]
+    [Header("Feedback de pressão")]
     [SerializeField, Range(0.85f, 1f)] private float pressScale = 0.96f;
     [SerializeField, Min(0f)] private float pressDuration = 0.07f;
     [SerializeField, Min(0f)] private float releaseDuration = 0.10f;
@@ -17,6 +17,7 @@ public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, 
     [SerializeField] private Ease releaseEase = Ease.OutQuad;
 
     private RectTransform rectTransform;
+    private Selectable selectable;
     private Vector3 originalScale;
     private Tween scaleTween;
     private bool isPointerDown;
@@ -24,6 +25,7 @@ public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, 
     private void Awake()
     {
         rectTransform = transform as RectTransform;
+        selectable = GetComponent<Selectable>();
         originalScale = transform.localScale;
     }
 
@@ -47,14 +49,15 @@ public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, 
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        if (!isPointerDown)
-            return;
-
-        isPointerDown = false;
-        AnimateScale(originalScale, releaseDuration, releaseEase);
+        ReleasePointer();
     }
 
     public void OnPointerExit(PointerEventData eventData)
+    {
+        ReleasePointer();
+    }
+
+    private void ReleasePointer()
     {
         if (!isPointerDown)
             return;
@@ -65,7 +68,6 @@ public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, 
 
     private bool CanInteract()
     {
-        var selectable = GetComponent<Selectable>();
         return selectable == null || selectable.IsInteractable();
     }
 

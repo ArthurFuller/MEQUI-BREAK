@@ -19,22 +19,42 @@ public sealed class SaveManager : MonoBehaviour
         Instance = this;
     }
 
-    public void SaveProfile(PlayerProfileData profile)
+    /// <summary>
+    /// Salva o perfil e informa se a gravação foi concluída.
+    /// </summary>
+    public bool TrySaveProfile(PlayerProfileData profile)
     {
         if (profile == null)
-            return;
+            return false;
 
-        File.WriteAllText(ProfilePath, JsonUtility.ToJson(profile));
+        try
+        {
+            File.WriteAllText(ProfilePath, JsonUtility.ToJson(profile));
+            return true;
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError($"Não foi possível salvar o perfil: {exception.Message}");
+            return false;
+        }
     }
 
     public PlayerProfileData LoadProfile()
     {
-        if (!File.Exists(ProfilePath))
-            return new PlayerProfileData();
+        try
+        {
+            if (!File.Exists(ProfilePath))
+                return new PlayerProfileData();
 
-        string json = File.ReadAllText(ProfilePath);
-        return string.IsNullOrWhiteSpace(json)
-            ? new PlayerProfileData()
-            : JsonUtility.FromJson<PlayerProfileData>(json) ?? new PlayerProfileData();
+            string json = File.ReadAllText(ProfilePath);
+            return string.IsNullOrWhiteSpace(json)
+                ? new PlayerProfileData()
+                : JsonUtility.FromJson<PlayerProfileData>(json) ?? new PlayerProfileData();
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogWarning($"O perfil salvo é inválido ou não pôde ser lido: {exception.Message}");
+            return new PlayerProfileData();
+        }
     }
 }

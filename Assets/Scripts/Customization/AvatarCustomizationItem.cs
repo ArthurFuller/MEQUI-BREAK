@@ -1,9 +1,7 @@
 using System;
 
 /// <summary>
-/// One entry in the AvatarCustomizationCatalog: which avatar option it maps to
-/// (Category + OptionIndex, matching AvatarView's sprite arrays and
-/// CustomizationController's swatch arrays) and how it is unlocked.
+/// Entrada do catálogo que relaciona categoria, índice visual e regra de desbloqueio.
 /// </summary>
 [Serializable]
 public sealed class AvatarCustomizationItem

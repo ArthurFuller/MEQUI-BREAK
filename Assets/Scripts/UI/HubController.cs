@@ -3,16 +3,15 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Displays the current profile on the Hub.
+/// Exibe o perfil atual no HUB.
 /// </summary>
 public sealed class HubController : MonoBehaviour
 {
     [SerializeField] private TMP_Text nameText;
-    [SerializeField] private TMP_Text roleText;
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text pointsText;
 
-    [Header("Interaction Feedback")]
+    [Header("Feedback de interação")]
     [SerializeField] private Button profileButton;
     [SerializeField] private Button customizationButton;
 
@@ -38,15 +37,12 @@ public sealed class HubController : MonoBehaviour
             return;
 
         var profile = player.Profile;
-        if (nameText != null) nameText.text = profile.DisplayName;
-        if (roleText != null) roleText.text = profile.Role;
+        if (nameText != null) nameText.text = player.DisplayName;
         if (levelText != null) levelText.text = $"Nível {profile.Level}";
 
         if (pointsText != null)
         {
-            // Defer to PointAnimationManager if an animation is pending or in progress.
-            // This prevents HubController from overwriting the animating value (120 → 121 → ... → 140)
-            // with the final persisted value (140) before/during the animation.
+            // Durante a animação, o PointAnimationManager mantém a propriedade do texto.
             bool animationPendingOrRunning = player.PendingBreakPoints > 0
                 || (PointAnimationManager.Instance != null && PointAnimationManager.Instance.IsAnimating);
 
@@ -54,7 +50,7 @@ public sealed class HubController : MonoBehaviour
             {
                 pointsText.text = $"{profile.BreakPoints} PB";
             }
-            // else: PointAnimationManager owns the label during animation
+            // Caso contrário, o valor animado seria substituído pelo saldo final.
         }
     }
 }

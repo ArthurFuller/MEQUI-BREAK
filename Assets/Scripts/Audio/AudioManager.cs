@@ -4,11 +4,11 @@ public sealed class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
-    [Header("Sources")]
+    [Header("Fontes de áudio")]
     [SerializeField] private AudioSource musicSource;
     [SerializeField] private AudioSource sfxSource;
 
-    [Header("Common SFX")]
+    [Header("Efeitos sonoros comuns")]
     [SerializeField] private AudioClip clickClip;
     [SerializeField] private AudioClip confirmClip;
 

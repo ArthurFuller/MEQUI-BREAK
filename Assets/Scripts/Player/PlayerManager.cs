@@ -3,17 +3,25 @@ using UnityEngine;
 
 public sealed class PlayerManager : MonoBehaviour
 {
+    public const int DisplayNameMaxLength = 60;
+    public const int StoreIdMaxLength = 50;
+    public const int ShiftMaxLength = 30;
+
     public static PlayerManager Instance { get; private set; }
 
-    [Header("Progression")]
-    [Tooltip("Lifetime Break Points required for each level. Index 0 = Level 1 (usually 0), index 1 = Level 2, etc. Configurable so balancing never requires touching code.")]
+    [Header("Progressão")]
+    [Tooltip("Total histórico de Break Points exigido por nível. O índice 0 representa o nível 1, o índice 1 representa o nível 2 e assim por diante.")]
     [SerializeField]
     private List<int> lifetimePointsPerLevel = new List<int> { 0, 100, 250, 450, 700, 1000 };
 
     public PlayerProfileData Profile { get; private set; }
-    public bool IsLoggedIn { get; private set; }
+    public bool HasValidRegistration => IsRegistrationValid(Profile);
+    public string DisplayName => Profile?.DisplayName ?? string.Empty;
+    public string StoreId => Profile?.StoreId ?? string.Empty;
+    public string Shift => Profile?.Shift ?? string.Empty;
+    public event System.Action<int> BreakPointsChanged;
 
-    // Pending points to be animated when entering HUB
+    // Pontos pendentes para animação na entrada do HUB.
     public int PendingBreakPoints { get; private set; }
 
     private void Awake()
@@ -29,40 +37,134 @@ public sealed class PlayerManager : MonoBehaviour
 
     public void Initialize()
     {
-        Profile ??= SaveManager.Instance.LoadProfile();
+        if (Profile == null)
+        {
+            Profile = SaveManager.Instance != null
+                ? SaveManager.Instance.LoadProfile()
+                : new PlayerProfileData();
+        }
+
+        NormalizeRegistrationData(Profile);
         MigrateLegacyProfile();
         RecalculateLevel();
-    }
-
-    public bool Login(string employeeId)
-    {
-        if (string.IsNullOrWhiteSpace(employeeId))
-            return false;
-
-        Profile ??= new PlayerProfileData();
-        Profile.EmployeeId = employeeId.Trim();
-        Profile.DisplayName = string.IsNullOrWhiteSpace(Profile.DisplayName) ? "Colaborador" : Profile.DisplayName;
-        Profile.Role = string.IsNullOrWhiteSpace(Profile.Role) ? "Atendente" : Profile.Role;
-        Profile.StoreId = string.IsNullOrWhiteSpace(Profile.StoreId) ? "DEMO-001" : Profile.StoreId;
-        Profile.Shift = string.IsNullOrWhiteSpace(Profile.Shift) ? "Tarde" : Profile.Shift;
-        IsLoggedIn = true;
-        MigrateLegacyProfile();
-        RecalculateLevel();
-        return true;
-    }
-
-    public void SaveProfile() => SaveManager.Instance.SaveProfile(Profile);
-
-    public void Logout()
-    {
-        IsLoggedIn = false;
-        Profile = new PlayerProfileData();
     }
 
     /// <summary>
-    /// Grants Break Points. Increases both the spendable balance and the lifetime
-    /// total, and recalculates Level from the lifetime total (never from the
-    /// spendable balance, so buying cosmetics can never lower the Level).
+    /// Valida, normaliza e persiste Nome, Loja e Turno em uma única operação.
+    /// Também pode ser reutilizado futuramente para editar o cadastro.
+    /// </summary>
+    public bool TryCompleteRegistration(
+        string displayName,
+        string storeId,
+        string shift,
+        out string errorMessage)
+    {
+        displayName = Normalize(displayName);
+        storeId = Normalize(storeId);
+        shift = Normalize(shift);
+
+        if (!TryValidateRegistration(displayName, storeId, shift, out errorMessage))
+            return false;
+
+        Profile ??= new PlayerProfileData();
+
+        string previousName = Profile.DisplayName;
+        string previousStore = Profile.StoreId;
+        string previousShift = Profile.Shift;
+        bool previousCompletion = Profile.RegistrationCompleted;
+
+        Profile.DisplayName = displayName;
+        Profile.StoreId = storeId;
+        Profile.Shift = shift;
+        Profile.RegistrationCompleted = true;
+
+        if (!TrySaveProfile())
+        {
+            Profile.DisplayName = previousName;
+            Profile.StoreId = previousStore;
+            Profile.Shift = previousShift;
+            Profile.RegistrationCompleted = previousCompletion;
+            errorMessage = "Não foi possível salvar o cadastro. Tente novamente.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
+    }
+
+    /// <summary>
+    /// Limpa somente os dados do cadastro, preservando progressão e avatar.
+    /// Nenhuma tela oferece essa ação por enquanto.
+    /// </summary>
+    public bool ClearRegistration()
+    {
+        if (Profile == null)
+            return true;
+
+        string previousName = Profile.DisplayName;
+        string previousStore = Profile.StoreId;
+        string previousShift = Profile.Shift;
+        bool previousCompletion = Profile.RegistrationCompleted;
+
+        Profile.DisplayName = string.Empty;
+        Profile.StoreId = string.Empty;
+        Profile.Shift = string.Empty;
+        Profile.RegistrationCompleted = false;
+
+        if (TrySaveProfile())
+            return true;
+
+        Profile.DisplayName = previousName;
+        Profile.StoreId = previousStore;
+        Profile.Shift = previousShift;
+        Profile.RegistrationCompleted = previousCompletion;
+        return false;
+    }
+
+    public void SaveProfile() => TrySaveProfile();
+
+    public bool TrySaveProfile()
+    {
+        return SaveManager.Instance != null
+            && SaveManager.Instance.TrySaveProfile(Profile);
+    }
+
+    /// <summary>
+    /// Confere os três valores obrigatórios sem depender de componentes visuais.
+    /// </summary>
+    public static bool TryValidateRegistration(
+        string displayName,
+        string storeId,
+        string shift,
+        out string errorMessage)
+    {
+        displayName = Normalize(displayName);
+        storeId = Normalize(storeId);
+        shift = Normalize(shift);
+
+        if (displayName.Length == 0)
+            errorMessage = "Informe seu nome.";
+        else if (displayName.Length > DisplayNameMaxLength)
+            errorMessage = $"O nome deve ter no máximo {DisplayNameMaxLength} caracteres.";
+        else if (storeId.Length == 0)
+            errorMessage = "Informe sua loja.";
+        else if (storeId.Length > StoreIdMaxLength)
+            errorMessage = $"A loja deve ter no máximo {StoreIdMaxLength} caracteres.";
+        else if (shift.Length == 0)
+            errorMessage = "Informe seu turno.";
+        else if (shift.Length > ShiftMaxLength)
+            errorMessage = $"O turno deve ter no máximo {ShiftMaxLength} caracteres.";
+        else
+        {
+            errorMessage = string.Empty;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Concede Break Points ao saldo e ao total histórico, recalculando o nível.
     /// </summary>
     public void AddBreakPoints(int amount)
     {
@@ -72,18 +174,15 @@ public sealed class PlayerManager : MonoBehaviour
         Profile.BreakPoints += amount;
         Profile.LifetimeBreakPoints += amount;
         RecalculateLevel();
+        BreakPointsChanged?.Invoke(Profile.BreakPoints);
     }
 
     /// <summary>
-    /// Attempts to spend Break Points (e.g. buying a customization item).
-    /// Only touches the spendable balance — LifetimeBreakPoints and Level are untouched.
-    /// Returns false (and changes nothing) if the balance is insufficient.
+    /// Tenta gastar Break Points sem alterar o total histórico nem o nível.
     /// </summary>
     public bool TrySpendBreakPoints(int amount)
     {
-        // The PlayerManager normally initializes from AppBootstrapper, but the
-        // purchase flow must also be safe if Customization is opened directly
-        // during development/testing.
+        // Também funciona quando a cena de customização é aberta diretamente.
         if (Profile == null)
             Initialize();
 
@@ -94,6 +193,7 @@ public sealed class PlayerManager : MonoBehaviour
             return false;
 
         Profile.BreakPoints -= amount;
+        BreakPointsChanged?.Invoke(Profile.BreakPoints);
         return true;
     }
 
@@ -127,16 +227,12 @@ public sealed class PlayerManager : MonoBehaviour
                 level = i + 1;
         }
 
-        // Level never decreases on its own — RecalculateLevel is only ever fed by
-        // LifetimeBreakPoints, which itself never decreases.
+        // O nível deriva do total histórico, que nunca diminui.
         Profile.Level = level;
     }
 
     /// <summary>
-    /// Profiles saved before LifetimeBreakPoints/UnlockedCustomizationIds existed
-    /// deserialize with LifetimeBreakPoints = 0 even if they have a BreakPoints
-    /// balance. Seed lifetime progress from the existing balance once, so returning
-    /// players don't lose the Level progress they already effectively had.
+    /// Migra perfis antigos usando o saldo existente como total histórico inicial.
     /// </summary>
     private void MigrateLegacyProfile()
     {
@@ -144,13 +240,37 @@ public sealed class PlayerManager : MonoBehaviour
             return;
 
         Profile.UnlockedCustomizationIds ??= new List<string>();
+        Profile.Avatar ??= new AvatarCustomizationData();
 
         if (Profile.LifetimeBreakPoints <= 0 && Profile.BreakPoints > 0)
             Profile.LifetimeBreakPoints = Profile.BreakPoints;
     }
 
+    private static bool IsRegistrationValid(PlayerProfileData profile)
+    {
+        return profile != null
+            && profile.RegistrationCompleted
+            && TryValidateRegistration(
+                profile.DisplayName,
+                profile.StoreId,
+                profile.Shift,
+                out _);
+    }
+
+    private static void NormalizeRegistrationData(PlayerProfileData profile)
+    {
+        if (profile == null)
+            return;
+
+        profile.DisplayName = Normalize(profile.DisplayName);
+        profile.StoreId = Normalize(profile.StoreId);
+        profile.Shift = Normalize(profile.Shift);
+    }
+
+    private static string Normalize(string value) => value?.Trim() ?? string.Empty;
+
     /// <summary>
-    /// Sets the amount of points to be animated when entering HUB
+    /// Define a quantidade de pontos que será animada ao entrar no HUB.
     /// </summary>
     public void SetPendingPoints(int amount)
     {
@@ -158,7 +278,7 @@ public sealed class PlayerManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Clears the pending points after animation is triggered
+    /// Limpa os pontos pendentes após a animação.
     /// </summary>
     public void ClearPendingPoints()
     {

@@ -1,20 +1,17 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 
 public sealed class AppBootstrapper : MonoBehaviour
 {
-    [Header("Global Services")]
-    [SerializeField] private GameManager gameManager;
-    [SerializeField] private SaveManager saveManager;
+    [Header("Serviços globais")]
     [SerializeField] private PlayerManager playerManager;
-    [SerializeField] private PointsService pointsService;
     [SerializeField] private SettingsManager settingsManager;
-    [SerializeField] private AudioManager audioManager;
-    [SerializeField] private LocalStorage localStorage;
-    [SerializeField] private EventLogger eventLogger;
 
-    [Header("Startup")]
-    [SerializeField] private string firstScene = "Login";
+    [Header("Cenas iniciais")]
+    [FormerlySerializedAs("firstScene")]
+    [SerializeField] private string loginScene = "Login";
+    [SerializeField] private string hubScene = "HUB";
 
     private void Awake()
     {
@@ -29,7 +26,11 @@ public sealed class AppBootstrapper : MonoBehaviour
         if (settingsManager != null)
             settingsManager.Apply();
 
-        if (!string.IsNullOrWhiteSpace(firstScene))
-            SceneManager.LoadScene(firstScene);
+        bool hasRegistration = playerManager != null
+            && playerManager.HasValidRegistration;
+
+        string targetScene = hasRegistration ? hubScene : loginScene;
+        if (!string.IsNullOrWhiteSpace(targetScene))
+            SceneManager.LoadScene(targetScene);
     }
 }

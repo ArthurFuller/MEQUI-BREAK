@@ -1,11 +1,11 @@
 public enum AvatarUnlockType
 {
-    /// <summary>Available from the start, no cost.</summary>
+    /// <summary>Disponível desde o início, sem custo.</summary>
     Free,
 
-    /// <summary>Unlocked once by spending Break Points; stays unlocked afterward.</summary>
+    /// <summary>Desbloqueado permanentemente com Break Points.</summary>
     BreakPoints,
 
-    /// <summary>Unlocked automatically once the player's Level reaches RequiredLevel.</summary>
+    /// <summary>Desbloqueado automaticamente ao alcançar o nível necessário.</summary>
     Level
 }

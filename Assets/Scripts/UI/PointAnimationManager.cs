@@ -1,56 +1,59 @@
-using UnityEngine;
-using TMPro;
-using DG.Tweening;
-using System.Collections;
 using System;
+using System.Collections.Generic;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
 
 /// <summary>
-/// Animates flying point coins from a spawn position to a target UI label.
+/// Anima moedas de Break Points viajando até o contador do HUB.
+/// Todo o fluxo visual é controlado pelo DOTween, sem corrotinas de animação.
 /// </summary>
 [RequireComponent(typeof(RectTransform))]
 public sealed class PointAnimationManager : MonoBehaviour
 {
     public static PointAnimationManager Instance { get; private set; }
 
-    [Header("References")]
-    [Tooltip("Prefab to instantiate for each point (should be a UI Image under a Canvas)")]
+    [Header("Referências")]
+    [Tooltip("Prefab utilizado por cada moeda de Break Points.")]
     [SerializeField] private GameObject coinPrefab;
 
-    [Tooltip("Target TMP_Text that displays the total points (e.g., Break Points label)")]
+    [Tooltip("Texto TMP que exibe o saldo atual de Break Points.")]
     [SerializeField] private TMP_Text pointsLabel;
 
-    /// <summary>Read-only access to the points label for external setup (e.g., HubEntryHandler).</summary>
     public TMP_Text PointsLabel => pointsLabel;
 
-    [Tooltip("RectTransform of the Canvas where coins will be spawned (usually the Canvas itself)")]
+    [Tooltip("RectTransform do Canvas usado como pai das moedas em movimento.")]
     [SerializeField] private RectTransform canvasRect;
 
-    [Header("Animation Settings")]
-    [Tooltip("Duration of each coin's flight")]
+    [Header("Animação das moedas")]
     [SerializeField, Min(0.1f)] private float duration = 0.8f;
-
-    [Tooltip("Delay between each coin spawn (creates a stream effect)")]
     [SerializeField, Min(0f)] private float spawnDelay = 0.05f;
-
-    [Tooltip("Vertical offset for the arc midpoint (higher = higher arc)")]
     [SerializeField] private Vector2 arcOffset = new Vector2(0f, 150f);
 
-    // How many coins have actually landed so far in the current batch.
-    // Used to derive the displayed number deterministically (baseValue + landed)
-    // instead of parsing whatever text happens to be on the label.
+    [Header("Pulso do contador")]
+    [Tooltip("Multiplicador aplicado ao contador sempre que uma moeda chega.")]
+    [SerializeField, Min(1f)] private float counterPulseScale = 1.12f;
+
+    [Tooltip("Tempo usado para ampliar o contador.")]
+    [SerializeField, Min(0.01f)] private float counterPulseUpDuration = 0.04f;
+
+    [Tooltip("Tempo usado para devolver o contador à escala configurada.")]
+    [SerializeField, Min(0.01f)] private float counterPulseDownDuration = 0.05f;
+
+    [SerializeField] private Ease counterPulseUpEase = Ease.OutQuad;
+    [SerializeField] private Ease counterPulseDownEase = Ease.InOutQuad;
+
+    private readonly List<GameObject> _activeCoins = new List<GameObject>();
+    private readonly Queue<GameObject> _coinPool = new Queue<GameObject>();
+    private Sequence _batchSequence;
+    private Sequence _counterPulseSequence;
+    private Vector3 _pointsLabelBaseScale = Vector3.one;
+    private Vector3 _coinBaseScale = Vector3.one;
+    private Quaternion _coinBaseRotation = Quaternion.identity;
     private int _coinsLanded;
+    private int _expectedCoins;
 
-    /// <summary>
-    /// True while an animation is in progress. Allows HubController to defer
-    /// its own Refresh() so it doesn't overwrite the animating value.
-    /// </summary>
     public bool IsAnimating { get; private set; }
-
-    /// <summary>
-    /// Invoked when the current animation batch finishes (all coins landed).
-    /// Used by HubEntryHandler to clear PendingBreakPoints only after the visual
-    /// animation completes, preventing a race condition with HubController.Refresh().
-    /// </summary>
     public event Action OnAnimationComplete;
 
     private void Awake()
@@ -60,125 +63,217 @@ public sealed class PointAnimationManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
 
-        // Validate references
         if (coinPrefab == null)
             Debug.LogError("[PointAnimationManager] CoinPrefab is not assigned.", this);
         if (pointsLabel == null)
             Debug.LogError("[PointAnimationManager] PointsLabel TMP_Text is not assigned.", this);
         if (canvasRect == null)
             Debug.LogError("[PointAnimationManager] CanvasRect RectTransform is not assigned.", this);
+
+        if (pointsLabel != null)
+            _pointsLabelBaseScale = pointsLabel.transform.localScale;
+
+        if (coinPrefab != null)
+        {
+            _coinBaseScale = coinPrefab.transform.localScale;
+            _coinBaseRotation = coinPrefab.transform.localRotation;
+        }
     }
 
     /// <summary>
-    /// Starts the animation for the given amount of points.
+    /// Anima um lote de pontos. Cada moeda aumenta o valor exibido em uma unidade
+    /// e dispara um pulso completo no contador ao alcançar o texto.
     /// </summary>
-    /// <param name="baseValue">
-    /// The player's real balance BEFORE this batch of points was earned.
-    /// The label is snapped to this value immediately, so the coins always
-    /// count up from the true starting point instead of from whatever was
-    /// already on screen (which may already include the new points).
-    /// </param>
-    /// <param name="amount">Number of points to animate (each point spawns one coin)</param>
     public void AnimatePoints(int baseValue, int amount)
     {
-        if (amount <= 0)
+        if (amount <= 0 || coinPrefab == null || pointsLabel == null || canvasRect == null)
             return;
 
-        // Clear any ongoing coroutines to avoid overlap
-        StopAllCoroutines();
+        StopCurrentAnimation(false);
+
         _coinsLanded = 0;
-
-        // Snap the label to the pre-earn baseline right now. This is what
-        // guarantees correctness regardless of whether HubController.Refresh()
-        // (which shows the already-updated, final value) ran before or after
-        // this call.
-        if (pointsLabel != null)
-            pointsLabel.text = $"{baseValue} PB";
-
-        StartCoroutine(SpawnCoinsRoutine(baseValue, amount));
-    }
-
-    private IEnumerator SpawnCoinsRoutine(int baseValue, int amount)
-    {
+        _expectedCoins = amount;
         IsAnimating = true;
-        try
-        {
-            for (int i = 0; i < amount; i++)
-            {
-                StartCoroutine(SpawnSingleCoin(baseValue));
-                yield return new WaitForSeconds(spawnDelay);
-            }
+        pointsLabel.SetText("{0} PB", baseValue);
+        pointsLabel.transform.localScale = _pointsLabelBaseScale;
 
-            // Wait for all coins to land (coinsLanded == amount)
-            while (_coinsLanded < amount)
-            {
-                yield return null;
-            }
-        }
-        finally
+        _batchSequence = DOTween.Sequence().SetTarget(this);
+
+        for (int i = 0; i < amount; i++)
         {
-            IsAnimating = false;
-            OnAnimationComplete?.Invoke();
+            float spawnTime = i * spawnDelay;
+            _batchSequence.InsertCallback(spawnTime, () => SpawnCoin(baseValue));
         }
+
     }
 
-    private IEnumerator SpawnSingleCoin(int baseValue)
+    private void SpawnCoin(int baseValue)
     {
-        // Small random offset to avoid perfect overlap
+        if (!IsAnimating || coinPrefab == null || pointsLabel == null || canvasRect == null)
+            return;
+
         Vector2 spawnPos = (Vector2)canvasRect.position + UnityEngine.Random.insideUnitCircle * 10f;
         Vector2 targetPos = pointsLabel.rectTransform.position;
-
-        // Calculate arc midpoint: average of start and end plus offset
         Vector2 midPoint = (spawnPos + targetPos) * 0.5f + arcOffset;
 
-        // Instantiate coin prefab under the canvas
-        GameObject coin = Instantiate(coinPrefab, canvasRect);
+        GameObject coin = GetCoin();
+        _activeCoins.Add(coin);
         coin.transform.position = spawnPos;
 
-        // Define path for DOTween (CatmullRom spline through midpoint)
-        Vector3[] path = new Vector3[] { midPoint, targetPos };
+        Vector3[] path = { midPoint, targetPos };
 
-        // Create animation sequence
-        Sequence seq = DOTween.Sequence();
+        Sequence coinSequence = DOTween.Sequence().SetTarget(this);
+        coinSequence.Append(coin.transform.DOPath(path, duration, PathType.CatmullRom).SetEase(Ease.OutQuad));
+        coinSequence.Join(coin.transform.DORotate(new Vector3(0f, 0f, 360f), duration, RotateMode.FastBeyond360));
+        coinSequence.Join(coin.transform.DOScale(1.3f, duration * 0.3f).SetLoops(2, LoopType.Yoyo));
 
-        // Flight path
-        seq.Append(coin.transform.DOPath(path, duration, PathType.CatmullRom).SetEase(Ease.OutQuad));
-
-        // Rotation while flying
-        seq.Join(coin.transform.DORotate(new Vector3(0f, 0f, 360f), duration, RotateMode.FastBeyond360));
-
-        // Scale bounce (pop)
-        seq.Join(coin.transform.DOScale(1.3f, duration * 0.3f).SetLoops(2, LoopType.Yoyo));
-
-        // On complete: update label and destroy coin
-        seq.OnComplete(() =>
+        coinSequence.OnComplete(() =>
         {
-            // Each coin that lands increments a counter, and the label is
-            // recomputed as baseValue + coins landed so far. This always ends
-            // up exactly at baseValue + amount (the real, saved balance),
-            // regardless of landing order or whatever text was on the label
-            // before — no more parsing/guessing the "current" number.
-            _coinsLanded++;
-
-            if (pointsLabel != null)
+            if (!IsAnimating)
             {
-                // Kill any ongoing scale tween to avoid accumulation/residual scale
-                pointsLabel.transform.DOKill();
-                pointsLabel.transform.localScale = Vector3.one;
-                pointsLabel.transform.DOPunchScale(Vector3.one * 0.1f, 0.1f);
-
-                pointsLabel.text = $"{baseValue + _coinsLanded} PB";
+                ReleaseCoin(coin);
+                return;
             }
 
-            // Cleanup
-            if (coin != null)
-                Destroy(coin);
+            _coinsLanded++;
+            pointsLabel.SetText("{0} PB", baseValue + _coinsLanded);
+            bool isFinalCoin = _coinsLanded >= _expectedCoins;
+            PlayCounterPulse(isFinalCoin);
+            ReleaseCoin(coin);
         });
+    }
 
-        // Wait for the sequence to finish before allowing next coin (optional)
-        // Since we spawn with delay, we don't need to wait here.
-        yield return seq.WaitForCompletion();
+    /// <summary>
+    /// Executa um pulso DOTween para cada moeda recebida:
+    /// escala original, escala ampliada e retorno à escala original.
+    /// </summary>
+    private void PlayCounterPulse(bool finishBatchAfterPulse)
+    {
+        if (pointsLabel == null)
+            return;
+
+        Transform labelTransform = pointsLabel.transform;
+
+        _counterPulseSequence?.Kill();
+        labelTransform.DOKill();
+        labelTransform.localScale = _pointsLabelBaseScale;
+
+        Vector3 enlargedScale = _pointsLabelBaseScale * counterPulseScale;
+
+        _counterPulseSequence = DOTween.Sequence()
+            .SetTarget(this)
+            .Append(labelTransform.DOScale(enlargedScale, counterPulseUpDuration).SetEase(counterPulseUpEase))
+            .Append(labelTransform.DOScale(_pointsLabelBaseScale, counterPulseDownDuration).SetEase(counterPulseDownEase))
+            .OnComplete(() =>
+            {
+                if (pointsLabel != null)
+                    pointsLabel.transform.localScale = _pointsLabelBaseScale;
+
+                _counterPulseSequence = null;
+
+                if (finishBatchAfterPulse)
+                    FinishBatch();
+            });
+    }
+
+    private void FinishBatch()
+    {
+        if (!IsAnimating)
+            return;
+
+        ResetCounterScale();
+        IsAnimating = false;
+        _batchSequence = null;
+        OnAnimationComplete?.Invoke();
+    }
+
+    private void StopCurrentAnimation(bool notifyComplete)
+    {
+        bool wasAnimating = IsAnimating;
+        IsAnimating = false;
+
+        DOTween.Kill(this);
+        _batchSequence = null;
+        _counterPulseSequence = null;
+
+        for (int i = _activeCoins.Count - 1; i >= 0; i--)
+            ReturnCoinToPool(_activeCoins[i]);
+
+        _activeCoins.Clear();
+        ResetCounterScale();
+
+        if (notifyComplete && wasAnimating)
+            OnAnimationComplete?.Invoke();
+    }
+
+    private void ResetCounterScale()
+    {
+        if (pointsLabel == null)
+            return;
+
+        pointsLabel.transform.DOKill();
+        pointsLabel.transform.localScale = _pointsLabelBaseScale;
+    }
+
+    private GameObject GetCoin()
+    {
+        GameObject coin = null;
+
+        while (_coinPool.Count > 0 && coin == null)
+            coin = _coinPool.Dequeue();
+
+        if (coin == null)
+        {
+            coin = Instantiate(coinPrefab, canvasRect);
+        }
+        else
+        {
+            coin.transform.SetParent(canvasRect, false);
+            coin.transform.localScale = _coinBaseScale;
+            coin.transform.localRotation = _coinBaseRotation;
+            coin.SetActive(true);
+        }
+
+        return coin;
+    }
+
+    private void ReleaseCoin(GameObject coin)
+    {
+        if (coin == null)
+            return;
+
+        _activeCoins.Remove(coin);
+        ReturnCoinToPool(coin);
+    }
+
+    private void ReturnCoinToPool(GameObject coin)
+    {
+        if (coin == null)
+            return;
+
+        coin.transform.DOKill();
+        coin.transform.SetParent(canvasRect, false);
+
+        coin.transform.localScale = _coinBaseScale;
+        coin.transform.localRotation = _coinBaseRotation;
+
+        coin.SetActive(false);
+        _coinPool.Enqueue(coin);
+    }
+
+    private void OnDisable()
+    {
+        StopCurrentAnimation(false);
+    }
+
+    private void OnDestroy()
+    {
+        StopCurrentAnimation(false);
+
+        if (Instance == this)
+            Instance = null;
     }
 }

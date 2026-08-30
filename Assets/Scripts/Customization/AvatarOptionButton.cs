@@ -5,16 +5,10 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Attach to each swatch/thumbnail button inside a customization options grid
-/// (HairOptions, OutfitOptions or AccessoryOptions).
+/// Deve ser anexado a cada botão de opção das grades de cabelo, roupa e acessório.
 ///
-/// Routes clicks through CustomizationController.HandleOptionClicked(optionIndex).
-///
-/// Includes game feel animations via DOTween:
-/// - Press: scale down slightly
-/// - Release: scale up with overshoot
-/// - Click confirmed: pop + punch
-/// - Locked attempt: shake only
+/// Encaminha os cliques ao CustomizationController e controla as animações de
+/// pressionar, soltar, confirmar seleção, desbloquear e tentar usar item bloqueado.
 /// </summary>
 [RequireComponent(typeof(Button))]
 [RequireComponent(typeof(RectTransform))]
@@ -25,53 +19,52 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     IPointerClickHandler,
     IPointerExitHandler
 {
-    [Header("References")]
+    [Header("Referências")]
     [SerializeField] private CustomizationController controller;
 
     [SerializeField, Min(0)]
     private int optionIndex;
 
-    [Header("Lock Visuals (Optional)")]
-    [Tooltip("Shown/hidden by the controller when this item is locked/unlocked.")]
+    [Header("Visuais de bloqueio (opcional)")]
+    [Tooltip("Exibido ou ocultado pelo controlador conforme o estado de bloqueio do item.")]
     [SerializeField] private GameObject lockOverlay;
 
-    [Tooltip("Shows the price or requirement while locked.")]
+    [Tooltip("Exibe o preço ou requisito enquanto o item estiver bloqueado.")]
     [SerializeField] private TMP_Text unlockLabel;
 
-    [Header("Game Feel Animation Settings")]
-    [Tooltip("Scale multiplier when pressed (0.92 = 92% of original)")]
+    [Header("Configurações de animação")]
+    [Tooltip("Multiplicador da escala ao pressionar. Exemplo: 0,92 corresponde a 92% da escala original.")]
     [SerializeField, Range(0.8f, 1f)]
     private float pressScale = 0.92f;
 
-    [Tooltip("Duration of press animation")]
+    [Tooltip("Duração da animação de pressionar.")]
     [SerializeField, Min(0.01f)]
     private float pressDuration = 0.08f;
 
-    [Tooltip("Overshoot scale on release/click (1.05 = 105%)")]
+    [Tooltip("Escala excedente ao soltar ou clicar. Exemplo: 1,05 corresponde a 105%.")]
     [SerializeField, Range(1f, 1.2f)]
     private float releaseOvershoot = 1.05f;
 
-    [Tooltip("Duration of release overshoot")]
+    [Tooltip("Duração da animação excedente ao soltar.")]
     [SerializeField, Min(0.01f)]
     private float releaseDuration = 0.12f;
 
-    [Tooltip("Punch scale intensity on confirmed selection")]
+    [Tooltip("Intensidade do pulso de escala ao confirmar uma seleção.")]
     [SerializeField, Min(0f)]
     private float punchIntensity = 0.15f;
 
-    [Tooltip("Punch duration on confirmed selection")]
+    [Tooltip("Duração do pulso ao confirmar uma seleção.")]
     [SerializeField, Min(0.01f)]
     private float punchDuration = 0.3f;
 
-    [Tooltip("Shake strength when locked item is pressed")]
+    [Tooltip("Força do balanço ao pressionar um item bloqueado.")]
     [SerializeField, Min(0f)]
     private float shakeStrength = 10f;
 
-    [Tooltip("Shake duration when locked")]
+    [Tooltip("Duração do balanço do item bloqueado.")]
     [SerializeField, Min(0.01f)]
     private float shakeDuration = 0.3f;
 
-    // Internal state
     private Button _button;
     private RectTransform _rectTransform;
 
@@ -80,11 +73,9 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
     private bool _isLocked;
 
-    private Sequence _pressSequence;
+    private Tween _pressTween;
     private Sequence _selectionSequence;
     private Sequence _lockedSequence;
-
-    private Tween _lockPulseTween;
 
     public int OptionIndex => optionIndex;
 
@@ -99,36 +90,9 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         _originalRotation = _rectTransform.localRotation;
 
         if (controller == null)
-        {
             controller = FindFirstObjectByType<CustomizationController>();
-        }
 
-        // Ensure lock overlay starts hidden.
-        if (lockOverlay != null)
-        {
-            lockOverlay.SetActive(false);
-        }
-
-        // Ensure unlock label starts hidden.
-        if (unlockLabel != null)
-        {
-            unlockLabel.gameObject.SetActive(false);
-        }
-    }
-
-    private void OnEnable()
-    {
-        // IMPORTANT:
-        // This script uses IPointerClickHandler.OnPointerClick().
-        // Therefore we do NOT use _button.onClick.AddListener().
-        //
-        // The previous code had:
-        //
-        // _button.onClick.AddListener(HandleClick);
-        //
-        // but HandleClick() does not exist.
-        //
-        // OnPointerClick() below handles the click directly.
+        SetLockVisuals(false, string.Empty);
     }
 
     private void OnDisable()
@@ -136,61 +100,24 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         KillTweens();
     }
 
-    private void OnDestroy()
-    {
-        KillTweens();
-    }
-
     /// <summary>
-    /// Called by CustomizationController after Start()
-    /// and after any purchase to reflect the current unlock state.
+    /// Atualiza os visuais para refletir o estado de bloqueio atual.
     /// </summary>
     public void SetLocked(bool isLocked, string label)
     {
         _isLocked = isLocked;
+        SetLockVisuals(isLocked, label);
 
-        if (lockOverlay != null)
-        {
-            // Preserve the UnlockOverlay alpha exactly as configured in the Inspector.
-            // Locked-state refresh only controls visibility; it never changes alpha.
-            lockOverlay.SetActive(isLocked);
-        }
-
-        if (unlockLabel != null)
-        {
-            bool showLabel =
-                isLocked &&
-                !string.IsNullOrEmpty(label);
-
-            unlockLabel.gameObject.SetActive(showLabel);
-
-            if (showLabel)
-            {
-                unlockLabel.text = label;
-            }
-        }
-
-        // Reset scale when state changes.
         if (_rectTransform != null)
         {
             KillAnimationSequences();
-
             _rectTransform.localScale = _originalScale;
         }
     }
 
-    // ============================================================
-    // POINTER EVENTS
-    // ============================================================
-
     public void OnPointerDown(PointerEventData eventData)
     {
-        if (_button == null || !_button.interactable)
-            return;
-
-        // Locked items don't get the normal press animation.
-        // They use locked feedback on click instead.
-        if (_isLocked)
+        if (!CanUsePressAnimation())
             return;
 
         AnimatePress();
@@ -198,10 +125,7 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        if (_button == null || !_button.interactable)
-            return;
-
-        if (_isLocked)
+        if (!CanUsePressAnimation())
             return;
 
         AnimateRelease();
@@ -209,12 +133,7 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        if (_button == null || !_button.interactable)
-            return;
-
-        // Locked items never start the normal press animation, so there is
-        // nothing to release when the pointer exits.
-        if (_isLocked)
+        if (!CanUsePressAnimation())
             return;
 
         KillPressTween();
@@ -222,21 +141,11 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         if (_rectTransform == null)
             return;
 
-        // Pointer exit is a cancelled press, so return using the same release
-        // timing as PointerUp, but without the click overshoot. Keep it inside
-        // the tracked press sequence so subsequent interactions can kill it
-        // cleanly instead of leaving an independent scale tween running.
-        _pressSequence = DOTween.Sequence();
-        _pressSequence.SetUpdate(UpdateType.Late);
-
-        _pressSequence.Append(
-            _rectTransform
-                .DOScale(_originalScale, releaseDuration)
-                .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        _pressSequence.Play();
+        // Ao sair do botão, cancela o pressionamento sem aplicar o excedente.
+        _pressTween = _rectTransform
+            .DOScale(_originalScale, releaseDuration)
+            .SetEase(Ease.OutQuad)
+            .SetUpdate(UpdateType.Late);
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -244,53 +153,34 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         if (_button == null || !_button.interactable)
             return;
 
-        // IMPORTANT: we no longer gate on the cached _isLocked flag here.
-        // _isLocked is only refreshed by RefreshLockVisuals() (on scene Start()
-        // and right after a purchase), so it can go stale if the player's
-        // unlock state (e.g. Level) changes without that refresh running.
-        // The click always goes to the controller, which re-checks the catalog
-        // + profile live. If it's actually locked, the controller calls back
-        // into AnimateLockedFeedback() via HandleLockedOptionClicked().
+        // O controlador revalida o catálogo e o perfil no momento do clique.
         controller?.HandleOptionClicked(optionIndex);
     }
 
-    // ============================================================
-    // PRESS ANIMATION
-    // ============================================================
+    private bool CanUsePressAnimation()
+    {
+        return _button != null && _button.interactable && !_isLocked;
+    }
 
     private void AnimatePress()
     {
         KillPressTween();
 
-        _pressSequence = DOTween.Sequence();
-        _pressSequence.SetUpdate(UpdateType.Late);
-
-        _pressSequence.Append(
-            _rectTransform
-                .DOScale(
-                    _originalScale * pressScale,
-                    pressDuration
-                )
-                .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        _pressSequence.Play();
+        _pressTween = _rectTransform
+            .DOScale(_originalScale * pressScale, pressDuration)
+            .SetEase(Ease.OutQuad)
+            .SetUpdate(UpdateType.Late);
     }
-
-    // ============================================================
-    // RELEASE ANIMATION
-    // ============================================================
 
     private void AnimateRelease()
     {
         KillPressTween();
 
-        _pressSequence = DOTween.Sequence();
-        _pressSequence.SetUpdate(UpdateType.Late);
+        Sequence releaseSequence = DOTween.Sequence();
+        releaseSequence.SetUpdate(UpdateType.Late);
+        _pressTween = releaseSequence;
 
-        // Overshoot.
-        _pressSequence.Append(
+        releaseSequence.Append(
             _rectTransform
                 .DOScale(
                     _originalScale * releaseOvershoot,
@@ -300,8 +190,7 @@ public sealed class AvatarOptionButton : MonoBehaviour,
                 .SetUpdate(UpdateType.Late)
         );
 
-        // Return to normal.
-        _pressSequence.Append(
+        releaseSequence.Append(
             _rectTransform
                 .DOScale(
                     _originalScale,
@@ -311,16 +200,11 @@ public sealed class AvatarOptionButton : MonoBehaviour,
                 .SetUpdate(UpdateType.Late)
         );
 
-        _pressSequence.Play();
+        releaseSequence.Play();
     }
 
-    // ============================================================
-    // CONFIRMED SELECTION
-    // ============================================================
-
     /// <summary>
-    /// Called by CustomizationController when this option
-    /// has been successfully selected.
+    /// Reproduz o feedback visual de uma seleção confirmada.
     /// </summary>
     public void AnimateSelectionConfirmed()
     {
@@ -329,7 +213,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         _selectionSequence = DOTween.Sequence();
         _selectionSequence.SetUpdate(UpdateType.Late);
 
-        // Small pop.
         _selectionSequence.Append(
             _rectTransform
                 .DOScale(
@@ -340,7 +223,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
                 .SetUpdate(UpdateType.Late)
         );
 
-        // Punch/wobble.
         _selectionSequence.Append(
             _rectTransform
                 .DOPunchScale(
@@ -352,35 +234,17 @@ public sealed class AvatarOptionButton : MonoBehaviour,
                 .SetUpdate(UpdateType.Late)
         );
 
-        // Guarantee final scale.
-        _selectionSequence.OnComplete(() =>
-        {
-            if (_rectTransform != null)
-            {
-                _rectTransform.localScale = _originalScale;
-            }
-        });
+        _selectionSequence.OnComplete(RestoreScale);
 
         _selectionSequence.Play();
     }
 
-    // ============================================================
-    // LOCKED FEEDBACK
-    // ============================================================
-
     /// <summary>
-    /// Plays the locked-item shake feedback. Called by CustomizationController
-    /// after it confirms (live, against catalog + profile) that this option is
-    /// actually locked — see HandleLockedOptionClicked().
+    /// Reproduz o balanço de tentativa bloqueada e chama o retorno ao concluir.
     /// </summary>
     public void AnimateLockedFeedback(System.Action onComplete = null)
     {
-        // Locked feedback intentionally uses SHAKE only.
-        // Use localRotation instead of anchoredPosition because these buttons
-        // are children of a GridLayoutGroup and PlayOptionWave also animates
-        // anchoredPosition. Shaking position here would make multiple systems
-        // compete for the same RectTransform property.
-        // Do not fade or pulse the lock overlay/label here.
+        // Usa rotação para não disputar anchoredPosition com a animação da grade.
         KillAnimationSequences();
 
         if (_rectTransform == null)
@@ -417,37 +281,20 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         _lockedSequence.Play();
     }
 
-    // ============================================================
-    // UNLOCK ANIMATION
-    // ============================================================
-
     /// <summary>
-    /// Called when this item gets unlocked after purchase.
+    /// Reproduz o feedback visual após a compra e desbloqueio do item.
     /// </summary>
     public void AnimateUnlock()
     {
         _isLocked = false;
 
         KillAnimationSequences();
+        SetLockVisuals(false, string.Empty);
 
-        Sequence seq = DOTween.Sequence();
-        seq.SetUpdate(UpdateType.Late);
+        _selectionSequence = DOTween.Sequence();
+        _selectionSequence.SetUpdate(UpdateType.Late);
 
-        // UnlockOverlay/UnlockLabel alpha is intentionally never modified.
-        // When the item becomes unlocked, simply hide the lock visuals and preserve
-        // their Inspector alpha (e.g. 0.8) for any future activation.
-        if (lockOverlay != null)
-        {
-            lockOverlay.SetActive(false);
-        }
-
-        if (unlockLabel != null)
-        {
-            unlockLabel.gameObject.SetActive(false);
-        }
-
-        // Pop after unlocking.
-        seq.Append(
+        _selectionSequence.Append(
             _rectTransform
                 .DOScale(
                     _originalScale * 1.15f,
@@ -457,7 +304,7 @@ public sealed class AvatarOptionButton : MonoBehaviour,
                 .SetUpdate(UpdateType.Late)
         );
 
-        seq.Append(
+        _selectionSequence.Append(
             _rectTransform
                 .DOScale(
                     _originalScale,
@@ -467,93 +314,73 @@ public sealed class AvatarOptionButton : MonoBehaviour,
                 .SetUpdate(UpdateType.Late)
         );
 
-        seq.OnComplete(() =>
-        {
-            if (_rectTransform != null)
-            {
-                _rectTransform.localScale = _originalScale;
-            }
-        });
+        _selectionSequence.OnComplete(RestoreScale);
 
-        seq.Play();
+        _selectionSequence.Play();
     }
-
-    // ============================================================
-    // CLEANUP
-    // ============================================================
 
     private void KillPressTween()
     {
-        if (_pressSequence != null &&
-            _pressSequence.IsActive())
-        {
-            _pressSequence.Kill(true);
-            _pressSequence = null;
-        }
+        if (_pressTween == null)
+            return;
+
+        if (_pressTween.IsActive())
+            _pressTween.Kill(true);
+
+        _pressTween = null;
     }
 
     private void KillAnimationSequences()
     {
         KillPressTween();
 
-        if (_selectionSequence != null &&
-            _selectionSequence.IsActive())
+        if (_selectionSequence != null)
         {
-            _selectionSequence.Kill(true);
+            if (_selectionSequence.IsActive())
+                _selectionSequence.Kill(true);
+
             _selectionSequence = null;
         }
 
-        if (_lockedSequence != null &&
-            _lockedSequence.IsActive())
+        if (_lockedSequence != null)
         {
-            // Do not complete an interrupted locked shake: completing it would
-            // invoke its popup callback early. A new click should restart the
-            // shake and produce only one popup when that shake finishes.
-            _lockedSequence.Kill(false);
+            // Não conclui o balanço interrompido para não antecipar seu callback.
+            if (_lockedSequence.IsActive())
+                _lockedSequence.Kill(false);
+
             _lockedSequence = null;
         }
 
         if (_rectTransform != null)
             _rectTransform.localRotation = _originalRotation;
 
-        _lockPulseTween?.Kill(true);
-        _lockPulseTween = null;
     }
 
     private void KillTweens()
     {
         KillAnimationSequences();
 
-        // Always return to original scale.
+        RestoreScale();
+    }
+
+    private void SetLockVisuals(bool isLocked, string label)
+    {
+        if (lockOverlay != null)
+            lockOverlay.SetActive(isLocked);
+
+        if (unlockLabel == null)
+            return;
+
+        bool showLabel = isLocked && !string.IsNullOrEmpty(label);
+        unlockLabel.gameObject.SetActive(showLabel);
+
+        if (showLabel)
+            unlockLabel.text = label;
+    }
+
+    private void RestoreScale()
+    {
         if (_rectTransform != null)
-        {
             _rectTransform.localScale = _originalScale;
-        }
-    }
-
-    // ============================================================
-    // HELPERS
-    // ============================================================
-
-    // ============================================================
-    // RUNTIME SETTERS
-    // ============================================================
-
-    /// <summary>
-    /// Sets the option index at runtime.
-    /// Useful for dynamically generated grids.
-    /// </summary>
-    public void SetOptionIndex(int index)
-    {
-        optionIndex = index;
-    }
-
-    /// <summary>
-    /// Sets the controller reference at runtime.
-    /// </summary>
-    public void SetController(
-        CustomizationController newController)
-    {
-        controller = newController;
     }
 }

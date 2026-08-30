@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Connects settings UI controls to SettingsManager without owning persistence logic.
+/// Conecta os controles da interface ao SettingsManager sem assumir a persistência.
 /// </summary>
 public sealed class SettingsController : MonoBehaviour
 {

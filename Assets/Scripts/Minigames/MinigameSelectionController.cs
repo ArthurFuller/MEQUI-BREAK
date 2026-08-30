@@ -19,8 +19,7 @@ public sealed class MinigameSelectionController : MonoBehaviour
             if (definition == null)
                 continue;
 
-            // A definition can exist before its minigame scene is implemented.
-            // Do not create a clickable card that can only lead to a broken load.
+            // Ignora definições cuja cena ainda não esteja disponível no Build Settings.
             if (string.IsNullOrWhiteSpace(definition.SceneName)
                 || !Application.CanStreamedLevelBeLoaded(definition.SceneName))
             {

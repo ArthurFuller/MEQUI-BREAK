@@ -4,22 +4,27 @@ using System.Collections.Generic;
 [Serializable]
 public sealed class PlayerProfileData
 {
-    public string EmployeeId;
+    /// <summary>Indica que Nome, Loja e Turno foram validados e salvos.</summary>
+    public bool RegistrationCompleted;
+
+    /// <summary>Nome utilizado pelas interfaces do aplicativo.</summary>
     public string DisplayName;
-    public string Role;
+
+    /// <summary>Número, código ou nome da loja informado no cadastro.</summary>
     public string StoreId;
+
+    /// <summary>Turno informado no cadastro.</summary>
     public string Shift;
+
     public int Level = 1;
 
-    /// <summary>Spendable balance. Goes down when the player buys a customization item.</summary>
+    /// <summary>Saldo disponível para compras de customização.</summary>
     public int BreakPoints;
 
-    /// <summary>Lifetime total earned. Never decreases — Level is derived from this, not from BreakPoints,
-    /// so spending PB on cosmetics never lowers the player's Level.</summary>
+    /// <summary>Total histórico recebido. Nunca diminui e define o nível do jogador.</summary>
     public int LifetimeBreakPoints;
 
-    /// <summary>IDs (AvatarCustomizationItem.Id) of items purchased with Break Points. Level-unlocked
-    /// items are not stored here — they're derived live from Level instead.</summary>
+    /// <summary>IDs dos itens comprados com Break Points. Itens de nível são calculados dinamicamente.</summary>
     public List<string> UnlockedCustomizationIds = new List<string>();
 
     public AvatarCustomizationData Avatar = new AvatarCustomizationData();

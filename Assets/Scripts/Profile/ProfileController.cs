@@ -2,21 +2,19 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Displays read-only profile information and exposes navigation actions.
+/// Exibe os dados do perfil e disponibiliza as ações de navegação.
 /// </summary>
 public sealed class ProfileController : MonoBehaviour
 {
     [SerializeField] private SceneLoader sceneLoader;
 
-    [Header("UI")]
+    [Header("Interface")]
     [SerializeField] private TMP_Text nameText;
-    [SerializeField] private TMP_Text employeeIdText;
-    [SerializeField] private TMP_Text roleText;
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text pointsText;
     [SerializeField] private AvatarView avatarView;
 
-    [Header("Scenes")]
+    [Header("Cenas")]
     [SerializeField] private string customizationScene = "Customization";
     [SerializeField] private string hubScene = "Hub";
 
@@ -27,19 +25,14 @@ public sealed class ProfileController : MonoBehaviour
 
     public void Refresh()
     {
-        var profile = PlayerManager.Instance?.Profile;
+        var player = PlayerManager.Instance;
+        var profile = player?.Profile;
 
         if (profile == null)
             return;
 
         if (nameText != null)
-            nameText.text = profile.DisplayName;
-
-        if (employeeIdText != null)
-            employeeIdText.text = profile.EmployeeId;
-
-        if (roleText != null)
-            roleText.text = profile.Role;
+            nameText.text = player.DisplayName;
 
         if (levelText != null)
             levelText.text = $"Nível {profile.Level}";
