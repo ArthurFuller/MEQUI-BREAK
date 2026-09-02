@@ -13,9 +13,23 @@ public sealed class AppBootstrapper : MonoBehaviour
     [SerializeField] private string loginScene = "Login";
     [SerializeField] private string hubScene = "HUB";
 
+    [Header("Fluxo inicial")]
+    [Tooltip("Quando ativado, o Boot sempre abre a tela de Login, mesmo que já exista um cadastro válido salvo.")]
+    [SerializeField] private bool alwaysShowLoginOnBoot = true;
+
     private void Awake()
     {
+        // O projeto usa um único inicializador persistente; o limite é aplicado
+        // uma vez antes de qualquer troca de cena.
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 60;
+
         DontDestroyOnLoad(transform.root.gameObject);
+
+        // O guia é um único componente persistente; ele observa as cenas sem
+        // substituir os ouvintes já configurados nos botões.
+        if (GetComponent<FirstRunGuideController>() == null)
+            gameObject.AddComponent<FirstRunGuideController>();
     }
 
     private void Start()
@@ -29,7 +43,9 @@ public sealed class AppBootstrapper : MonoBehaviour
         bool hasRegistration = playerManager != null
             && playerManager.HasValidRegistration;
 
-        string targetScene = hasRegistration ? hubScene : loginScene;
+        string targetScene = alwaysShowLoginOnBoot || !hasRegistration
+            ? loginScene
+            : hubScene;
         if (!string.IsNullOrWhiteSpace(targetScene))
             SceneManager.LoadScene(targetScene);
     }

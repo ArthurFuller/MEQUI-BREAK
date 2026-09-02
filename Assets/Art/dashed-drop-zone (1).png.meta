@@ -1,0 +1,1820 @@
+fileFormatVersion: 2
+guid: 3fa209415f8e89d41b35b6b99c2bdb2e
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4839249151105647225
+    second: dashed-drop-zone (1)_0
+  - first:
+      213: -878207895642140726
+    second: dashed-drop-zone (1)_1
+  - first:
+      213: -2481412810691291006
+    second: dashed-drop-zone (1)_2
+  - first:
+      213: -8460995572243305403
+    second: dashed-drop-zone (1)_3
+  - first:
+      213: -6870802419472937591
+    second: dashed-drop-zone (1)_4
+  - first:
+      213: -7115724344642188558
+    second: dashed-drop-zone (1)_5
+  - first:
+      213: -7494076653033410008
+    second: dashed-drop-zone (1)_6
+  - first:
+      213: -7817427401073458368
+    second: dashed-drop-zone (1)_7
+  - first:
+      213: 8588716427972839374
+    second: dashed-drop-zone (1)_8
+  - first:
+      213: 3868068331063871435
+    second: dashed-drop-zone (1)_9
+  - first:
+      213: 1633986951653976865
+    second: dashed-drop-zone (1)_10
+  - first:
+      213: 3383532384749771740
+    second: dashed-drop-zone (1)_11
+  - first:
+      213: -8771802347891609465
+    second: dashed-drop-zone (1)_12
+  - first:
+      213: -1772606492876474167
+    second: dashed-drop-zone (1)_13
+  - first:
+      213: -8586147559009516239
+    second: dashed-drop-zone (1)_14
+  - first:
+      213: -6779285194940348123
+    second: dashed-drop-zone (1)_15
+  - first:
+      213: 3516872757346083988
+    second: dashed-drop-zone (1)_16
+  - first:
+      213: 7596747742185762316
+    second: dashed-drop-zone (1)_17
+  - first:
+      213: -8077557931339389215
+    second: dashed-drop-zone (1)_18
+  - first:
+      213: 8802708585329169138
+    second: dashed-drop-zone (1)_19
+  - first:
+      213: -4250892868992285995
+    second: dashed-drop-zone (1)_20
+  - first:
+      213: -4384940303238331752
+    second: dashed-drop-zone (1)_21
+  - first:
+      213: 7674716783771335463
+    second: dashed-drop-zone (1)_22
+  - first:
+      213: -941893261175498022
+    second: dashed-drop-zone (1)_23
+  - first:
+      213: -5544545843767177887
+    second: dashed-drop-zone (1)_24
+  - first:
+      213: -3384944608534722217
+    second: dashed-drop-zone (1)_25
+  - first:
+      213: 2838567005715846927
+    second: dashed-drop-zone (1)_26
+  - first:
+      213: 8880998271141773968
+    second: dashed-drop-zone (1)_27
+  - first:
+      213: -8016791779705264675
+    second: dashed-drop-zone (1)_28
+  - first:
+      213: -5983066813297030458
+    second: dashed-drop-zone (1)_29
+  - first:
+      213: 4607050718349499876
+    second: dashed-drop-zone (1)_30
+  - first:
+      213: 3406325199287566038
+    second: dashed-drop-zone (1)_31
+  - first:
+      213: -6102088725386974238
+    second: dashed-drop-zone (1)_32
+  - first:
+      213: 1269523433501408456
+    second: dashed-drop-zone (1)_33
+  - first:
+      213: -3354955864090224231
+    second: dashed-drop-zone (1)_34
+  - first:
+      213: 8388621692913450483
+    second: dashed-drop-zone (1)_35
+  - first:
+      213: 5292844307128391149
+    second: dashed-drop-zone (1)_36
+  - first:
+      213: -241568840255298964
+    second: dashed-drop-zone (1)_37
+  - first:
+      213: 4749073034623737553
+    second: dashed-drop-zone (1)_38
+  - first:
+      213: 8884229483165297294
+    second: dashed-drop-zone (1)_39
+  - first:
+      213: -7960851696906018685
+    second: dashed-drop-zone (1)_40
+  - first:
+      213: -1999322957482845668
+    second: dashed-drop-zone (1)_41
+  - first:
+      213: 1915328509247078704
+    second: dashed-drop-zone (1)_42
+  - first:
+      213: -7387265888666335904
+    second: dashed-drop-zone (1)_43
+  - first:
+      213: 8853209124167533662
+    second: dashed-drop-zone (1)_44
+  - first:
+      213: -2116556808387847151
+    second: dashed-drop-zone (1)_45
+  - first:
+      213: 5261317274699345578
+    second: dashed-drop-zone (1)_46
+  - first:
+      213: 2237387259340020359
+    second: dashed-drop-zone (1)_47
+  - first:
+      213: 6768125601840909163
+    second: dashed-drop-zone (1)_48
+  - first:
+      213: 4312298718245551849
+    second: dashed-drop-zone (1)_49
+  - first:
+      213: -4853185678663583444
+    second: dashed-drop-zone (1)_50
+  - first:
+      213: 3568508726181227043
+    second: dashed-drop-zone (1)_51
+  - first:
+      213: 1011699933180103914
+    second: dashed-drop-zone (1)_52
+  - first:
+      213: 6695204464585088732
+    second: dashed-drop-zone (1)_53
+  - first:
+      213: 7220481122072144418
+    second: dashed-drop-zone (1)_54
+  - first:
+      213: -419515434968675200
+    second: dashed-drop-zone (1)_55
+  - first:
+      213: 2341039834109005916
+    second: dashed-drop-zone (1)_56
+  - first:
+      213: 6502382994077785670
+    second: dashed-drop-zone (1)_57
+  - first:
+      213: 1215184306706582341
+    second: dashed-drop-zone (1)_58
+  - first:
+      213: -7337895916623097320
+    second: dashed-drop-zone (1)_59
+  - first:
+      213: 4042012472903933032
+    second: dashed-drop-zone (1)_60
+  - first:
+      213: 2355552229846751686
+    second: dashed-drop-zone (1)_61
+  - first:
+      213: -5309725273979235345
+    second: dashed-drop-zone (1)_62
+  - first:
+      213: 6050152938724729477
+    second: dashed-drop-zone (1)_63
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WindowsStoreApps
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_0
+      rect:
+        serializedVersion: 2
+        x: 286
+        y: 718
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9724347a677782340800000000000000
+      internalID: 4839249151105647225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_1
+      rect:
+        serializedVersion: 2
+        x: 322
+        y: 724
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: acf8e45629affc3f0800000000000000
+      internalID: -878207895642140726
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_2
+      rect:
+        serializedVersion: 2
+        x: 358
+        y: 726
+        width: 20
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28854ad1230409dd0800000000000000
+      internalID: -2481412810691291006
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_3
+      rect:
+        serializedVersion: 2
+        x: 393
+        y: 724
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 54ce846fa51849a80800000000000000
+      internalID: -8460995572243305403
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_4
+      rect:
+        serializedVersion: 2
+        x: 428
+        y: 718
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 98dcb614a9106a0a0800000000000000
+      internalID: -6870802419472937591
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_5
+      rect:
+        serializedVersion: 2
+        x: 217
+        y: 696
+        width: 23
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2fac006c86edf3d90800000000000000
+      internalID: -7115724344642188558
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_6
+      rect:
+        serializedVersion: 2
+        x: 251
+        y: 709
+        width: 22
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 82235684df0bff790800000000000000
+      internalID: -7494076653033410008
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_7
+      rect:
+        serializedVersion: 2
+        x: 463
+        y: 709
+        width: 22
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0438c9d723be28390800000000000000
+      internalID: -7817427401073458368
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_8
+      rect:
+        serializedVersion: 2
+        x: 496
+        y: 696
+        width: 22
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ec702e51610413770800000000000000
+      internalID: 8588716427972839374
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_9
+      rect:
+        serializedVersion: 2
+        x: 155
+        y: 661
+        width: 22
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc7000837a32ea530800000000000000
+      internalID: 3868068331063871435
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_10
+      rect:
+        serializedVersion: 2
+        x: 185
+        y: 680
+        width: 23
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 12b65fca9761da610800000000000000
+      internalID: 1633986951653976865
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_11
+      rect:
+        serializedVersion: 2
+        x: 529
+        y: 680
+        width: 22
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cdb5a07f6c8b4fe20800000000000000
+      internalID: 3383532384749771740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_12
+      rect:
+        serializedVersion: 2
+        x: 559
+        y: 661
+        width: 22
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 780bbf55d3c444680800000000000000
+      internalID: -8771802347891609465
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_13
+      rect:
+        serializedVersion: 2
+        x: 126
+        y: 639
+        width: 22
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9c8fb8159cf6667e0800000000000000
+      internalID: -1772606492876474167
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_14
+      rect:
+        serializedVersion: 2
+        x: 588
+        y: 639
+        width: 22
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 13586245940e7d880800000000000000
+      internalID: -8586147559009516239
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_15
+      rect:
+        serializedVersion: 2
+        x: 100
+        y: 615
+        width: 21
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 529048c88042be1a0800000000000000
+      internalID: -6779285194940348123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_16
+      rect:
+        serializedVersion: 2
+        x: 615
+        y: 615
+        width: 21
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 494acddb3217ec030800000000000000
+      internalID: 3516872757346083988
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_17
+      rect:
+        serializedVersion: 2
+        x: 77
+        y: 588
+        width: 20
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0eab3d72d11d6960800000000000000
+      internalID: 7596747742185762316
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_18
+      rect:
+        serializedVersion: 2
+        x: 639
+        y: 588
+        width: 20
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1e660e1bbdfb6ef80800000000000000
+      internalID: -8077557931339389215
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_19
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 559
+        width: 19
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2f293d1d1d0892a70800000000000000
+      internalID: 8802708585329169138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_20
+      rect:
+        serializedVersion: 2
+        x: 661
+        y: 559
+        width: 19
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5d24975357bc105c0800000000000000
+      internalID: -4250892868992285995
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_21
+      rect:
+        serializedVersion: 2
+        x: 38
+        y: 529
+        width: 18
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8928f20d6009523c0800000000000000
+      internalID: -4384940303238331752
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_22
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 528
+        width: 18
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 72b3b60a042128a60800000000000000
+      internalID: 7674716783771335463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_23
+      rect:
+        serializedVersion: 2
+        x: 23
+        y: 496
+        width: 17
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: adadc4fb119bde2f0800000000000000
+      internalID: -941893261175498022
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_24
+      rect:
+        serializedVersion: 2
+        x: 696
+        y: 496
+        width: 17
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 16d836d6ee0dd03b0800000000000000
+      internalID: -5544545843767177887
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_25
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 463
+        width: 15
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7590aef00d24601d0800000000000000
+      internalID: -3384944608534722217
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_26
+      rect:
+        serializedVersion: 2
+        x: 709
+        y: 463
+        width: 15
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f0756def6ad946720800000000000000
+      internalID: 2838567005715846927
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_27
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 428
+        width: 14
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0928342cfd4af3b70800000000000000
+      internalID: 8880998271141773968
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_28
+      rect:
+        serializedVersion: 2
+        x: 718
+        y: 428
+        width: 14
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dd56564e952aeb090800000000000000
+      internalID: -8016791779705264675
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_29
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 393
+        width: 12
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6ca8006de60e7fca0800000000000000
+      internalID: -5983066813297030458
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_30
+      rect:
+        serializedVersion: 2
+        x: 724
+        y: 393
+        width: 12
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4ed1e6918388fef30800000000000000
+      internalID: 4607050718349499876
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_31
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 358
+        width: 10
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6de3ff4a8b2b54f20800000000000000
+      internalID: 3406325199287566038
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_32
+      rect:
+        serializedVersion: 2
+        x: 726
+        y: 358
+        width: 10
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2eba46f62a6015ba0800000000000000
+      internalID: -6102088725386974238
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_33
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 322
+        width: 12
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ccb2e726d04e9110800000000000000
+      internalID: 1269523433501408456
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_34
+      rect:
+        serializedVersion: 2
+        x: 724
+        y: 322
+        width: 12
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 999d9cbba6dc071d0800000000000000
+      internalID: -3354955864090224231
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_35
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 286
+        width: 14
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3fdfd312cfe5a6470800000000000000
+      internalID: 8388621692913450483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_36
+      rect:
+        serializedVersion: 2
+        x: 718
+        y: 286
+        width: 14
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: de516d9cad5f37940800000000000000
+      internalID: 5292844307128391149
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_37
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 251
+        width: 15
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c62a7cf6b66c5acf0800000000000000
+      internalID: -241568840255298964
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_38
+      rect:
+        serializedVersion: 2
+        x: 709
+        y: 251
+        width: 15
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1de522963c818e140800000000000000
+      internalID: 4749073034623737553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_39
+      rect:
+        serializedVersion: 2
+        x: 23
+        y: 217
+        width: 17
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e8aae1fe4af1b4b70800000000000000
+      internalID: 8884229483165297294
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_40
+      rect:
+        serializedVersion: 2
+        x: 696
+        y: 218
+        width: 17
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 380e9506f8f558190800000000000000
+      internalID: -7960851696906018685
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_41
+      rect:
+        serializedVersion: 2
+        x: 38
+        y: 185
+        width: 18
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c1a93ffec5af044e0800000000000000
+      internalID: -1999322957482845668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_42
+      rect:
+        serializedVersion: 2
+        x: 680
+        y: 185
+        width: 18
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 031c9dd912d949a10800000000000000
+      internalID: 1915328509247078704
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_43
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 155
+        width: 19
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 065ceac40d82b7990800000000000000
+      internalID: -7387265888666335904
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_44
+      rect:
+        serializedVersion: 2
+        x: 661
+        y: 155
+        width: 19
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e54c048cacaecda70800000000000000
+      internalID: 8853209124167533662
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_45
+      rect:
+        serializedVersion: 2
+        x: 77
+        y: 126
+        width: 20
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11c9b19fbca70a2e0800000000000000
+      internalID: -2116556808387847151
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_46
+      rect:
+        serializedVersion: 2
+        x: 639
+        y: 126
+        width: 20
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aaea4198f24f30940800000000000000
+      internalID: 5261317274699345578
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_47
+      rect:
+        serializedVersion: 2
+        x: 100
+        y: 100
+        width: 21
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 78a52f1bbdbcc0f10800000000000000
+      internalID: 2237387259340020359
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_48
+      rect:
+        serializedVersion: 2
+        x: 615
+        y: 100
+        width: 21
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6b44f430663ded50800000000000000
+      internalID: 6768125601840909163
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_49
+      rect:
+        serializedVersion: 2
+        x: 126
+        y: 77
+        width: 22
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9eef56236dc58db30800000000000000
+      internalID: 4312298718245551849
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_50
+      rect:
+        serializedVersion: 2
+        x: 588
+        y: 77
+        width: 22
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c297e3aa65506acb0800000000000000
+      internalID: -4853185678663583444
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_51
+      rect:
+        serializedVersion: 2
+        x: 155
+        y: 56
+        width: 22
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 32ae9e997c3e58130800000000000000
+      internalID: 3568508726181227043
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_52
+      rect:
+        serializedVersion: 2
+        x: 185
+        y: 38
+        width: 22
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aec8c70aab74a0e00800000000000000
+      internalID: 1011699933180103914
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_53
+      rect:
+        serializedVersion: 2
+        x: 528
+        y: 38
+        width: 23
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cde1432ecf42aec50800000000000000
+      internalID: 6695204464585088732
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_54
+      rect:
+        serializedVersion: 2
+        x: 559
+        y: 56
+        width: 22
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 22a2684235d443460800000000000000
+      internalID: 7220481122072144418
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_55
+      rect:
+        serializedVersion: 2
+        x: 218
+        y: 23
+        width: 22
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 08c06e04fe49d2af0800000000000000
+      internalID: -419515434968675200
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_56
+      rect:
+        serializedVersion: 2
+        x: 251
+        y: 12
+        width: 22
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c505b15635b0d7020800000000000000
+      internalID: 2341039834109005916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_57
+      rect:
+        serializedVersion: 2
+        x: 463
+        y: 12
+        width: 22
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 64e1c8bc1ea1d3a50800000000000000
+      internalID: 6502382994077785670
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_58
+      rect:
+        serializedVersion: 2
+        x: 496
+        y: 23
+        width: 23
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 54b00e940b33dd010800000000000000
+      internalID: 1215184306706582341
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_59
+      rect:
+        serializedVersion: 2
+        x: 286
+        y: 4
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 81214eaaa8e8a2a90800000000000000
+      internalID: -7337895916623097320
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_60
+      rect:
+        serializedVersion: 2
+        x: 322
+        y: 0
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 86c1329bdec181830800000000000000
+      internalID: 4042012472903933032
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_61
+      rect:
+        serializedVersion: 2
+        x: 358
+        y: 0
+        width: 20
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6c915e5d54a90b020800000000000000
+      internalID: 2355552229846751686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_62
+      rect:
+        serializedVersion: 2
+        x: 393
+        y: 0
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fe3dd85def01056b0800000000000000
+      internalID: -5309725273979235345
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: dashed-drop-zone (1)_63
+      rect:
+        serializedVersion: 2
+        x: 428
+        y: 4
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 582297dea0676f350800000000000000
+      internalID: 6050152938724729477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      dashed-drop-zone (1)_0: 4839249151105647225
+      dashed-drop-zone (1)_1: -878207895642140726
+      dashed-drop-zone (1)_10: 1633986951653976865
+      dashed-drop-zone (1)_11: 3383532384749771740
+      dashed-drop-zone (1)_12: -8771802347891609465
+      dashed-drop-zone (1)_13: -1772606492876474167
+      dashed-drop-zone (1)_14: -8586147559009516239
+      dashed-drop-zone (1)_15: -6779285194940348123
+      dashed-drop-zone (1)_16: 3516872757346083988
+      dashed-drop-zone (1)_17: 7596747742185762316
+      dashed-drop-zone (1)_18: -8077557931339389215
+      dashed-drop-zone (1)_19: 8802708585329169138
+      dashed-drop-zone (1)_2: -2481412810691291006
+      dashed-drop-zone (1)_20: -4250892868992285995
+      dashed-drop-zone (1)_21: -4384940303238331752
+      dashed-drop-zone (1)_22: 7674716783771335463
+      dashed-drop-zone (1)_23: -941893261175498022
+      dashed-drop-zone (1)_24: -5544545843767177887
+      dashed-drop-zone (1)_25: -3384944608534722217
+      dashed-drop-zone (1)_26: 2838567005715846927
+      dashed-drop-zone (1)_27: 8880998271141773968
+      dashed-drop-zone (1)_28: -8016791779705264675
+      dashed-drop-zone (1)_29: -5983066813297030458
+      dashed-drop-zone (1)_3: -8460995572243305403
+      dashed-drop-zone (1)_30: 4607050718349499876
+      dashed-drop-zone (1)_31: 3406325199287566038
+      dashed-drop-zone (1)_32: -6102088725386974238
+      dashed-drop-zone (1)_33: 1269523433501408456
+      dashed-drop-zone (1)_34: -3354955864090224231
+      dashed-drop-zone (1)_35: 8388621692913450483
+      dashed-drop-zone (1)_36: 5292844307128391149
+      dashed-drop-zone (1)_37: -241568840255298964
+      dashed-drop-zone (1)_38: 4749073034623737553
+      dashed-drop-zone (1)_39: 8884229483165297294
+      dashed-drop-zone (1)_4: -6870802419472937591
+      dashed-drop-zone (1)_40: -7960851696906018685
+      dashed-drop-zone (1)_41: -1999322957482845668
+      dashed-drop-zone (1)_42: 1915328509247078704
+      dashed-drop-zone (1)_43: -7387265888666335904
+      dashed-drop-zone (1)_44: 8853209124167533662
+      dashed-drop-zone (1)_45: -2116556808387847151
+      dashed-drop-zone (1)_46: 5261317274699345578
+      dashed-drop-zone (1)_47: 2237387259340020359
+      dashed-drop-zone (1)_48: 6768125601840909163
+      dashed-drop-zone (1)_49: 4312298718245551849
+      dashed-drop-zone (1)_5: -7115724344642188558
+      dashed-drop-zone (1)_50: -4853185678663583444
+      dashed-drop-zone (1)_51: 3568508726181227043
+      dashed-drop-zone (1)_52: 1011699933180103914
+      dashed-drop-zone (1)_53: 6695204464585088732
+      dashed-drop-zone (1)_54: 7220481122072144418
+      dashed-drop-zone (1)_55: -419515434968675200
+      dashed-drop-zone (1)_56: 2341039834109005916
+      dashed-drop-zone (1)_57: 6502382994077785670
+      dashed-drop-zone (1)_58: 1215184306706582341
+      dashed-drop-zone (1)_59: -7337895916623097320
+      dashed-drop-zone (1)_6: -7494076653033410008
+      dashed-drop-zone (1)_60: 4042012472903933032
+      dashed-drop-zone (1)_61: 2355552229846751686
+      dashed-drop-zone (1)_62: -5309725273979235345
+      dashed-drop-zone (1)_63: 6050152938724729477
+      dashed-drop-zone (1)_7: -7817427401073458368
+      dashed-drop-zone (1)_8: 8588716427972839374
+      dashed-drop-zone (1)_9: 3868068331063871435
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

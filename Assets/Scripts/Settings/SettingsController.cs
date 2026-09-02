@@ -6,11 +6,9 @@ using UnityEngine.UI;
 /// </summary>
 public sealed class SettingsController : MonoBehaviour
 {
-    [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private Slider musicSlider;
     [SerializeField] private Slider sfxSlider;
     [SerializeField] private Toggle vibrationToggle;
-    [SerializeField] private string backScene = "Hub";
 
     private void Start()
     {
@@ -44,17 +42,4 @@ public sealed class SettingsController : MonoBehaviour
         SettingsManager.Instance?.SetVibration(enabled);
     }
 
-    public void Save()
-    {
-        SettingsManager.Instance?.Save();
-        AudioManager.Instance?.PlayConfirm();
-    }
-
-    public void Back()
-    {
-        SettingsManager.Instance?.Save();
-        AudioManager.Instance?.PlayClick();
-
-        sceneLoader.Load(backScene);
-    }
 }

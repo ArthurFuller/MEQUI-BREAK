@@ -105,17 +105,6 @@ public sealed class EventLogger : MonoBehaviour
         eventTypes.Add("COMPLETE_BUTTON_AVAILABLE");
     }
 
-    public void RecordAppBackground()
-    {
-        eventTypes.Add("APP_BACKGROUND");
-        eventTypes.Add("SESSION_INTERRUPTED");
-    }
-
-    public void RecordAppForeground()
-    {
-        eventTypes.Add("APP_FOREGROUND");
-    }
-
     public void CompleteSession()
     {
         FinishSession("Completed", "SESSION_COMPLETED", includePostActivityTime: true);

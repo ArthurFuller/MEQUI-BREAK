@@ -391,6 +391,7 @@ MonoBehaviour:
   settingsManager: {fileID: 964514662}
   loginScene: Login
   hubScene: HUB
+  alwaysShowLoginOnBoot: 1
 --- !u!1 &960397235
 GameObject:
   m_ObjectHideFlags: 0

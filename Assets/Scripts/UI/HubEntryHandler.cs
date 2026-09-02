@@ -96,5 +96,19 @@ public sealed class HubEntryHandler : MonoBehaviour
         isSubscribed = false;
     }
 
-    private void OnDisable() => UnsubscribeFromCompletion();
+    private void OnDisable()
+    {
+        UnsubscribeFromCompletion();
+
+        // Sair do HUB consome os pontos pendentes para impedir uma repetição ao retornar.
+        PlayerManager currentPlayer = player != null ? player : PlayerManager.Instance;
+        if (currentPlayer == null || currentPlayer.PendingBreakPoints <= 0)
+            return;
+
+        currentPlayer.ClearPendingPoints();
+
+        // Se o objeto ainda estiver ativo durante a saída, deixa o saldo final visível.
+        if (pointAnimationManager?.PointsLabel != null)
+            pointAnimationManager.PointsLabel.SetText("{0} PB", currentPlayer.Profile?.BreakPoints ?? 0);
+    }
 }

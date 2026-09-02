@@ -1,6 +1,5 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 /// <summary>
 /// Exibe o perfil atual no HUB.
@@ -10,24 +9,11 @@ public sealed class HubController : MonoBehaviour
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text pointsText;
-
-    [Header("Feedback de interação")]
-    [SerializeField] private Button profileButton;
-    [SerializeField] private Button customizationButton;
+    [SerializeField] private AvatarView avatarView;
 
     private void Start()
     {
-        EnsureInteractionFeedback(profileButton);
-        EnsureInteractionFeedback(customizationButton);
         Refresh();
-    }
-
-    private static void EnsureInteractionFeedback(Button button)
-    {
-        if (button == null || button.GetComponent<UIInteractionFeedback>() != null)
-            return;
-
-        button.gameObject.AddComponent<UIInteractionFeedback>();
     }
 
     public void Refresh()
@@ -39,6 +25,7 @@ public sealed class HubController : MonoBehaviour
         var profile = player.Profile;
         if (nameText != null) nameText.text = player.DisplayName;
         if (levelText != null) levelText.text = $"Nível {profile.Level}";
+        avatarView?.Apply(profile.Avatar);
 
         if (pointsText != null)
         {

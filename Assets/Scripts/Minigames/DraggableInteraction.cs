@@ -1,5 +1,4 @@
 using System.Collections;
-using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -7,63 +6,69 @@ using UnityEngine.EventSystems;
 [RequireComponent(typeof(CanvasGroup))]
 public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+    [Header("Dados da interação")]
     [SerializeField] private string interactionId = "interaction_01";
     [SerializeField] private string reactionTrigger = "Happy";
     [SerializeField, TextArea] private string feedbackMessage = "";
-    [SerializeField, Min(0f)] private float returnDuration = 0.15f;
 
-    [Header("Animação de reaparecimento")]
-    [SerializeField, Min(0.05f)] private float respawnDuration = 0.35f;
-    [SerializeField, Min(0f)] private float respawnScaleFrom = 0.8f;
-    [SerializeField, Min(0f)] private float respawnScaleTo = 1.05f;
-    [SerializeField, Min(0f)] private float respawnScaleFinal = 1f;
+    [Header("Retorno ao slot")]
+    [SerializeField, Min(0f)] private float returnDuration = 0.15f;
 
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
-    private Transform originalParent;
-    private Vector3 originalWorldPosition;
-    private Canvas rootCanvas;
+    private Transform originParent;
+    private Vector3 originLocalPosition;
+    private Quaternion originLocalRotation;
+    private Vector3 originLocalScale;
+    private Canvas interactionCanvas;
+    private bool hasOrigin;
     private bool accepted;
     private Coroutine returnRoutine;
-    private Sequence respawnSequence;
 
     public string InteractionId => interactionId;
     public string ReactionTrigger => reactionTrigger;
     public string FeedbackMessage => feedbackMessage;
 
+    public event System.Action<DraggableInteraction> DragStarted;
+    public event System.Action<DraggableInteraction> ReturnedToOrigin;
+
     private void Awake()
     {
-        rectTransform = (RectTransform)transform;
-        canvasGroup = GetComponent<CanvasGroup>();
-        Canvas canvas = GetComponentInParent<Canvas>();
-        rootCanvas = canvas != null ? canvas.rootCanvas : null;
+        CacheComponents();
+        CacheOrigin();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
         StopReturnRoutine(completeReturn: false);
         accepted = false;
-        originalParent = transform.parent;
-        originalWorldPosition = rectTransform.position;
+
+        // Atualiza o slot somente quando o card já está sob o pai de origem.
+        // Durante um retorno interrompido, o pai ainda é o Canvas interativo.
+        if (!hasOrigin || transform.parent == originParent)
+            CacheOrigin();
+
         canvasGroup.blocksRaycasts = false;
 
-        // Move o item para o Canvas raiz para renderizá-lo acima dos demais.
-        if (rootCanvas != null && transform.parent != rootCanvas.transform)
-            transform.SetParent(rootCanvas.transform, true);
+        // Move o card para o Canvas da área interativa, acima dos demais cards,
+        // sem cair para baixo do overlay do tutorial.
+        if (interactionCanvas != null && transform.parent != interactionCanvas.transform)
+            transform.SetParent(interactionCanvas.transform, true);
 
         transform.SetAsLastSibling();
+        DragStarted?.Invoke(this);
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (rootCanvas == null)
+        if (interactionCanvas == null)
             return;
 
-        RectTransform canvasRect = rootCanvas.transform as RectTransform;
+        RectTransform canvasRect = interactionCanvas.transform as RectTransform;
         if (canvasRect == null)
             return;
 
-        Camera eventCamera = rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay
+        Camera eventCamera = interactionCanvas.renderMode == RenderMode.ScreenSpaceOverlay
             ? null
             : eventData.pressEventCamera;
 
@@ -85,109 +90,137 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
             returnRoutine = StartCoroutine(ReturnToOrigin());
     }
 
+    /// <summary>
+    /// Marca o card como aceito e o desativa, mantendo o slot de origem vazio.
+    /// </summary>
     public void AcceptDrop()
     {
         StopReturnRoutine(completeReturn: false);
         accepted = true;
+        canvasGroup.blocksRaycasts = false;
+        gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Reativa o card e o devolve imediatamente ao slot original sem criar clones.
+    /// </summary>
+    public void ResetToOrigin()
+    {
+        // Os cards começam inativos na cena. Nesse estado, Awake ainda não foi
+        // executado quando o controlador solicita o primeiro reset.
+        CacheComponents();
+        StopReturnRoutine(completeReturn: true);
+        accepted = false;
+
+        if (!hasOrigin)
+            CacheOrigin();
+
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+
+        if (originParent != null)
+            transform.SetParent(originParent, false);
+
+        ApplyOriginTransform();
+        canvasGroup.alpha = 1f;
         canvasGroup.blocksRaycasts = true;
     }
 
     /// <summary>
-    /// Reutiliza o item no centro do contêiner e reproduz sua animação sem criar clone.
+    /// Mantém compatibilidade com eventuais referências antigas do Inspector.
     /// </summary>
-    public void Respawn()
+    public void Respawn() => ResetToOrigin();
+
+    private void CacheOrigin()
     {
-        StopReturnRoutine(completeReturn: false);
-        Transform container = originalParent != null ? originalParent : transform.parent;
-        if (container == null)
+        CacheComponents();
+        if (rectTransform == null)
             return;
 
-        transform.SetParent(container, false);
-        rectTransform.anchoredPosition = Vector2.zero;
-        canvasGroup.blocksRaycasts = true;
-        AnimateRespawn();
+        originParent = transform.parent;
+        originLocalPosition = rectTransform.localPosition;
+        originLocalRotation = rectTransform.localRotation;
+        originLocalScale = rectTransform.localScale;
+        hasOrigin = originParent != null;
     }
 
-    private void AnimateRespawn()
+    private void CacheComponents()
     {
-        if (respawnDuration <= 0f)
-            return;
+        if (rectTransform == null)
+            rectTransform = transform as RectTransform;
 
-        if (respawnSequence != null && respawnSequence.IsActive())
-            respawnSequence.Kill();
+        if (canvasGroup == null)
+            canvasGroup = GetComponent<CanvasGroup>();
 
-        // Estado inicial.
-        rectTransform.localScale = Vector3.one * respawnScaleFrom;
-        canvasGroup.alpha = 0f;
-
-        respawnSequence = DOTween.Sequence().SetTarget(this);
-
-        // Primeira fase: cresce até a escala excedente.
-        respawnSequence.Join(rectTransform.DOScale(respawnScaleTo, respawnDuration * 0.6f)
-            .SetEase(Ease.OutBack));
-
-        // Segunda fase: retorna à escala final.
-        respawnSequence.Append(rectTransform.DOScale(respawnScaleFinal, respawnDuration * 0.4f)
-            .SetEase(Ease.OutCubic));
-
-        // A transparência retorna de 0 para 1.
-        respawnSequence.Join(canvasGroup.DOFade(1f, respawnDuration)
-            .SetEase(Ease.OutQuad));
-
-        respawnSequence.OnComplete(CompleteRespawnAnimation);
+        // Usa o Canvas interativo mais próximo. Na Energy Station ele fica
+        // serializado acima do overlay do tutorial, preservando drag e drop.
+        if (interactionCanvas == null)
+            interactionCanvas = GetComponentInParent<Canvas>(true);
     }
-
-    private void CompleteRespawnAnimation() => respawnSequence = null;
 
     private IEnumerator ReturnToOrigin()
     {
         Vector3 start = rectTransform.position;
+        Vector3 target = originParent != null
+            ? originParent.TransformPoint(originLocalPosition)
+            : start;
         float elapsed = 0f;
 
         while (elapsed < returnDuration)
         {
             elapsed += Time.unscaledDeltaTime;
-            float t = returnDuration <= 0f ? 1f : Mathf.Clamp01(elapsed / returnDuration);
-            rectTransform.position = Vector3.Lerp(start, originalWorldPosition, t);
+            float t = returnDuration <= 0f
+                ? 1f
+                : Mathf.Clamp01(elapsed / returnDuration);
+
+            rectTransform.position = Vector3.Lerp(start, target, t);
             yield return null;
         }
 
-        rectTransform.position = originalWorldPosition;
-
-        if (originalParent != null)
-            transform.SetParent(originalParent, true);
+        if (originParent != null)
+        {
+            transform.SetParent(originParent, false);
+            ApplyOriginTransform();
+        }
+        else
+        {
+            rectTransform.position = target;
+        }
 
         returnRoutine = null;
+        ReturnedToOrigin?.Invoke(this);
     }
 
     private void StopReturnRoutine(bool completeReturn)
     {
         bool wasReturning = returnRoutine != null;
-        if (!wasReturning && !completeReturn)
-            return;
-
         if (wasReturning)
         {
             StopCoroutine(returnRoutine);
             returnRoutine = null;
         }
 
-        if (originalParent != null && transform.parent != originalParent)
-            transform.SetParent(originalParent, true);
+        if (!completeReturn || originParent == null)
+            return;
 
-        if (completeReturn && originalParent != null)
-            rectTransform.position = originalWorldPosition;
+        transform.SetParent(originParent, false);
+        ApplyOriginTransform();
+    }
+
+    private void ApplyOriginTransform()
+    {
+        rectTransform.localPosition = originLocalPosition;
+        rectTransform.localRotation = originLocalRotation;
+        rectTransform.localScale = originLocalScale;
     }
 
     private void OnDisable()
     {
-        StopReturnRoutine(completeReturn: true);
-
-        if (respawnSequence != null && respawnSequence.IsActive())
-            respawnSequence.Kill();
-
-        respawnSequence = null;
-        rectTransform.localScale = Vector3.one * respawnScaleFinal;
+        // Durante OnDisable o Unity ainda está processando a desativação;
+        // alterar a hierarquia nesse ponto gera erro de ativação/desativação.
+        // O reparenting é feito com segurança no reset ou no fim do retorno.
+        StopReturnRoutine(completeReturn: false);
+        rectTransform.localScale = Vector3.one;
         canvasGroup.alpha = 1f;
         canvasGroup.blocksRaycasts = true;
     }

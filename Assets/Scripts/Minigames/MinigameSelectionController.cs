@@ -4,40 +4,49 @@ public sealed class MinigameSelectionController : MonoBehaviour
 {
     [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private MinigameDefinition[] definitions;
-    [SerializeField] private MinigameCardView cardPrefab;
-    [SerializeField] private Transform contentRoot;
-    [SerializeField] private string backScene = "Hub";
+    [Tooltip("Cards posicionados e salvos diretamente na Hierarchy.")]
+    [SerializeField] private MinigameCardView[] sceneCards;
 
     private void Start()
     {
-        if (definitions == null || cardPrefab == null || contentRoot == null)
+        if (definitions == null || sceneLoader == null || sceneCards == null)
             return;
 
-        for (int i = 0; i < definitions.Length; i++)
+        BindSceneCards();
+    }
+
+    private void BindSceneCards()
+    {
+        for (int i = 0; i < sceneCards.Length; i++)
         {
-            MinigameDefinition definition = definitions[i];
-            if (definition == null)
+            MinigameCardView card = sceneCards[i];
+            MinigameDefinition definition = i < definitions.Length ? definitions[i] : null;
+            if (card == null)
                 continue;
 
-            // Ignora definições cuja cena ainda não esteja disponível no Build Settings.
-            if (string.IsNullOrWhiteSpace(definition.SceneName)
-                || !Application.CanStreamedLevelBeLoaded(definition.SceneName))
+            bool available = definition != null
+                && !string.IsNullOrWhiteSpace(definition.SceneName)
+                && Application.CanStreamedLevelBeLoaded(definition.SceneName);
+            card.gameObject.SetActive(available);
+
+            if (!available)
             {
-                Debug.LogWarning(
-                    $"Minigame '{definition.DisplayName}' was skipped because scene " +
-                    $"'{definition.SceneName}' is not available in Build Settings.",
-                    definition);
+                Debug.LogWarning("Um card de minigame da cena não possui uma definição válida.", card);
                 continue;
             }
 
-            MinigameCardView card = Instantiate(cardPrefab, contentRoot);
             card.Bind(definition, sceneLoader);
         }
     }
 
-    public void Back()
+#if UNITY_EDITOR
+    public MinigameDefinition[] EditorDefinitions => definitions;
+    public SceneLoader EditorSceneLoader => sceneLoader;
+
+    public void ConfigureSceneCards(MinigameCardView[] cards)
     {
-        AudioManager.Instance?.PlayClick();
-        sceneLoader.Load(backScene);
+        sceneCards = cards;
     }
+#endif
+
 }

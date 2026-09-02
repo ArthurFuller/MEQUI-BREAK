@@ -825,15 +825,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea4787bbd5e5c514abfc5282a9f68d8d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneLoader
-  transitionScale: 1
-  scaleOutDuration: 0.14
   slideDuration: 0.45
-  scaleInDuration: 0.22
-  preSlidePauseDuration: 0.1
-  postSlidePauseDuration: 0.03
-  scaleOutEase: 6
-  slideEase: 10
-  scaleInEase: 9
 --- !u!1 &521702220
 GameObject:
   m_ObjectHideFlags: 0

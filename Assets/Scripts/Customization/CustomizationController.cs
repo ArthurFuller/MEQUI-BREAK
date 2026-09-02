@@ -36,7 +36,6 @@ public sealed class CustomizationController : MonoBehaviour
     [SerializeField, Min(0f)] private float tabIndicatorBottomOffset = 5f;
     [SerializeField, Min(0.05f)] private float tabIndicatorDuration = 0.22f;
     [SerializeField] private Ease tabIndicatorEase = Ease.OutCubic;
-    [SerializeField] private Color tabIndicatorColor = Color.white;
 
     [Header("Opções")]
     [SerializeField] private GameObject[] hairOptions;
@@ -94,6 +93,12 @@ public sealed class CustomizationController : MonoBehaviour
     private OptionWaveTarget[] outfitWaveTargets;
     private OptionWaveTarget[] accessoryWaveTargets;
 
+    [Header("Referências visuais pré-configuradas")]
+    [SerializeField] private RectTransform tabIndicator;
+    [SerializeField] private CanvasGroup feedbackCanvasGroup;
+    [SerializeField] private RectTransform purchasePanelRect;
+    [SerializeField] private CanvasGroup purchasePanelCanvasGroup;
+
     private RectTransform _purchasePanelRect;
     private CanvasGroup _purchasePanelCanvasGroup;
     private CanvasGroup _feedbackCanvasGroup;
@@ -105,7 +110,7 @@ public sealed class CustomizationController : MonoBehaviour
 
     private Sequence _feedbackSequence;
 
-    // Indicador criado em runtime e ignorado pelo sistema de layout.
+    // Indicador pré-configurado na cena e ignorado pelo sistema de layout.
     private RectTransform _tabIndicator;
     private Sequence _tabIndicatorSequence;
     private bool _started;
@@ -122,10 +127,10 @@ public sealed class CustomizationController : MonoBehaviour
 
     private void Awake()
     {
-        // Oculta as opções antes do primeiro frame para evitar um flash antes da onda.
-        PrepareOptionsHiddenForInitialWave(hairOptions);
-        PrepareOptionsHiddenForInitialWave(outfitOptions);
-        PrepareOptionsHiddenForInitialWave(accessoryOptions);
+        _tabIndicator = tabIndicator;
+        _feedbackCanvasGroup = feedbackCanvasGroup;
+        _purchasePanelRect = purchasePanelRect;
+        _purchasePanelCanvasGroup = purchasePanelCanvasGroup;
     }
 
     private void Start()
@@ -135,6 +140,7 @@ public sealed class CustomizationController : MonoBehaviour
         ApplyPreview();
         CacheOptionButtons();
         CacheOptionWaveTargets();
+        PrepareOptionsHiddenForInitialWave();
         BindButtons();
         RefreshVisibleOptions();
         RefreshLockVisuals();
@@ -157,23 +163,25 @@ public sealed class CustomizationController : MonoBehaviour
     /// <summary>
     /// Prepara as opções para a primeira onda sem desativar o cálculo do layout.
     /// </summary>
-    private void PrepareOptionsHiddenForInitialWave(GameObject[] options)
+    private void PrepareOptionsHiddenForInitialWave()
     {
-        if (!animateOptionWave || options == null)
+        if (!animateOptionWave)
             return;
 
-        for (int i = 0; i < options.Length; i++)
+        SetWaveTargetsAlpha(hairWaveTargets, 0f);
+        SetWaveTargetsAlpha(outfitWaveTargets, 0f);
+        SetWaveTargetsAlpha(accessoryWaveTargets, 0f);
+    }
+
+    private static void SetWaveTargetsAlpha(OptionWaveTarget[] targets, float alpha)
+    {
+        if (targets == null)
+            return;
+
+        for (int i = 0; i < targets.Length; i++)
         {
-            GameObject option = options[i];
-            if (option == null)
-                continue;
-
-            CanvasGroup canvasGroup = option.GetComponent<CanvasGroup>();
-            if (canvasGroup == null)
-                canvasGroup = option.AddComponent<CanvasGroup>();
-
-            // Apenas o CanvasGroup raiz é alterado; os filhos preservam seus alphas.
-            canvasGroup.alpha = 0f;
+            if (targets[i]?.CanvasGroup != null)
+                targets[i].CanvasGroup.alpha = alpha;
         }
     }
 
@@ -223,13 +231,6 @@ public sealed class CustomizationController : MonoBehaviour
     /// </summary>
     private void CachePanelReferences()
     {
-        if (feedbackLabel != null)
-        {
-            _feedbackCanvasGroup = feedbackLabel.GetComponent<CanvasGroup>();
-            if (_feedbackCanvasGroup == null)
-                _feedbackCanvasGroup = feedbackLabel.gameObject.AddComponent<CanvasGroup>();
-        }
-
         EnsurePurchasePanelReferences();
     }
 
@@ -271,42 +272,8 @@ public sealed class CustomizationController : MonoBehaviour
 
     private void CreateTabIndicator()
     {
-        if (!animateTabIndicator || hairButton == null)
-            return;
-
-        RectTransform parent = hairButton.transform.parent as RectTransform;
-        if (parent == null)
-            return;
-
-        Transform existing = parent.Find("__TabSelectionIndicator");
-        if (existing is RectTransform existingRect)
-        {
-            _tabIndicator = existingRect;
-            return;
-        }
-
-        GameObject indicatorObject = new GameObject(
-            "__TabSelectionIndicator",
-            typeof(RectTransform),
-            typeof(CanvasRenderer),
-            typeof(Image),
-            typeof(LayoutElement));
-
-        _tabIndicator = indicatorObject.GetComponent<RectTransform>();
-        _tabIndicator.SetParent(parent, false);
-        _tabIndicator.anchorMin = new Vector2(0.5f, 0.5f);
-        _tabIndicator.anchorMax = new Vector2(0.5f, 0.5f);
-        _tabIndicator.pivot = new Vector2(0.5f, 0.5f);
-
-        Image image = indicatorObject.GetComponent<Image>();
-        TMP_Text tabLabel = hairButton.GetComponentInChildren<TMP_Text>(true);
-        image.color = tabLabel != null ? tabLabel.color : tabIndicatorColor;
-        image.raycastTarget = false;
-
-        LayoutElement layoutElement = indicatorObject.GetComponent<LayoutElement>();
-        layoutElement.ignoreLayout = true;
-
-        _tabIndicator.SetAsLastSibling();
+        if (animateTabIndicator && _tabIndicator == null)
+            Debug.LogWarning("Indicador de aba não foi atribuído no Inspector.", this);
     }
 
     private void UpdateTabIndicator(bool animate)
@@ -452,7 +419,7 @@ public sealed class CustomizationController : MonoBehaviour
         PlayerManager player = PlayerManager.Instance;
         if (player == null)
         {
-            Debug.LogError("CustomizationController.Confirm: PlayerManager.Instance is null. Avatar was not saved.");
+            Debug.LogError("CustomizationController.Confirm: PlayerManager.Instance é nulo. O avatar não foi salvo.");
             return;
         }
 
@@ -462,7 +429,7 @@ public sealed class CustomizationController : MonoBehaviour
 
         if (player.Profile == null)
         {
-            Debug.LogError("CustomizationController.Confirm: Player profile is unavailable. Avatar was not saved.");
+            Debug.LogError("CustomizationController.Confirm: o perfil do jogador está indisponível. O avatar não foi salvo.");
             return;
         }
 
@@ -735,10 +702,8 @@ public sealed class CustomizationController : MonoBehaviour
         if (purchaseConfirmPanel == null)
             return false;
 
-        _purchasePanelRect ??= purchaseConfirmPanel.GetComponent<RectTransform>()
-            ?? purchaseConfirmPanel.GetComponentInParent<RectTransform>();
-        _purchasePanelCanvasGroup ??= purchaseConfirmPanel.GetComponent<CanvasGroup>()
-            ?? purchaseConfirmPanel.AddComponent<CanvasGroup>();
+        _purchasePanelRect ??= purchaseConfirmPanel.transform as RectTransform;
+        _purchasePanelCanvasGroup ??= purchasePanelCanvasGroup;
 
         return _purchasePanelRect != null && _purchasePanelCanvasGroup != null;
     }
@@ -756,11 +721,7 @@ public sealed class CustomizationController : MonoBehaviour
         feedbackLabel.text = message;
 
         if (_feedbackCanvasGroup == null)
-        {
-            _feedbackCanvasGroup = feedbackLabel.GetComponent<CanvasGroup>();
-            if (_feedbackCanvasGroup == null)
-                _feedbackCanvasGroup = feedbackLabel.gameObject.AddComponent<CanvasGroup>();
-        }
+            return;
 
         // A mensagem nova substitui completamente qualquer sequência anterior.
         KillFeedbackTween();
@@ -1029,7 +990,7 @@ public sealed class CustomizationController : MonoBehaviour
             RectTransform rect = button.GetComponent<RectTransform>();
             CanvasGroup canvasGroup = button.GetComponent<CanvasGroup>();
             if (canvasGroup == null)
-                canvasGroup = button.gameObject.AddComponent<CanvasGroup>();
+                continue;
 
             targets[i] = new OptionWaveTarget
             {

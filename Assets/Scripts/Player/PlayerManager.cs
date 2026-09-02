@@ -123,7 +123,7 @@ public sealed class PlayerManager : MonoBehaviour
 
     public void SaveProfile() => TrySaveProfile();
 
-    public bool TrySaveProfile()
+    private bool TrySaveProfile()
     {
         return SaveManager.Instance != null
             && SaveManager.Instance.TrySaveProfile(Profile);
@@ -241,6 +241,12 @@ public sealed class PlayerManager : MonoBehaviour
 
         Profile.UnlockedCustomizationIds ??= new List<string>();
         Profile.Avatar ??= new AvatarCustomizationData();
+
+        // Perfis antigos não possuíam o campo do guia; o valor padrão zero
+        // inicia a primeira etapa. Valores fora do intervalo são corrigidos
+        // para evitar que um arquivo editado deixe o onboarding travado.
+        if (Profile.OnboardingStep < 0 || Profile.OnboardingStep > 3)
+            Profile.OnboardingStep = 0;
 
         if (Profile.LifetimeBreakPoints <= 0 && Profile.BreakPoints > 0)
             Profile.LifetimeBreakPoints = Profile.BreakPoints;

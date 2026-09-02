@@ -7,6 +7,12 @@ public sealed class PlayerProfileData
     /// <summary>Indica que Nome, Loja e Turno foram validados e salvos.</summary>
     public bool RegistrationCompleted;
 
+    /// <summary>
+    /// Etapa do guia inicial: 0 = seção de minigames no Hub, 1 = Energy Station
+    /// no Hub, 2 = interação na Energy Station e 3 = guia concluído ou ignorado.
+    /// </summary>
+    public int OnboardingStep;
+
     /// <summary>Nome utilizado pelas interfaces do aplicativo.</summary>
     public string DisplayName;
 

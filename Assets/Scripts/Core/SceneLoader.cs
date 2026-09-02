@@ -11,51 +11,17 @@ using UnityEngine.SceneManagement;
 /// Ponto central de navegação entre cenas.
 ///
 /// A API Load(string) é preservada para manter os callbacks configurados no Inspector.
-///
-/// Transição global:
-/// - Avanço: a tela atual sai pela esquerda e a próxima entra pela direita.
-/// - Retorno: a tela atual sai pela direita e a anterior entra pela esquerda.
-///
-/// Boot para Login permanece imediato porque não existe uma tela anterior para animar.
+/// A única animação global é um deslizamento horizontal: no avanço, a cena atual
+/// sai pela esquerda e a próxima entra pela direita; no retorno, o sentido é invertido.
 /// </summary>
 public sealed class SceneLoader : MonoBehaviour
 {
     private const string TransitionRootName = "__SceneTransitionRoot";
 
-    [Header("Transição de cena - Deslizamento")]
-    [Tooltip("Escala usada durante o deslocamento. O valor 0,97 reduz a tela em 3%.")]
-    [SerializeField, Range(0.90f, 1f)]
-    private float transitionScale = 0.97f;
-
-    [Tooltip("Tempo para a tela atual alcançar a escala de transição.")]
-    [SerializeField, Min(0.01f)]
-    private float scaleOutDuration = 0.14f;
-
-    [Tooltip("Tempo do deslizamento horizontal entre as duas cenas.")]
+    [Header("Transição de cena")]
+    [Tooltip("Duração do deslizamento horizontal entre as cenas. Não é um atraso antes da troca.")]
     [SerializeField, Min(0.01f)]
     private float slideDuration = 0.45f;
-
-    [Tooltip("Tempo para a nova tela retornar da escala de transição até 1.")]
-    [SerializeField, Min(0.01f)]
-    private float scaleInDuration = 0.22f;
-
-    [Tooltip("Pausa após a redução da tela atual e antes do deslizamento.")]
-    [SerializeField, Min(0f)]
-    private float preSlidePauseDuration = 0.10f;
-
-    [Tooltip("Pausa após a nova tela chegar ao centro e antes de voltar à escala total.")]
-    [SerializeField, Min(0f)]
-    private float postSlidePauseDuration = 0.03f;
-
-    [Header("Transição de cena - Curvas")]
-    [SerializeField]
-    private Ease scaleOutEase = Ease.OutQuad;
-
-    [SerializeField]
-    private Ease slideEase = Ease.InOutCubic;
-
-    [SerializeField]
-    private Ease scaleInEase = Ease.OutCubic;
 
     private static bool isTransitioning;
     private static readonly List<string> navigationHistory = new();
@@ -64,7 +30,7 @@ public sealed class SceneLoader : MonoBehaviour
     private static readonly List<EventSystem> eventSystemBuffer = new();
     private static readonly List<AudioListener> audioListenerBuffer = new();
 
-    /// <summary>Indica se duas cenas estão sendo preparadas ou animadas.</summary>
+    /// <summary>Indica se uma troca de cena está sendo carregada ou animada.</summary>
     public static bool IsTransitionInProgress => isTransitioning;
 
     private enum TransitionDirection
@@ -95,13 +61,13 @@ public sealed class SceneLoader : MonoBehaviour
 
         TransitionDirection direction = ResolveDirection(currentScene.name, targetSceneName);
 
-        if (ShouldUseSlideTransition(currentScene.name, targetSceneName))
+        if (ShouldUseSlideTransition(targetSceneName))
         {
             StartCoroutine(LoadWithSlideTransition(currentScene, targetSceneName, direction));
             return;
         }
 
-        // Usa carregamento comum quando a cena não participa da transição aditiva.
+        // Mantém o carregamento comum para cenas que não estão no Build Settings.
         CommitNavigation(currentScene.name, targetSceneName, direction);
         SceneManager.LoadScene(targetSceneName);
     }
@@ -122,8 +88,6 @@ public sealed class SceneLoader : MonoBehaviour
         TransitionDirection direction)
     {
         isTransitioning = true;
-
-        // Bloqueia novos cliques enquanto a próxima cena é preparada.
         SetEventSystemsEnabled(currentScene, false);
 
         List<RectTransform> outgoingRoots = GetOrCreateTransitionRoots(currentScene);
@@ -140,7 +104,7 @@ public sealed class SceneLoader : MonoBehaviour
             yield break;
         }
 
-        // Pré-carrega até 90% e troca o AudioListener somente antes da ativação.
+        // Aguarda apenas o carregamento real; não existe espera adicional antes do slide.
         loadOperation.allowSceneActivation = false;
         while (loadOperation.progress < 0.9f)
             yield return null;
@@ -160,7 +124,6 @@ public sealed class SceneLoader : MonoBehaviour
             yield break;
         }
 
-        // O EventSystem da nova cena permanece desativado até o fim do movimento.
         SetEventSystemsEnabled(incomingScene, false);
 
         List<RectTransform> incomingRoots = GetOrCreateTransitionRoots(incomingScene);
@@ -168,97 +131,61 @@ public sealed class SceneLoader : MonoBehaviour
 
         float incomingSide = direction == TransitionDirection.Forward ? 1f : -1f;
         float outgoingSide = -incomingSide;
-
         PrepareIncomingRoots(incomingRoots, incomingSide);
 
         Sequence transition = DOTween.Sequence()
             .SetUpdate(true)
             .SetAutoKill(true);
 
-        // As fases permanecem separadas: redução, pausa, deslizamento e ampliação.
-        float slideStartTime = scaleOutDuration + preSlidePauseDuration;
-        float scaleInStartTime = slideStartTime + slideDuration + postSlidePauseDuration;
-        bool animateScale = !Mathf.Approximately(transitionScale, 1f);
-
         foreach (RectTransform root in outgoingRoots)
         {
             if (root == null)
                 continue;
 
-            if (animateScale)
-            {
-                transition.Insert(
-                    0f,
-                    root.DOScale(transitionScale, scaleOutDuration)
-                        .SetEase(scaleOutEase));
-            }
-
-            float width = GetRootWidth(root);
             transition.Insert(
-                slideStartTime,
-                root.DOAnchorPosX(outgoingSide * width, slideDuration)
-                    .SetEase(slideEase));
+                0f,
+                root.DOAnchorPosX(outgoingSide * GetRootWidth(root), slideDuration)
+                    .SetEase(Ease.InOutCubic));
         }
 
-        // A nova tela só retorna à escala 1 depois de chegar ao centro.
         foreach (RectTransform root in incomingRoots)
         {
             if (root == null)
                 continue;
 
             transition.Insert(
-                slideStartTime,
+                0f,
                 root.DOAnchorPosX(0f, slideDuration)
-                    .SetEase(slideEase));
-
-            if (animateScale)
-            {
-                transition.Insert(
-                    scaleInStartTime,
-                    root.DOScale(1f, scaleInDuration)
-                        .SetEase(scaleInEase));
-            }
+                    .SetEase(Ease.InOutCubic));
         }
-
-        // Preserva a duração total mesmo quando a escala configurada é 1.
-        transition.InsertCallback(scaleInStartTime + scaleInDuration, NoOp);
 
         yield return transition.WaitForCompletion();
 
         ResetRoots(incomingRoots);
         SceneManager.SetActiveScene(incomingScene);
-
         SetEventSystemsEnabled(incomingScene, true);
 
         CommitNavigation(currentScene.name, targetSceneName, direction);
         isTransitioning = false;
 
-        // A partir daqui, a instância pertence somente à cena que será descarregada.
+        // A cena anterior deixa de participar da navegação após a animação.
         SceneManager.UnloadSceneAsync(currentScene);
     }
 
-    private static bool ShouldUseSlideTransition(string currentScene, string targetScene)
+    private static bool ShouldUseSlideTransition(string targetScene)
     {
-        if (string.IsNullOrWhiteSpace(currentScene) || string.IsNullOrWhiteSpace(targetScene))
-            return false;
-
-        if (string.Equals(currentScene, targetScene, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        // Apenas cenas do Build Settings podem ser pré-carregadas de forma aditiva.
-        return Application.CanStreamedLevelBeLoaded(targetScene);
+        return !string.IsNullOrWhiteSpace(targetScene)
+            && Application.CanStreamedLevelBeLoaded(targetScene);
     }
 
     private static TransitionDirection ResolveDirection(string currentScene, string targetScene)
     {
         EnsureCurrentInHistory(currentScene);
 
-        // Uma cena anterior no histórico caracteriza navegação de retorno.
         int targetIndex = FindLastHistoryIndex(targetScene);
         if (targetIndex >= 0 && targetIndex < navigationHistory.Count - 1)
             return TransitionDirection.Back;
 
-        // O retorno explícito ao HUB mantém a direção correta mesmo sem histórico.
         if (IsExplicitBackToHub(currentScene, targetScene))
             return TransitionDirection.Back;
 
@@ -273,7 +200,6 @@ public sealed class SceneLoader : MonoBehaviour
         return IsProfile(currentScene)
             || IsScene(currentScene, "Customization")
             || IsScene(currentScene, "Settings")
-            || IsScene(currentScene, "Minigames")
             || IsScene(currentScene, "EnergyStation")
             || IsScene(currentScene, "Result");
     }
@@ -297,8 +223,8 @@ public sealed class SceneLoader : MonoBehaviour
             }
         }
 
-        if (navigationHistory.Count == 0 ||
-            !string.Equals(
+        if (navigationHistory.Count == 0
+            || !string.Equals(
                 navigationHistory[navigationHistory.Count - 1],
                 targetScene,
                 StringComparison.OrdinalIgnoreCase))
@@ -353,9 +279,9 @@ public sealed class SceneLoader : MonoBehaviour
         {
             canvasBuffer.Clear();
             rootObject.GetComponentsInChildren(true, canvasBuffer);
+
             foreach (Canvas canvas in canvasBuffer)
             {
-                // Canvas aninhado acompanha automaticamente seu Canvas raiz.
                 if (canvas == null || canvas.rootCanvas != canvas)
                     continue;
 
@@ -385,18 +311,17 @@ public sealed class SceneLoader : MonoBehaviour
         root.pivot = new Vector2(0.5f, 0.5f);
         root.offsetMin = Vector2.zero;
         root.offsetMax = Vector2.zero;
-        root.localScale = Vector3.one;
         root.anchoredPosition = Vector2.zero;
         root.SetSiblingIndex(0);
 
-        // O contêiner possui o mesmo retângulo do Canvas e preserva o layout local.
+        // O contêiner mantém o layout original de todos os elementos da cena.
         while (canvas.transform.childCount > 1)
             canvas.transform.GetChild(1).SetParent(root, false);
 
         return root;
     }
 
-    private void PrepareIncomingRoots(List<RectTransform> roots, float side)
+    private static void PrepareIncomingRoots(List<RectTransform> roots, float side)
     {
         foreach (RectTransform root in roots)
         {
@@ -404,7 +329,7 @@ public sealed class SceneLoader : MonoBehaviour
                 continue;
 
             root.DOKill();
-            root.localScale = Vector3.one * transitionScale;
+            root.localScale = Vector3.one;
             root.anchoredPosition = new Vector2(side * GetRootWidth(root), 0f);
         }
     }
@@ -446,6 +371,7 @@ public sealed class SceneLoader : MonoBehaviour
         {
             eventSystemBuffer.Clear();
             rootObject.GetComponentsInChildren(true, eventSystemBuffer);
+
             foreach (EventSystem eventSystem in eventSystemBuffer)
             {
                 if (eventSystem != null)
@@ -463,6 +389,7 @@ public sealed class SceneLoader : MonoBehaviour
         {
             audioListenerBuffer.Clear();
             rootObject.GetComponentsInChildren(true, audioListenerBuffer);
+
             foreach (AudioListener listener in audioListenerBuffer)
             {
                 if (listener != null)
@@ -476,8 +403,8 @@ public sealed class SceneLoader : MonoBehaviour
         for (int i = 0; i < SceneManager.sceneCount; i++)
         {
             Scene scene = SceneManager.GetSceneAt(i);
-            if (scene.IsValid() && scene.isLoaded &&
-                string.Equals(scene.name, sceneName, StringComparison.OrdinalIgnoreCase))
+            if (scene.IsValid() && scene.isLoaded
+                && string.Equals(scene.name, sceneName, StringComparison.OrdinalIgnoreCase))
             {
                 return scene;
             }
@@ -506,17 +433,19 @@ public sealed class SceneLoader : MonoBehaviour
         return requestedSceneName;
     }
 
-    private static bool IsHub(string sceneName) =>
-        string.Equals(sceneName, "Hub", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(sceneName, "HUB", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsProfile(string sceneName) =>
-        IsScene(sceneName, "Profile");
-
-    private static bool IsScene(string sceneName, string expectedName) =>
-        string.Equals(sceneName, expectedName, StringComparison.OrdinalIgnoreCase);
-
-    private static void NoOp()
+    private static bool IsHub(string sceneName)
     {
+        return string.Equals(sceneName, "Hub", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(sceneName, "HUB", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsProfile(string sceneName)
+    {
+        return IsScene(sceneName, "Profile");
+    }
+
+    private static bool IsScene(string sceneName, string expectedName)
+    {
+        return string.Equals(sceneName, expectedName, StringComparison.OrdinalIgnoreCase);
     }
 }

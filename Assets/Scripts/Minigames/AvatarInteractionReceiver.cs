@@ -10,13 +10,12 @@ public sealed class AvatarInteractionReceiver : MonoBehaviour
         if (interaction == null || stationController == null)
             return false;
 
+        if (!stationController.TryRegisterInteraction(
+                interaction.InteractionId,
+                interaction.FeedbackMessage))
+            return false;
+
         avatarView?.PlayReaction(interaction.ReactionTrigger);
-        stationController.RegisterInteraction(
-            interaction.InteractionId,
-            interaction.FeedbackMessage);
-
-        interaction.Respawn();
-
         return true;
     }
 }

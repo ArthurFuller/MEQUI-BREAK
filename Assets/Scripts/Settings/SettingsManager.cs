@@ -24,7 +24,7 @@ public sealed class SettingsManager : MonoBehaviour
         Load();
     }
 
-    public void Load()
+    private void Load()
     {
         MusicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
         SFXVolume = PlayerPrefs.GetFloat(SFXVolumeKey, 1f);
@@ -51,11 +51,4 @@ public sealed class SettingsManager : MonoBehaviour
 
     public void SetVibration(bool enabled) => VibrationEnabled = enabled;
 
-    public void Save()
-    {
-        PlayerPrefs.SetFloat(MusicVolumeKey, MusicVolume);
-        PlayerPrefs.SetFloat(SFXVolumeKey, SFXVolume);
-        PlayerPrefs.SetInt(VibrationKey, VibrationEnabled ? 1 : 0);
-        PlayerPrefs.Save();
-    }
 }

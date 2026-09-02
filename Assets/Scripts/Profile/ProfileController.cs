@@ -23,7 +23,7 @@ public sealed class ProfileController : MonoBehaviour
         Refresh();
     }
 
-    public void Refresh()
+    private void Refresh()
     {
         var player = PlayerManager.Instance;
         var profile = player?.Profile;

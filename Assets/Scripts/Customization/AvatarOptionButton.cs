@@ -89,9 +89,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         _originalScale = _rectTransform.localScale;
         _originalRotation = _rectTransform.localRotation;
 
-        if (controller == null)
-            controller = FindFirstObjectByType<CustomizationController>();
-
         SetLockVisuals(false, string.Empty);
     }
 

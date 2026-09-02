@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -7,35 +8,68 @@ public sealed class EnergyStationController : MonoBehaviour
 {
     [Header("Referências")]
     [SerializeField] private ResultPopup resultPopup;
+    [SerializeField] private DraggableInteraction[] interactionCards;
 
-    [Header("UI")]
+    [Header("Interface")]
     [SerializeField] private TMP_Text timerLabel;
     [SerializeField] private RectTransform progressBackground;
     [SerializeField] private RectTransform progressFill;
     [SerializeField] private TMP_Text feedbackLabel;
     [SerializeField] private Button completeButton;
+    [SerializeField] private Button resetButton;
+    [SerializeField] private TMP_Text instructionLabel;
+    [SerializeField] private Image avatarImage;
+    [SerializeField] private Image trayLockOverlay;
+    [SerializeField] private CanvasGroup interactionTray;
+
+    [Header("Sprites do avatar")]
+    [SerializeField] private Sprite initialAvatarSprite;
+    [SerializeField] private Sprite completedAvatarSprite;
+
+    [Header("Mensagens")]
+    [SerializeField, TextArea(2, 3)] private string initialMessage = "Que tipo de pausa o Méqui precisa hoje?";
+    [SerializeField, TextArea(2, 3)] private string completedMessage = "Méqui está pronto para voltar ao trabalho!";
+    [SerializeField, TextArea(2, 3)] private string timeExpiredMessage = "O tempo terminou. Toque em redefinir para tentar novamente.";
 
     [Header("Sessão")]
     [SerializeField, Min(1f)] private float maxDurationSeconds = 45f;
-    [SerializeField, Min(1)] private int interactionsToComplete = 3;
+    [SerializeField, Min(1)] private int interactionsToComplete = 2;
     [SerializeField, Min(0.1f)] private float inactivityThresholdSeconds = 2f;
     [SerializeField] private string activityId = "energy_station";
 
     [Header("Animação do progresso")]
     [SerializeField, Min(0.05f)] private float progressAnimationDuration = 0.4f;
 
+    private readonly HashSet<string> acceptedInteractionIds = new HashSet<string>();
     private float elapsedTime;
     private float lastInteractionTime;
     private SessionState sessionState;
     private int interactionCount;
-    private Tween _progressTween;
-    private int _lastDisplayedSecond = int.MinValue;
+    private Tween progressTween;
+    private int lastDisplayedSecond = int.MinValue;
+    private bool rewardGranted;
+    private bool sessionStarted;
+
+    /// <summary>
+    /// Disparado somente depois que uma interação válida foi registrada.
+    /// O parâmetro informa quantas interações foram aceitas na sessão atual.
+    /// </summary>
+    public event System.Action<int> InteractionAccepted;
+
+    /// <summary>
+    /// Disparado depois que as escolhas foram restauradas aos slots de origem.
+    /// </summary>
+    public event System.Action ChoicesReset;
+
+    /// <summary>Quantidade de interações necessária para concluir a sessão.</summary>
+    public int InteractionsToComplete => interactionsToComplete;
 
     private enum SessionState
     {
         Playing,
         ReadyToComplete,
-        Finished,
+        TimeExpired,
+        RewardCollected,
         Abandoned
     }
 
@@ -44,7 +78,12 @@ public sealed class EnergyStationController : MonoBehaviour
         if (completeButton != null)
             completeButton.onClick.AddListener(CompleteSession);
 
+        if (resetButton != null)
+            resetButton.onClick.AddListener(ResetChoices);
+
         SetCompleteButton(false);
+        SetInitialVisuals();
+        SetTrayLocked(false);
         UpdateTimer();
         UpdateProgress(immediate: true);
     }
@@ -54,23 +93,18 @@ public sealed class EnergyStationController : MonoBehaviour
         elapsedTime = 0f;
         lastInteractionTime = 0f;
         interactionCount = 0;
-
+        lastDisplayedSecond = int.MinValue;
+        acceptedInteractionIds.Clear();
         sessionState = SessionState.Playing;
+        rewardGranted = false;
 
-        if (EventLogger.Instance != null)
-        {
-            EventLogger.Instance.BeginSession(activityId);
-        }
-        else
-        {
-            Debug.LogError(
-                "EnergyStationController: EventLogger.Instance não foi encontrado. " +
-                "Verifique se o EventLogger foi inicializado pelo Boot."
-            );
-        }
+        ResetCardsToOrigin();
+        BeginLoggedSession();
 
+        SetInitialVisuals();
+        SetTrayLocked(false);
         UpdateTimer();
-        UpdateProgress();
+        UpdateProgress(immediate: true);
     }
 
     private void Update()
@@ -79,11 +113,10 @@ public sealed class EnergyStationController : MonoBehaviour
             return;
 
         elapsedTime += Time.unscaledDeltaTime;
-
         UpdateTimer();
 
         if (elapsedTime >= maxDurationSeconds)
-            MakeCompletionAvailable(completedEarly: false);
+            HandleTimeExpired();
     }
 
     private void OnDestroy()
@@ -91,14 +124,39 @@ public sealed class EnergyStationController : MonoBehaviour
         if (completeButton != null)
             completeButton.onClick.RemoveListener(CompleteSession);
 
-        if (_progressTween != null && _progressTween.IsActive())
-            _progressTween.Kill();
+        if (resetButton != null)
+            resetButton.onClick.RemoveListener(ResetChoices);
+
+        if (progressTween != null && progressTween.IsActive())
+            progressTween.Kill();
     }
 
-    public void RegisterInteraction(string interactionId, string feedbackMessage)
+    private void OnDisable()
     {
-        if (sessionState != SessionState.Playing)
-            return;
+        if (progressTween != null && progressTween.IsActive())
+            progressTween.Kill();
+
+        progressTween = null;
+
+        if (sessionStarted
+            && sessionState != SessionState.RewardCollected
+            && sessionState != SessionState.Abandoned)
+        {
+            sessionState = SessionState.Abandoned;
+            sessionStarted = false;
+            EventLogger.Instance?.AbandonSession();
+        }
+    }
+
+    public bool TryRegisterInteraction(string interactionId, string feedbackMessage)
+    {
+        if (sessionState != SessionState.Playing ||
+            interactionCount >= interactionsToComplete)
+            return false;
+
+        if (!string.IsNullOrEmpty(interactionId) &&
+            !acceptedInteractionIds.Add(interactionId))
+            return false;
 
         float gap = interactionCount == 0
             ? elapsedTime
@@ -115,15 +173,27 @@ public sealed class EnergyStationController : MonoBehaviour
         if (feedbackLabel != null)
             feedbackLabel.text = feedbackMessage ?? string.Empty;
 
-        UpdateProgress();
-
         if (interactionCount >= interactionsToComplete)
-            MakeCompletionAvailable(completedEarly: true);
+            MakeCompletionAvailable();
+        else
+            UpdateProgress();
+
+        InteractionAccepted?.Invoke(interactionCount);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Mantém a API pública anterior para eventuais UnityEvents ou integrações externas.
+    /// </summary>
+    public void RegisterInteraction(string interactionId, string feedbackMessage)
+    {
+        TryRegisterInteraction(interactionId, feedbackMessage);
     }
 
     public void RegisterOptionalClarity(string choiceId)
     {
-        if (sessionState == SessionState.Finished ||
+        if (sessionState == SessionState.RewardCollected ||
             sessionState == SessionState.Abandoned)
             return;
 
@@ -132,44 +202,121 @@ public sealed class EnergyStationController : MonoBehaviour
 
     public void AbandonSession()
     {
-        if (sessionState == SessionState.Finished ||
+        if (sessionState == SessionState.RewardCollected ||
             sessionState == SessionState.Abandoned)
             return;
 
         sessionState = SessionState.Abandoned;
-
+        sessionStarted = false;
         EventLogger.Instance?.AbandonSession();
     }
 
-    private void MakeCompletionAvailable(bool completedEarly)
+    /// <summary>
+    /// Restaura as escolhas sem recriar objetos. Depois do timeout, inicia uma
+    /// nova tentativa completa; durante uma tentativa ativa, mantém o tempo.
+    /// </summary>
+    public void ResetChoices()
     {
-        if (sessionState != SessionState.Playing)
+        if (sessionState == SessionState.RewardCollected ||
+            sessionState == SessionState.Abandoned)
+            return;
+
+        bool restartExpiredAttempt = sessionState == SessionState.TimeExpired;
+        if (restartExpiredAttempt)
+        {
+            if (sessionStarted)
+                EventLogger.Instance?.AbandonSession();
+
+            elapsedTime = 0f;
+            lastDisplayedSecond = int.MinValue;
+            rewardGranted = false;
+            BeginLoggedSession();
+        }
+
+        sessionState = SessionState.Playing;
+        interactionCount = 0;
+        lastInteractionTime = elapsedTime;
+        acceptedInteractionIds.Clear();
+
+        SetCompleteButton(false);
+        SetInitialVisuals();
+        SetTrayLocked(false);
+        ResetCardsToOrigin();
+        UpdateTimer();
+        UpdateProgress(immediate: restartExpiredAttempt);
+        ChoicesReset?.Invoke();
+    }
+
+    /// <summary>
+    /// Retorna o primeiro card ainda disponível no tray, sem criar objetos nem
+    /// alterar a ordem das referências configuradas no Inspector.
+    /// </summary>
+    public DraggableInteraction GetFirstAvailableInteraction()
+    {
+        if (interactionCards == null)
+            return null;
+
+        for (int i = 0; i < interactionCards.Length; i++)
+        {
+            DraggableInteraction interaction = interactionCards[i];
+            if (interaction != null && interaction.gameObject.activeInHierarchy)
+                return interaction;
+        }
+
+        return null;
+    }
+
+    private void MakeCompletionAvailable()
+    {
+        if (sessionState != SessionState.Playing
+            || interactionCount < interactionsToComplete)
             return;
 
         sessionState = SessionState.ReadyToComplete;
-
-        if (completedEarly)
-        {
-            EventLogger.Instance?.MarkActivityCompletedEarly();
-            UpdateProgress();
-        }
-        else
-        {
-            elapsedTime = maxDurationSeconds;
-            EventLogger.Instance?.MarkTimeLimitReached();
-            UpdateTimer();
-        }
-
+        EventLogger.Instance?.MarkActivityCompletedEarly();
+        SetCompletedVisuals();
+        SetTrayLocked(true);
+        UpdateProgress();
         EventLogger.Instance?.MarkCompleteButtonAvailable();
         SetCompleteButton(true);
     }
 
-    private void CompleteSession()
+    private void HandleTimeExpired()
     {
-        if (sessionState != SessionState.ReadyToComplete)
+        if (sessionState != SessionState.Playing)
             return;
 
-        sessionState = SessionState.Finished;
+        sessionState = SessionState.TimeExpired;
+        elapsedTime = maxDurationSeconds;
+        EventLogger.Instance?.MarkTimeLimitReached();
+        SetCompleteButton(false);
+        SetTrayLocked(true);
+        UpdateTimer();
+
+        if (instructionLabel != null)
+            instructionLabel.text = timeExpiredMessage;
+
+        if (feedbackLabel != null)
+            feedbackLabel.text = string.Empty;
+
+        if (resetButton != null)
+            resetButton.gameObject.SetActive(true);
+    }
+
+    private void CompleteSession()
+    {
+        if (sessionState != SessionState.ReadyToComplete
+            || interactionCount < interactionsToComplete
+            || rewardGranted)
+            return;
+
+        rewardGranted = true;
+        sessionState = SessionState.RewardCollected;
+        sessionStarted = false;
+        SetCompleteButton(false);
+
+        if (resetButton != null)
+            resetButton.gameObject.SetActive(false);
 
         EventLogger.Instance?.CompleteSession();
 
@@ -188,9 +335,7 @@ public sealed class EnergyStationController : MonoBehaviour
 
         // Mantém os pontos pendentes para a animação ao entrar no HUB.
         if (PlayerManager.Instance != null && pointsEarned > 0)
-        {
             PlayerManager.Instance.SetPendingPoints(pointsEarned);
-        }
 
         if (resultPopup != null)
         {
@@ -204,10 +349,77 @@ public sealed class EnergyStationController : MonoBehaviour
         }
     }
 
+    private void SetInitialVisuals()
+    {
+        if (instructionLabel != null)
+            instructionLabel.text = initialMessage;
+
+        if (feedbackLabel != null)
+            feedbackLabel.text = string.Empty;
+
+        if (avatarImage != null && initialAvatarSprite != null)
+            avatarImage.sprite = initialAvatarSprite;
+
+        if (resetButton != null)
+            resetButton.gameObject.SetActive(true);
+    }
+
+    private void BeginLoggedSession()
+    {
+        if (EventLogger.Instance == null)
+        {
+            sessionStarted = false;
+            Debug.LogError(
+                "EnergyStationController: EventLogger.Instance não foi encontrado. " +
+                "Verifique se o EventLogger foi inicializado pelo Boot."
+            );
+            return;
+        }
+
+        EventLogger.Instance.BeginSession(activityId);
+        sessionStarted = true;
+    }
+
+    private void SetCompletedVisuals()
+    {
+        if (instructionLabel != null)
+            instructionLabel.text = completedMessage;
+
+        if (avatarImage != null && completedAvatarSprite != null)
+            avatarImage.sprite = completedAvatarSprite;
+    }
+
+    private void SetTrayLocked(bool locked)
+    {
+        if (interactionTray != null)
+        {
+            interactionTray.interactable = !locked;
+            interactionTray.blocksRaycasts = !locked;
+        }
+
+        if (trayLockOverlay != null)
+            trayLockOverlay.gameObject.SetActive(locked);
+    }
+
+    private void ResetCardsToOrigin()
+    {
+        if (interactionCards == null)
+            return;
+
+        for (int i = 0; i < interactionCards.Length; i++)
+        {
+            if (interactionCards[i] != null)
+                interactionCards[i].ResetToOrigin();
+        }
+    }
+
     private void SetCompleteButton(bool enabled)
     {
         if (completeButton != null)
+        {
             completeButton.gameObject.SetActive(enabled);
+            completeButton.interactable = enabled;
+        }
     }
 
     private void UpdateTimer()
@@ -215,53 +427,38 @@ public sealed class EnergyStationController : MonoBehaviour
         if (timerLabel == null)
             return;
 
-        float remaining = Mathf.Max(
-            0f,
-            maxDurationSeconds - elapsedTime);
-
+        float remaining = Mathf.Max(0f, maxDurationSeconds - elapsedTime);
         int displayedSecond = Mathf.CeilToInt(remaining);
-        if (displayedSecond == _lastDisplayedSecond)
+        if (displayedSecond == lastDisplayedSecond)
             return;
 
-        _lastDisplayedSecond = displayedSecond;
+        lastDisplayedSecond = displayedSecond;
         timerLabel.SetText("{0}", displayedSecond);
     }
 
     private void UpdateProgress(bool immediate = false)
     {
-        if (progressBackground == null || progressFill == null)
+        if (progressBackground == null || progressFill == null || interactionsToComplete <= 0)
             return;
 
-        if (interactionsToComplete <= 0)
-            return;
-
-        float progress = Mathf.Clamp01(
-            (float)interactionCount / interactionsToComplete);
-
+        float progress = Mathf.Clamp01((float)interactionCount / interactionsToComplete);
         float targetWidth = progressBackground.rect.width * progress;
+
+        if (progressTween != null && progressTween.IsActive())
+            progressTween.Kill();
 
         if (immediate || progressAnimationDuration <= 0f)
         {
-            // Atualização instantânea durante a inicialização ou sem animação.
             Vector2 sizeDelta = progressFill.sizeDelta;
             sizeDelta.x = targetWidth;
             progressFill.sizeDelta = sizeDelta;
-
-            // Encerra qualquer tween anterior.
-            if (_progressTween != null && _progressTween.IsActive())
-                _progressTween.Kill();
+            return;
         }
-        else
-        {
-            // Anima com OutCubic para uma finalização suave.
-            if (_progressTween != null && _progressTween.IsActive())
-                _progressTween.Kill();
 
-            Vector2 targetSize = progressFill.sizeDelta;
-            targetSize.x = targetWidth;
-            _progressTween = progressFill
-                .DOSizeDelta(targetSize, progressAnimationDuration)
-                .SetEase(Ease.OutCubic);
-        }
+        Vector2 targetSize = progressFill.sizeDelta;
+        targetSize.x = targetWidth;
+        progressTween = progressFill
+            .DOSizeDelta(targetSize, progressAnimationDuration)
+            .SetEase(Ease.OutCubic);
     }
 }

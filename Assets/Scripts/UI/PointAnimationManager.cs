@@ -43,8 +43,11 @@ public sealed class PointAnimationManager : MonoBehaviour
     [SerializeField] private Ease counterPulseUpEase = Ease.OutQuad;
     [SerializeField] private Ease counterPulseDownEase = Ease.InOutQuad;
 
-    private readonly List<GameObject> _activeCoins = new List<GameObject>();
-    private readonly Queue<GameObject> _coinPool = new Queue<GameObject>();
+    [Tooltip("Quantidade de moedas preparadas antes da primeira animação.")]
+    [SerializeField, Min(0)] private int prewarmCoinCount = 20;
+
+    private readonly List<GameObject> _activeCoins = new List<GameObject>(20);
+    private readonly Queue<GameObject> _coinPool = new Queue<GameObject>(20);
     private Sequence _batchSequence;
     private Sequence _counterPulseSequence;
     private Vector3 _pointsLabelBaseScale = Vector3.one;
@@ -67,11 +70,11 @@ public sealed class PointAnimationManager : MonoBehaviour
         Instance = this;
 
         if (coinPrefab == null)
-            Debug.LogError("[PointAnimationManager] CoinPrefab is not assigned.", this);
+            Debug.LogError("[PointAnimationManager] O prefab da moeda não foi atribuído.", this);
         if (pointsLabel == null)
-            Debug.LogError("[PointAnimationManager] PointsLabel TMP_Text is not assigned.", this);
+            Debug.LogError("[PointAnimationManager] O texto TMP dos pontos não foi atribuído.", this);
         if (canvasRect == null)
-            Debug.LogError("[PointAnimationManager] CanvasRect RectTransform is not assigned.", this);
+            Debug.LogError("[PointAnimationManager] O RectTransform do Canvas não foi atribuído.", this);
 
         if (pointsLabel != null)
             _pointsLabelBaseScale = pointsLabel.transform.localScale;
@@ -80,6 +83,22 @@ public sealed class PointAnimationManager : MonoBehaviour
         {
             _coinBaseScale = coinPrefab.transform.localScale;
             _coinBaseRotation = coinPrefab.transform.localRotation;
+            PrewarmCoinPool();
+        }
+    }
+
+    private void PrewarmCoinPool()
+    {
+        if (prewarmCoinCount <= 0 || canvasRect == null)
+            return;
+
+        for (int i = 0; i < prewarmCoinCount; i++)
+        {
+            GameObject coin = Instantiate(coinPrefab, canvasRect);
+            coin.transform.localScale = _coinBaseScale;
+            coin.transform.localRotation = _coinBaseRotation;
+            coin.SetActive(false);
+            _coinPool.Enqueue(coin);
         }
     }
 
