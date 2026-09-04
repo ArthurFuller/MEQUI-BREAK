@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c67242130bdcc84bb75c63e25ccde11, type: 3}
   m_Name: AvatarCustomizationCatalog
   m_EditorClassIdentifier: Assembly-CSharp::AvatarCustomizationCatalog
-  chapeuMostradoNaPrevia: 11
+  chapeuMostradoNaPrevia: 2
   ajustesDosChapeus:
   - Id: hat_00
     Category: 0
@@ -41,8 +41,8 @@ MonoBehaviour:
     BreakPointCost: 0
     RequiredLevel: 1
     DisplayName: Viseira
-    DeslocamentoNoAvatar: {x: 0, y: -0}
-    EscalaNoAvatar: 1.61
+    DeslocamentoNoAvatar: {x: 0, y: -0.06}
+    EscalaNoAvatar: 1.34
     RotacaoNoAvatar: 0
   - Id: hat_03
     Category: 0
@@ -141,7 +141,7 @@ MonoBehaviour:
     UnlockType: 0
     BreakPointCost: 0
     RequiredLevel: 1
-    DisplayName: Amigável
+    DisplayName: "Amig\xE1vel"
     DeslocamentoNoAvatar: {x: 0, y: 0}
     EscalaNoAvatar: 1
     RotacaoNoAvatar: 0
