@@ -470,7 +470,7 @@ MonoBehaviour:
   hatImage: {fileID: 161297382}
   bodySprite: {fileID: 21300000, guid: 80baf5141873144226d8a2f9bc9f7bf0, type: 3}
   faceOptions:
-  - {fileID: 21300000, guid: ddb029ec1426fb75a724a0681c14df60, type: 3}
+  - {fileID: 21300000, guid: 7a9c42f1c3b84d5ab8e26f907db1534e, type: 3}
   - {fileID: 21300000, guid: 786310f6d628431430d25dbde8f0619e, type: 3}
   - {fileID: 21300000, guid: 000aff3d32a239ebc4b8ff43fb3c2039, type: 3}
   - {fileID: 21300000, guid: e1d3add70e77c661ee023bc9cbc13102, type: 3}
@@ -482,6 +482,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: fb931483ffa97f0ceaf966e95a324139, type: 3}
   - {fileID: 21300000, guid: f21d503566081932653cdcb627e8a417, type: 3}
   - {fileID: 21300000, guid: e563a0cf7952407d5c99a311c39de8ec, type: 3}
+  - {fileID: 21300000, guid: ddb029ec1426fb75a724a0681c14df60, type: 3}
   hatOptions:
   - {fileID: 0}
   - {fileID: 21300000, guid: 1dab8a18a8aeaee77170625c0c46a5ec, type: 3}
@@ -653,7 +654,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: ddb029ec1426fb75a724a0681c14df60, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 7a9c42f1c3b84d5ab8e26f907db1534e, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1

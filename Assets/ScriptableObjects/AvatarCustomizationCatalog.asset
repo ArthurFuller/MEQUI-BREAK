@@ -141,7 +141,7 @@ MonoBehaviour:
     UnlockType: 0
     BreakPointCost: 0
     RequiredLevel: 1
-    DisplayName: Sonolento
+    DisplayName: Amigável
     DeslocamentoNoAvatar: {x: 0, y: 0}
     EscalaNoAvatar: 1
     RotacaoNoAvatar: 0

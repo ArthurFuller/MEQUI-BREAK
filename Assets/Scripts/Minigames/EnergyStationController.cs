@@ -25,7 +25,7 @@ public sealed class EnergyStationController : MonoBehaviour
 
     [Header("Estado do avatar")]
     [Tooltip("Índice da face de olhos fechados usada enquanto o Méqui descansa.")]
-    [SerializeField, Range(0, 11)] private int sleepingFaceIndex;
+    [SerializeField, Range(0, 12)] private int sleepingFaceIndex;
 
     [Header("Mensagens")]
     [SerializeField, TextArea(2, 3)] private string initialMessage = "Que tipo de pausa o Méqui precisa hoje?";

@@ -199,8 +199,7 @@ public sealed class SceneLoader : MonoBehaviour
 
         return IsScene(currentScene, "Customization")
             || IsScene(currentScene, "Settings")
-            || IsScene(currentScene, "EnergyStation")
-            || IsScene(currentScene, "Result");
+            || IsScene(currentScene, "EnergyStation");
     }
 
     private static void CommitNavigation(

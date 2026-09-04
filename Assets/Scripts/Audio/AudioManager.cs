@@ -191,28 +191,6 @@ public sealed class AudioManager : MonoBehaviour
         musicSource.Play();
     }
 
-    // API preservada para os componentes já configurados nas cenas.
-    public void PlayBrandSting() => PlayLoginJingle();
-    public void PlayStartupMusic() { }
-    public void PlayMusic(AudioClip clip)
-    {
-        if (!musicEnabled || musicSource == null || clip == null)
-            return;
-
-        musicSource.mute = false;
-        musicSource.clip = clip;
-        musicSource.loop = false;
-        musicSource.Play();
-    }
-
-    public void StopMusic()
-    {
-        if (musicSource != null)
-            musicSource.Stop();
-    }
-
-    public void PlaySFX(AudioClip clip) => PlayEffect(clip);
-
     public void SetMusicEnabled(bool enabled)
     {
         musicEnabled = enabled;
@@ -232,17 +210,4 @@ public sealed class AudioManager : MonoBehaviour
             sfxSource.mute = !enabled;
     }
 
-    public void SetMusicVolume(float value)
-    {
-        musicVolume = Mathf.Clamp01(value);
-        if (musicSource != null)
-            musicSource.volume = musicVolume;
-    }
-
-    public void SetSFXVolume(float value)
-    {
-        sfxVolume = Mathf.Clamp01(value);
-        if (sfxSource != null)
-            sfxSource.volume = sfxVolume;
-    }
 }

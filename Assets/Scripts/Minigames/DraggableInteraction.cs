@@ -196,11 +196,6 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         ApplyLockedTint(false);
     }
 
-    /// <summary>
-    /// Mantém compatibilidade com eventuais referências antigas do Inspector.
-    /// </summary>
-    public void Respawn() => ResetToOrigin();
-
     private void CacheOrigin()
     {
         CacheComponents();

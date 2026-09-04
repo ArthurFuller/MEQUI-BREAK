@@ -4,19 +4,15 @@ public sealed class SettingsManager : MonoBehaviour
 {
     public static SettingsManager Instance { get; private set; }
 
-    private const string MusicVolumeKey = "Settings.MusicVolume";
-    private const string SFXVolumeKey = "Settings.SFXVolume";
-    private const string VibrationKey = "Settings.Vibration";
     private const string MusicEnabledKey = "Settings.MusicEnabled";
     private const string SFXEnabledKey = "Settings.SFXEnabled";
+    private const string VibrationKey = "Settings.Vibration";
     private const string NotificationsEnabledKey = "Settings.NotificationsEnabled";
     private const string EndOfShiftReminderKey = "Settings.EndOfShiftReminder";
 
-    public float MusicVolume { get; private set; }
-    public float SFXVolume { get; private set; }
-    public bool VibrationEnabled { get; private set; }
     public bool MusicEnabled { get; private set; }
     public bool SFXEnabled { get; private set; }
+    public bool VibrationEnabled { get; private set; }
     public bool NotificationsEnabled { get; private set; }
     public bool EndOfShiftReminderEnabled { get; private set; }
 
@@ -34,9 +30,6 @@ public sealed class SettingsManager : MonoBehaviour
 
     private void Load()
     {
-        MusicVolume = PlayerPrefs.GetFloat(MusicVolumeKey, 1f);
-        SFXVolume = PlayerPrefs.GetFloat(SFXVolumeKey, 1f);
-        VibrationEnabled = PlayerPrefs.GetInt(VibrationKey, 1) == 1;
         // These boolean switches are the current settings UI. A legacy slider
         // value of 0 must not migrate the app into a permanently silent state.
         MusicEnabled = PlayerPrefs.HasKey(MusicEnabledKey)
@@ -45,6 +38,7 @@ public sealed class SettingsManager : MonoBehaviour
         SFXEnabled = PlayerPrefs.HasKey(SFXEnabledKey)
             ? PlayerPrefs.GetInt(SFXEnabledKey) == 1
             : true;
+        VibrationEnabled = PlayerPrefs.GetInt(VibrationKey, 1) == 1;
         NotificationsEnabled = PlayerPrefs.GetInt(NotificationsEnabledKey, 0) == 1;
         EndOfShiftReminderEnabled = PlayerPrefs.GetInt(EndOfShiftReminderKey, 0) == 1;
     }
@@ -53,24 +47,6 @@ public sealed class SettingsManager : MonoBehaviour
     {
         AudioManager.Instance?.SetMusicEnabled(MusicEnabled);
         AudioManager.Instance?.SetSFXEnabled(SFXEnabled);
-    }
-
-    public void SetMusicVolume(float value)
-    {
-        MusicVolume = Mathf.Clamp01(value);
-        AudioManager.Instance?.SetMusicVolume(MusicVolume);
-        MusicEnabled = MusicVolume > 0.001f;
-        PlayerPrefs.SetFloat(MusicVolumeKey, MusicVolume);
-        SaveBool(MusicEnabledKey, MusicEnabled);
-    }
-
-    public void SetSFXVolume(float value)
-    {
-        SFXVolume = Mathf.Clamp01(value);
-        AudioManager.Instance?.SetSFXVolume(SFXVolume);
-        SFXEnabled = SFXVolume > 0.001f;
-        PlayerPrefs.SetFloat(SFXVolumeKey, SFXVolume);
-        SaveBool(SFXEnabledKey, SFXEnabled);
     }
 
     public void SetMusicEnabled(bool enabled)
@@ -87,6 +63,12 @@ public sealed class SettingsManager : MonoBehaviour
         AudioManager.Instance?.SetSFXEnabled(enabled);
     }
 
+    public void SetVibration(bool enabled)
+    {
+        VibrationEnabled = enabled;
+        SaveBool(VibrationKey, enabled);
+    }
+
     public void SetNotificationsEnabled(bool enabled)
     {
         NotificationsEnabled = enabled;
@@ -100,12 +82,6 @@ public sealed class SettingsManager : MonoBehaviour
     {
         EndOfShiftReminderEnabled = enabled && NotificationsEnabled;
         SaveBool(EndOfShiftReminderKey, EndOfShiftReminderEnabled);
-    }
-
-    public void SetVibration(bool enabled)
-    {
-        VibrationEnabled = enabled;
-        SaveBool(VibrationKey, enabled);
     }
 
     private static void SaveBool(string key, bool value)

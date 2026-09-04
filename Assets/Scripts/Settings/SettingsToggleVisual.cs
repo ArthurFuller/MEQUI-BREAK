@@ -20,6 +20,7 @@ public sealed class SettingsToggleVisual : MonoBehaviour
     [SerializeField] private Color offHandleColor = Color.white;
 
     private Tween positionTween;
+    private Image handleImage;
     private bool lastKnownState;
     private bool stateInitialized;
     private float lastTrackWidth = -1f;
@@ -34,6 +35,9 @@ public sealed class SettingsToggleVisual : MonoBehaviour
     {
         if (toggle == null)
             toggle = GetComponent<Toggle>();
+
+        if (handle != null)
+            handleImage = handle.GetComponent<Image>();
     }
 
     private void Update()
@@ -113,16 +117,14 @@ public sealed class SettingsToggleVisual : MonoBehaviour
             position.x = targetX;
             handle.anchoredPosition = position;
             track.color = targetTrack;
-            Image immediateHandleImage = handle.GetComponent<Image>();
-            if (immediateHandleImage != null)
-                immediateHandleImage.color = targetHandle;
+            if (handleImage != null)
+                handleImage.color = targetHandle;
             return;
         }
 
         // A mudança de cor representa o estado, mas é imediata. A única
         // animação do switch é o deslocamento horizontal da bolinha.
         track.color = targetTrack;
-        Image handleImage = handle.GetComponent<Image>();
         if (handleImage != null)
             handleImage.color = targetHandle;
 

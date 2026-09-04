@@ -196,6 +196,9 @@ public sealed class SettingsController : MonoBehaviour
             AudioManager.Instance?.PlayClick();
     }
 
+    // Compatibilidade com cenas e componentes hápticos de versões anteriores.
+    public void SetVibration(bool enabled) => SettingsManager.Instance?.SetVibration(enabled);
+
     public void SetNotifications(bool enabled)
     {
         SettingsManager.Instance?.SetNotificationsEnabled(enabled);
@@ -247,11 +250,6 @@ public sealed class SettingsController : MonoBehaviour
         if (feedbackText != null)
             feedbackText.text = message;
     }
-
-    // Compatibilidade temporária até a cena antiga ser migrada no Editor.
-    public void SetMusicVolume(float value) => SetMusic(value > 0.001f);
-    public void SetSFXVolume(float value) => SetSFX(value > 0.001f);
-    public void SetVibration(bool enabled) => SettingsManager.Instance?.SetVibration(enabled);
 
     private void OnDestroy()
     {
