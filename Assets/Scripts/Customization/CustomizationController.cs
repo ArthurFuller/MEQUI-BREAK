@@ -13,7 +13,6 @@ public sealed class CustomizationController : MonoBehaviour
 {
     [Header("Cena")]
     [SerializeField] private SceneLoader sceneLoader;
-    [SerializeField] private string profileScene = "Profile";
     [SerializeField] private string hubScene = "HUB";
 
     [Header("Pré-visualização")]
@@ -24,9 +23,9 @@ public sealed class CustomizationController : MonoBehaviour
     [SerializeField] private AvatarCustomizationCatalog catalog;
 
     [Header("Controles")]
-    [SerializeField] private Button hairButton;
-    [SerializeField] private Button outfitButton;
-    [SerializeField] private Button accessoryButton;
+    [SerializeField] private Button hatButton;
+    [SerializeField] private Button faceButton;
+    [SerializeField] private Button colorButton;
     [SerializeField] private Button confirmButton;
 
     [Header("Indicador de aba")]
@@ -38,9 +37,9 @@ public sealed class CustomizationController : MonoBehaviour
     [SerializeField] private Ease tabIndicatorEase = Ease.OutCubic;
 
     [Header("Opções")]
-    [SerializeField] private GameObject[] hairOptions;
-    [SerializeField] private GameObject[] outfitOptions;
-    [SerializeField] private GameObject[] accessoryOptions;
+    [SerializeField] private GameObject[] hatOptions;
+    [SerializeField] private GameObject[] faceOptions;
+    [SerializeField] private GameObject[] colorOptions;
 
     [Header("Feedback (opcional)")]
     [SerializeField] private TMP_Text feedbackLabel;
@@ -82,16 +81,16 @@ public sealed class CustomizationController : MonoBehaviour
     [SerializeField, Min(1f)] private float purchasePanelEnterScale = 1.1f;
 
     private readonly AvatarCustomizationData previewData = new AvatarCustomizationData();
-    private AvatarCustomizationCategory selectedCategory = AvatarCustomizationCategory.Hair;
+    private AvatarCustomizationCategory selectedCategory = AvatarCustomizationCategory.Hat;
     private AvatarCustomizationItem pendingPurchaseItem;
 
     // Referências armazenadas uma vez para evitar buscas durante atualizações visuais.
-    private AvatarOptionButton[] hairButtons;
-    private AvatarOptionButton[] outfitButtons;
-    private AvatarOptionButton[] accessoryButtons;
-    private OptionWaveTarget[] hairWaveTargets;
-    private OptionWaveTarget[] outfitWaveTargets;
-    private OptionWaveTarget[] accessoryWaveTargets;
+    private AvatarOptionButton[] hatButtons;
+    private AvatarOptionButton[] faceButtons;
+    private AvatarOptionButton[] colorButtons;
+    private OptionWaveTarget[] hatWaveTargets;
+    private OptionWaveTarget[] faceWaveTargets;
+    private OptionWaveTarget[] colorWaveTargets;
 
     [Header("Referências visuais pré-configuradas")]
     [SerializeField] private RectTransform tabIndicator;
@@ -144,6 +143,7 @@ public sealed class CustomizationController : MonoBehaviour
         BindButtons();
         RefreshVisibleOptions();
         RefreshLockVisuals();
+        RefreshSelectionVisuals();
         CachePanelReferences();
 
         CreateTabIndicator();
@@ -168,9 +168,9 @@ public sealed class CustomizationController : MonoBehaviour
         if (!animateOptionWave)
             return;
 
-        SetWaveTargetsAlpha(hairWaveTargets, 0f);
-        SetWaveTargetsAlpha(outfitWaveTargets, 0f);
-        SetWaveTargetsAlpha(accessoryWaveTargets, 0f);
+        SetWaveTargetsAlpha(hatWaveTargets, 0f);
+        SetWaveTargetsAlpha(faceWaveTargets, 0f);
+        SetWaveTargetsAlpha(colorWaveTargets, 0f);
     }
 
     private static void SetWaveTargetsAlpha(OptionWaveTarget[] targets, float alpha)
@@ -236,19 +236,19 @@ public sealed class CustomizationController : MonoBehaviour
 
     // Troca de categoria
 
-    public void SelectHair()
+    public void SelectHat()
     {
-        SelectCategory(AvatarCustomizationCategory.Hair);
+        SelectCategory(AvatarCustomizationCategory.Hat);
     }
 
-    public void SelectOutfit()
+    public void SelectFace()
     {
-        SelectCategory(AvatarCustomizationCategory.Outfit);
+        SelectCategory(AvatarCustomizationCategory.Face);
     }
 
-    public void SelectAccessory()
+    public void SelectColor()
     {
-        SelectCategory(AvatarCustomizationCategory.Accessory);
+        SelectCategory(AvatarCustomizationCategory.Color);
     }
 
     private void SelectCategory(AvatarCustomizationCategory category)
@@ -283,10 +283,10 @@ public sealed class CustomizationController : MonoBehaviour
 
         Button targetButton = selectedCategory switch
         {
-            AvatarCustomizationCategory.Hair => hairButton,
-            AvatarCustomizationCategory.Outfit => outfitButton,
-            AvatarCustomizationCategory.Accessory => accessoryButton,
-            _ => hairButton
+            AvatarCustomizationCategory.Hat => hatButton,
+            AvatarCustomizationCategory.Face => faceButton,
+            AvatarCustomizationCategory.Color => colorButton,
+            _ => hatButton
         };
 
         if (targetButton == null || targetButton.transform is not RectTransform targetRect)
@@ -361,18 +361,19 @@ public sealed class CustomizationController : MonoBehaviour
 
         switch (selectedCategory)
         {
-            case AvatarCustomizationCategory.Hair:
-                previewData.HairIndex = optionIndex;
+            case AvatarCustomizationCategory.Hat:
+                previewData.HatIndex = optionIndex;
                 break;
-            case AvatarCustomizationCategory.Outfit:
-                previewData.OutfitIndex = optionIndex;
+            case AvatarCustomizationCategory.Face:
+                previewData.FaceIndex = optionIndex;
                 break;
-            case AvatarCustomizationCategory.Accessory:
-                previewData.AccessoryIndex = optionIndex;
+            case AvatarCustomizationCategory.Color:
+                previewData.ColorIndex = optionIndex;
                 break;
         }
 
         ApplyPreview();
+        RefreshSelectionVisuals();
 
         AnimateSelectionConfirmed(optionIndex);
     }
@@ -389,9 +390,9 @@ public sealed class CustomizationController : MonoBehaviour
     {
         return category switch
         {
-            AvatarCustomizationCategory.Hair => hairButtons,
-            AvatarCustomizationCategory.Outfit => outfitButtons,
-            AvatarCustomizationCategory.Accessory => accessoryButtons,
+            AvatarCustomizationCategory.Hat => hatButtons,
+            AvatarCustomizationCategory.Face => faceButtons,
+            AvatarCustomizationCategory.Color => colorButtons,
             _ => null
         };
     }
@@ -436,21 +437,19 @@ public sealed class CustomizationController : MonoBehaviour
         player.Profile.Avatar ??= new AvatarCustomizationData();
 
         AvatarCustomizationData savedAvatar = player.Profile.Avatar;
-        savedAvatar.BodyIndex = previewData.BodyIndex;
-        savedAvatar.HairIndex = previewData.HairIndex;
-        savedAvatar.OutfitIndex = previewData.OutfitIndex;
-        savedAvatar.AccessoryIndex = previewData.AccessoryIndex;
+        savedAvatar.HatIndex = previewData.HatIndex;
+        savedAvatar.FaceIndex = previewData.FaceIndex;
+        savedAvatar.ColorIndex = previewData.ColorIndex;
 
         player.SaveProfile();
         AudioManager.Instance?.PlayConfirm();
 
-        sceneLoader?.Load(profileScene);
+        sceneLoader?.Load(hubScene);
     }
 
     public void Cancel()
     {
         // Como previewData ainda não foi persistido, sair descarta as alterações.
-        AudioManager.Instance?.PlayClick();
 
         sceneLoader?.Load(hubScene);
     }
@@ -555,7 +554,7 @@ public sealed class CustomizationController : MonoBehaviour
             return;
         }
 
-        // O balanço termina antes da mensagem ou painel correspondente aparecer.
+        // O pulso termina antes da mensagem ou painel correspondente aparecer.
         if (item.UnlockType == AvatarUnlockType.Level)
         {
             if (!AnimateLockedFeedbackOnButton(
@@ -754,10 +753,9 @@ public sealed class CustomizationController : MonoBehaviour
         if (savedAvatar == null)
             return;
 
-        previewData.BodyIndex = savedAvatar.BodyIndex;
-        previewData.HairIndex = savedAvatar.HairIndex;
-        previewData.OutfitIndex = savedAvatar.OutfitIndex;
-        previewData.AccessoryIndex = savedAvatar.AccessoryIndex;
+        previewData.HatIndex = savedAvatar.HatIndex;
+        previewData.FaceIndex = savedAvatar.FaceIndex;
+        previewData.ColorIndex = savedAvatar.ColorIndex;
     }
 
     private void ApplyPreview()
@@ -909,9 +907,9 @@ public sealed class CustomizationController : MonoBehaviour
 
     private void RefreshVisibleOptions()
     {
-        SetOptionsVisible(hairOptions, selectedCategory == AvatarCustomizationCategory.Hair);
-        SetOptionsVisible(outfitOptions, selectedCategory == AvatarCustomizationCategory.Outfit);
-        SetOptionsVisible(accessoryOptions, selectedCategory == AvatarCustomizationCategory.Accessory);
+        SetOptionsVisible(hatOptions, selectedCategory == AvatarCustomizationCategory.Hat);
+        SetOptionsVisible(faceOptions, selectedCategory == AvatarCustomizationCategory.Face);
+        SetOptionsVisible(colorOptions, selectedCategory == AvatarCustomizationCategory.Color);
     }
 
     private static void SetOptionsVisible(GameObject[] options, bool visible)
@@ -931,9 +929,9 @@ public sealed class CustomizationController : MonoBehaviour
     /// </summary>
     private void RefreshLockVisuals()
     {
-        RefreshCategoryLockVisuals(AvatarCustomizationCategory.Hair, hairButtons);
-        RefreshCategoryLockVisuals(AvatarCustomizationCategory.Outfit, outfitButtons);
-        RefreshCategoryLockVisuals(AvatarCustomizationCategory.Accessory, accessoryButtons);
+        RefreshCategoryLockVisuals(AvatarCustomizationCategory.Hat, hatButtons);
+        RefreshCategoryLockVisuals(AvatarCustomizationCategory.Face, faceButtons);
+        RefreshCategoryLockVisuals(AvatarCustomizationCategory.Color, colorButtons);
     }
 
     private void RefreshCategoryLockVisuals(AvatarCustomizationCategory category, AvatarOptionButton[] buttons)
@@ -953,26 +951,48 @@ public sealed class CustomizationController : MonoBehaviour
         }
     }
 
+    private void RefreshSelectionVisuals()
+    {
+        RefreshCategorySelectionVisuals(hatButtons, previewData.HatIndex);
+        RefreshCategorySelectionVisuals(faceButtons, previewData.FaceIndex);
+        RefreshCategorySelectionVisuals(colorButtons, previewData.ColorIndex);
+    }
+
+    private static void RefreshCategorySelectionVisuals(
+        AvatarOptionButton[] buttons,
+        int selectedIndex)
+    {
+        if (buttons == null)
+            return;
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            AvatarOptionButton optionButton = buttons[i];
+            if (optionButton != null)
+                optionButton.SetSelected(optionButton.OptionIndex == selectedIndex);
+        }
+    }
+
     private void CacheOptionButtons()
     {
-        hairButtons = ExtractButtons(hairOptions);
-        outfitButtons = ExtractButtons(outfitOptions);
-        accessoryButtons = ExtractButtons(accessoryOptions);
+        hatButtons = ExtractButtons(hatOptions);
+        faceButtons = ExtractButtons(faceOptions);
+        colorButtons = ExtractButtons(colorOptions);
     }
 
     private void CacheOptionWaveTargets()
     {
         if (!animateOptionWave)
         {
-            hairWaveTargets = System.Array.Empty<OptionWaveTarget>();
-            outfitWaveTargets = System.Array.Empty<OptionWaveTarget>();
-            accessoryWaveTargets = System.Array.Empty<OptionWaveTarget>();
+            hatWaveTargets = System.Array.Empty<OptionWaveTarget>();
+            faceWaveTargets = System.Array.Empty<OptionWaveTarget>();
+            colorWaveTargets = System.Array.Empty<OptionWaveTarget>();
             return;
         }
 
-        hairWaveTargets = BuildWaveTargets(hairButtons);
-        outfitWaveTargets = BuildWaveTargets(outfitButtons);
-        accessoryWaveTargets = BuildWaveTargets(accessoryButtons);
+        hatWaveTargets = BuildWaveTargets(hatButtons);
+        faceWaveTargets = BuildWaveTargets(faceButtons);
+        colorWaveTargets = BuildWaveTargets(colorButtons);
     }
 
     private static OptionWaveTarget[] BuildWaveTargets(AvatarOptionButton[] buttons)
@@ -1006,9 +1026,9 @@ public sealed class CustomizationController : MonoBehaviour
     {
         return category switch
         {
-            AvatarCustomizationCategory.Hair => hairWaveTargets,
-            AvatarCustomizationCategory.Outfit => outfitWaveTargets,
-            AvatarCustomizationCategory.Accessory => accessoryWaveTargets,
+            AvatarCustomizationCategory.Hat => hatWaveTargets,
+            AvatarCustomizationCategory.Face => faceWaveTargets,
+            AvatarCustomizationCategory.Color => colorWaveTargets,
             _ => null
         };
     }

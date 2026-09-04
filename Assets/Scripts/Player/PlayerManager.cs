@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 
 public sealed class PlayerManager : MonoBehaviour
@@ -20,6 +21,7 @@ public sealed class PlayerManager : MonoBehaviour
     public string StoreId => Profile?.StoreId ?? string.Empty;
     public string Shift => Profile?.Shift ?? string.Empty;
     public event System.Action<int> BreakPointsChanged;
+    public event System.Action EnergyStationAvailabilityChanged;
 
     // Pontos pendentes para animação na entrada do HUB.
     public int PendingBreakPoints { get; private set; }
@@ -88,6 +90,9 @@ public sealed class PlayerManager : MonoBehaviour
             return false;
         }
 
+        if (!string.Equals(previousShift, Profile.Shift, StringComparison.OrdinalIgnoreCase))
+            EnergyStationAvailabilityChanged?.Invoke();
+
         errorMessage = string.Empty;
         return true;
     }
@@ -122,6 +127,59 @@ public sealed class PlayerManager : MonoBehaviour
     }
 
     public void SaveProfile() => TrySaveProfile();
+
+    /// <summary>
+    /// O Energy Station pode ser concluído uma vez por dia local.
+    /// Durante o guia inicial ele permanece liberado para não bloquear o onboarding.
+    /// </summary>
+    public bool CanPlayEnergyStation
+    {
+        get
+        {
+            if (Profile == null || !HasValidRegistration)
+                return false;
+
+            if (Profile.OnboardingStep < 3)
+                return true;
+
+            string today = DateTime.Now.ToString("yyyy-MM-dd");
+            return !string.Equals(Profile.LastEnergyStationCompletionDate, today, StringComparison.Ordinal);
+        }
+    }
+
+    public bool MarkEnergyStationCompleted()
+    {
+        if (Profile == null)
+            return false;
+
+        string previousDate = Profile.LastEnergyStationCompletionDate;
+        string previousShift = Profile.LastEnergyStationCompletionShift;
+
+        Profile.LastEnergyStationCompletionDate = DateTime.Now.ToString("yyyy-MM-dd");
+        Profile.LastEnergyStationCompletionShift = Shift;
+
+        if (!TrySaveProfile())
+        {
+            Profile.LastEnergyStationCompletionDate = previousDate;
+            Profile.LastEnergyStationCompletionShift = previousShift;
+            return false;
+        }
+
+        EnergyStationAvailabilityChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>Atualiza Loja e Turno sem reabrir ou invalidar o cadastro inicial.</summary>
+    public bool TryUpdateWorkData(string storeId, string shift, out string errorMessage)
+    {
+        if (Profile == null || !HasValidRegistration)
+        {
+            errorMessage = "Cadastro inicial não encontrado.";
+            return false;
+        }
+
+        return TryCompleteRegistration(DisplayName, storeId, shift, out errorMessage);
+    }
 
     private bool TrySaveProfile()
     {

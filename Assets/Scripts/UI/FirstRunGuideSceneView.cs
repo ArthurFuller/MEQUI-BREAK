@@ -50,6 +50,7 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
 
     private Sequence pulseSequence;
     private Tween messageTween;
+    private GraphicRaycaster guideRaycaster;
     private Vector3 originalHighlightScale = Vector3.one;
     private Vector3 originalFollowingHighlightScale = Vector3.one;
     private Vector3 originalSecondaryHighlightScale = Vector3.one;
@@ -118,6 +119,8 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
         if (guideCanvas == null)
             guideCanvas = GetComponent<Canvas>();
 
+        guideRaycaster = GetComponent<GraphicRaycaster>();
+
         CacheOriginalScales();
         Hide();
     }
@@ -128,7 +131,7 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
         RestoreVisualState();
     }
 
-    public void Show(int requestedStep, int totalSteps, string message)
+    public void Show(int requestedStep, int displayStep, int totalSteps, string message)
     {
         if (!IsReadyForStep(requestedStep))
             return;
@@ -139,7 +142,7 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
         root.gameObject.SetActive(true);
         activeStep = requestedStep;
         SetIntroTargetActive(activeStep == stepIndex);
-        progressText.SetText("GUIA {0} DE {1}", activeStep + 1, totalSteps);
+        progressText.SetText("GUIA {0} DE {1}", displayStep, totalSteps);
         messageText.text = message ?? string.Empty;
 
         Image selectedHighlight = GetHighlight(activeStep);
@@ -153,6 +156,8 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
         if (secondaryHighlightImage != null)
             secondaryHighlightImage.gameObject.SetActive(false);
         guideCanvas.enabled = true;
+        if (guideRaycaster != null)
+            guideRaycaster.enabled = true;
 
         PlayEntrance();
         StartPulse(selectedHighlight);
@@ -219,6 +224,8 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
             secondaryHighlightImage.gameObject.SetActive(false);
         if (guideCanvas != null)
             guideCanvas.enabled = false;
+        if (guideRaycaster != null)
+            guideRaycaster.enabled = false;
 
         activeStep = -1;
     }
@@ -374,7 +381,7 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
         includesFollowingStep = alsoIncludesFollowingStep;
         followingStepHighlightImage = followingHighlight;
         followingStepTargetButton = followingTargetButton;
-        executarSempreParaTeste = true;
+        executarSempreParaTeste = false;
     }
 #endif
 }

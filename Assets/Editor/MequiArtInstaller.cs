@@ -63,9 +63,6 @@ public static class MequiArtInstaller
             InstallHub();
             InstallCustomization();
             InstallEnergyStation();
-            InstallProfile();
-            InstallSharedScene("Assets/Scenes/Minigames/Minigames.unity");
-            InstallSharedScene("Assets/Scenes/Settings/Settings.unity");
             ConfigureCatalog();
 
             AssetDatabase.SaveAssets();
@@ -274,11 +271,6 @@ public static class MequiArtInstaller
         SetButtonSprite(settings, S("Assets/Art/UI/Home/Settings Button.png"));
         AnchorTop(settings.transform as RectTransform, new Vector2(194f, 186f), new Vector2(-112f, -105f), false);
         DisableDirectText(settings.transform);
-
-        Button profile = ComponentAt<Button>(scene, "Canvas/SafeArea/Header/ProfileButton");
-        Center(profile.transform as RectTransform, new Vector2(410f, 410f), new Vector2(0f, 245f));
-        MakeButtonTransparent(profile);
-        DisableDirectText(profile.transform);
 
         Transform quick = Find(scene, "Canvas/SafeArea/QuickAction");
         Button customize = ComponentAt<Button>(scene, "Canvas/SafeArea/QuickAction/CustomizationButton");
@@ -705,53 +697,6 @@ public static class MequiArtInstaller
         SetObject(artState, "normalSprite", normalIcon);
         SetObject(artState, "highlightedSprite", highlightedIcon);
         SetObject(artState, "legacyCompatibilitySprite", compatibilitySprite);
-    }
-
-    // ---------------------------------------------------------------------
-    // Perfil e cenas compartilhadas
-    // ---------------------------------------------------------------------
-
-    private static void InstallProfile()
-    {
-        Scene scene = Open("Assets/Scenes/Profile/Profile.unity");
-        Transform canvas = Find(scene, "Canvas");
-        Transform safe = Find(scene, "Canvas/SafeArea");
-        ConfigureCanvas(canvas);
-        ConfigureSafeArea(safe);
-        SetFullScreen(ImageAt(scene, "Canvas/Background"), S(DarkBackgroundPath), false);
-
-        Button back = ComponentAt<Button>(scene, "Canvas/SafeArea/Header/BackButton");
-        SetButtonSprite(back, S("Assets/Art/UI/PersonalizarPersonagem1/back-btn.png"));
-        AnchorTop(back.transform as RectTransform, new Vector2(110f, 110f), new Vector2(85f, -90f), true);
-        DisableDirectText(back.transform);
-
-        AvatarView avatar = Find(scene, "Canvas/SafeArea/Avatar/AvatarLayers").GetComponent<AvatarView>();
-        BuildArtAvatar(avatar, false);
-        Transform avatarContainer = Find(scene, "Canvas/SafeArea/Avatar");
-        Center(avatarContainer as RectTransform, new Vector2(560f, 560f), new Vector2(0f, 120f));
-
-        Save(scene);
-    }
-
-    private static void InstallSharedScene(string path)
-    {
-        Scene scene = Open(path);
-        Transform canvas = Find(scene, "Canvas");
-        Transform safe = Find(scene, path.Contains("Minigames") ? "Canvas/Safe Area" : "Canvas/SafeArea");
-        ConfigureCanvas(canvas);
-        ConfigureSafeArea(safe);
-        SetFullScreen(ImageAt(scene, "Canvas/Background"), S(DarkBackgroundPath), false);
-
-        Transform backTransform = Find(scene, (path.Contains("Minigames") ? "Canvas/Safe Area" : "Canvas/SafeArea") + "/Header/BackButton");
-        if (backTransform != null)
-        {
-            Button back = backTransform.GetComponent<Button>();
-            SetButtonSprite(back, S("Assets/Art/UI/PersonalizarPersonagem1/back-btn.png"));
-            AnchorTop(back.transform as RectTransform, new Vector2(110f, 110f), new Vector2(85f, -90f), true);
-            DisableDirectText(back.transform);
-        }
-
-        Save(scene);
     }
 
     private static void ConfigureCatalog()

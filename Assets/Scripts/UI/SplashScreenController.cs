@@ -32,7 +32,6 @@ public sealed class SplashScreenController : MonoBehaviour
 
     public void Dismiss()
     {
-        AudioManager.Instance?.PlayClick();
 
         if (splashRoot != null)
             splashRoot.SetActive(false);

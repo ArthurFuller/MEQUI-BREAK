@@ -1,7 +1,9 @@
 using System;
+using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
-/// Entrada do catálogo que relaciona categoria, índice visual e regra de desbloqueio.
+/// Entrada do catálogo de chapéus, rostos e cores, com sua regra de desbloqueio.
 /// </summary>
 [Serializable]
 public sealed class AvatarCustomizationItem
@@ -13,4 +15,18 @@ public sealed class AvatarCustomizationItem
     public int BreakPointCost;
     public int RequiredLevel = 1;
     public string DisplayName;
+
+    [Header("Ajuste manual no avatar")]
+    [FormerlySerializedAs("AvatarNormalizedOffset")]
+    [Tooltip("X move para os lados e Y move para cima/baixo. Exemplo: Y = 0,05 move 5% para cima.")]
+    public Vector2 DeslocamentoNoAvatar;
+
+    [FormerlySerializedAs("AvatarScale")]
+    [Tooltip("Tamanho individual deste item. 1 mantém o tamanho original.")]
+    [Min(0.1f)]
+    public float EscalaNoAvatar = 1f;
+
+    [FormerlySerializedAs("AvatarRotation")]
+    [Tooltip("Rotação individual deste item, em graus.")]
+    public float RotacaoNoAvatar;
 }

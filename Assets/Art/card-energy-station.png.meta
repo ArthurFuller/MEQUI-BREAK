@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 5c4e5c5ff4bb56240975d9eaf64d56be
+guid: 9e52f92e358830447b220d8852ca41a0
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -2051732960052150765
-    second: energy-status-container_0
+      213: -2379309618658381500
+    second: card-energy-station_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -139,13 +139,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: energy-status-container_0
+      name: card-energy-station_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 160
-        height: 8
+        width: 274
+        height: 442
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -154,8 +154,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 31e712e4eb7c683e0800000000000000
-      internalID: -2051732960052150765
+      spriteID: 4417239028efafed0800000000000000
+      internalID: -2379309618658381500
       vertices: []
       indices: 
       edges: []
@@ -174,7 +174,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      energy-status-container_0: -2051732960052150765
+      card-energy-station_0: -2379309618658381500
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

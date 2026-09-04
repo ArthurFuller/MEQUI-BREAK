@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(RectTransform))]
 [RequireComponent(typeof(CanvasGroup))]
@@ -14,6 +15,13 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     [Header("Retorno ao slot")]
     [SerializeField, Min(0f)] private float returnDuration = 0.15f;
 
+    [Header("Estado visual bloqueado")]
+    [Tooltip("Arte do card. Se não for atribuída, o filho cujo nome começa com 'Card' será usado.")]
+    [SerializeField] private GameObject cardVisual;
+    [Tooltip("Contorno tracejado do slot. Se não for atribuído, o filho cujo nome começa com 'Slot' será usado.")]
+    [SerializeField] private GameObject slotVisual;
+    [SerializeField] private Color lockedTint = new Color(0.28f, 0.28f, 0.28f, 1f);
+
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
     private Transform originParent;
@@ -23,11 +31,16 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     private Canvas interactionCanvas;
     private bool hasOrigin;
     private bool accepted;
+    private bool sessionLocked;
+    private bool dragInProgress;
     private Coroutine returnRoutine;
+    private Graphic[] cardGraphics;
+    private Color[] originalGraphicColors;
 
     public string InteractionId => interactionId;
     public string ReactionTrigger => reactionTrigger;
     public string FeedbackMessage => feedbackMessage;
+    public bool IsAvailable => !accepted && !sessionLocked && gameObject.activeInHierarchy;
 
     public event System.Action<DraggableInteraction> DragStarted;
     public event System.Action<DraggableInteraction> ReturnedToOrigin;
@@ -36,12 +49,16 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     {
         CacheComponents();
         CacheOrigin();
+        CacheVisualReferences();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (accepted || sessionLocked)
+            return;
+
         StopReturnRoutine(completeReturn: false);
-        accepted = false;
+        dragInProgress = true;
 
         // Atualiza o slot somente quando o card já está sob o pai de origem.
         // Durante um retorno interrompido, o pai ainda é o Canvas interativo.
@@ -49,6 +66,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
             CacheOrigin();
 
         canvasGroup.blocksRaycasts = false;
+        AudioManager.Instance?.PlayEnergyDrag();
 
         // Move o card para o Canvas da área interativa, acima dos demais cards,
         // sem cair para baixo do overlay do tutorial.
@@ -61,7 +79,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (interactionCanvas == null)
+        if (!dragInProgress || interactionCanvas == null)
             return;
 
         RectTransform canvasRect = interactionCanvas.transform as RectTransform;
@@ -84,6 +102,10 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        if (!dragInProgress)
+            return;
+
+        dragInProgress = false;
         canvasGroup.blocksRaycasts = true;
 
         if (!accepted)
@@ -91,14 +113,53 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     }
 
     /// <summary>
-    /// Marca o card como aceito e o desativa, mantendo o slot de origem vazio.
+    /// Marca o card como aceito e esconde sua arte, mantendo somente o slot vazio.
     /// </summary>
     public void AcceptDrop()
     {
         StopReturnRoutine(completeReturn: false);
         accepted = true;
+        dragInProgress = false;
+
+        if (originParent != null)
+            transform.SetParent(originParent, false);
+
+        ApplyOriginTransform();
+        CacheVisualReferences();
+        if (slotVisual != null)
+            slotVisual.SetActive(true);
+        if (cardVisual != null)
+            cardVisual.SetActive(false);
+        ApplyLockedTint(false);
+
+        canvasGroup.interactable = false;
         canvasGroup.blocksRaycasts = false;
-        gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Bloqueia a bandeja ao encerrar a rodada. Cards escolhidos continuam
+    /// ausentes; somente os cards que sobraram recebem a versão escurecida.
+    /// </summary>
+    public void LockForSessionEnd()
+    {
+        CacheComponents();
+        CacheVisualReferences();
+        StopReturnRoutine(completeReturn: false);
+        dragInProgress = false;
+        sessionLocked = true;
+
+        if (originParent != null)
+            transform.SetParent(originParent, false);
+        ApplyOriginTransform();
+
+        if (slotVisual != null)
+            slotVisual.SetActive(true);
+        if (cardVisual != null)
+            cardVisual.SetActive(!accepted);
+        ApplyLockedTint(!accepted);
+
+        canvasGroup.interactable = false;
+        canvasGroup.blocksRaycasts = false;
     }
 
     /// <summary>
@@ -109,8 +170,11 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         // Os cards começam inativos na cena. Nesse estado, Awake ainda não foi
         // executado quando o controlador solicita o primeiro reset.
         CacheComponents();
+        CacheVisualReferences();
         StopReturnRoutine(completeReturn: true);
         accepted = false;
+        sessionLocked = false;
+        dragInProgress = false;
 
         if (!hasOrigin)
             CacheOrigin();
@@ -123,7 +187,13 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
         ApplyOriginTransform();
         canvasGroup.alpha = 1f;
+        canvasGroup.interactable = true;
         canvasGroup.blocksRaycasts = true;
+        if (slotVisual != null)
+            slotVisual.SetActive(true);
+        if (cardVisual != null)
+            cardVisual.SetActive(true);
+        ApplyLockedTint(false);
     }
 
     /// <summary>
@@ -156,6 +226,47 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         // serializado acima do overlay do tutorial, preservando drag e drop.
         if (interactionCanvas == null)
             interactionCanvas = GetComponentInParent<Canvas>(true);
+    }
+
+    private void CacheVisualReferences()
+    {
+        if (cardVisual == null || slotVisual == null)
+        {
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                GameObject child = transform.GetChild(i).gameObject;
+                if (slotVisual == null && child.name.StartsWith("Slot", System.StringComparison.Ordinal))
+                    slotVisual = child;
+                else if (cardVisual == null && child.name.StartsWith("Card", System.StringComparison.Ordinal))
+                    cardVisual = child;
+            }
+        }
+
+        if (cardVisual == null || cardGraphics != null)
+            return;
+
+        cardGraphics = cardVisual.GetComponentsInChildren<Graphic>(true);
+        originalGraphicColors = new Color[cardGraphics.Length];
+        for (int i = 0; i < cardGraphics.Length; i++)
+            originalGraphicColors[i] = cardGraphics[i].color;
+    }
+
+    private void ApplyLockedTint(bool locked)
+    {
+        if (cardGraphics == null || originalGraphicColors == null)
+            return;
+
+        for (int i = 0; i < cardGraphics.Length; i++)
+        {
+            Color original = originalGraphicColors[i];
+            cardGraphics[i].color = locked
+                ? new Color(
+                    original.r * lockedTint.r,
+                    original.g * lockedTint.g,
+                    original.b * lockedTint.b,
+                    original.a)
+                : original;
+        }
     }
 
     private IEnumerator ReturnToOrigin()
@@ -220,8 +331,10 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         // alterar a hierarquia nesse ponto gera erro de ativação/desativação.
         // O reparenting é feito com segurança no reset ou no fim do retorno.
         StopReturnRoutine(completeReturn: false);
-        rectTransform.localScale = Vector3.one;
+        dragInProgress = false;
+        rectTransform.localScale = hasOrigin ? originLocalScale : Vector3.one;
         canvasGroup.alpha = 1f;
-        canvasGroup.blocksRaycasts = true;
+        canvasGroup.interactable = !accepted && !sessionLocked;
+        canvasGroup.blocksRaycasts = !accepted && !sessionLocked;
     }
 }

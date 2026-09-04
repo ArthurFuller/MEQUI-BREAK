@@ -7,7 +7,7 @@ using UnityEngine.UI;
 /// Fornece um pequeno feedback reutilizável de pressionar e soltar para elementos interativos.
 /// Atua somente sobre a escala e não interfere no comportamento funcional do elemento.
 /// </summary>
-public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
+public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler, IPointerClickHandler
 {
     [Header("Feedback de pressão")]
     [SerializeField, Range(0.85f, 1f)] private float pressScale = 0.96f;
@@ -15,6 +15,9 @@ public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, 
     [SerializeField, Min(0f)] private float releaseDuration = 0.10f;
     [SerializeField] private Ease pressEase = Ease.OutQuad;
     [SerializeField] private Ease releaseEase = Ease.OutQuad;
+    [SerializeField, Range(1f, 1.1f)] private float clickPopScale = 1.035f;
+    [SerializeField, Min(0.05f)] private float clickPopDuration = 0.14f;
+    [SerializeField] private bool playClickSound = true;
 
     private RectTransform rectTransform;
     private Selectable selectable;
@@ -55,6 +58,22 @@ public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, 
     public void OnPointerExit(PointerEventData eventData)
     {
         ReleasePointer();
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!CanInteract() || rectTransform == null)
+            return;
+
+        if (playClickSound)
+            AudioManager.Instance?.PlayClick();
+
+        KillScaleTween();
+        rectTransform.localScale = originalScale;
+        scaleTween = rectTransform
+            .DOPunchScale(originalScale * (clickPopScale - 1f), clickPopDuration, 4, 0.45f)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() => rectTransform.localScale = originalScale);
     }
 
     private void ReleasePointer()

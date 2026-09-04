@@ -115,7 +115,7 @@ public sealed class LoginController : MonoBehaviour
         isSubmitting = true;
         SetInputsInteractable(false);
         ClearError();
-        AudioManager.Instance?.PlayConfirm();
+        AudioManager.Instance?.PlayLoginJingle();
         sceneLoader.Load(hubScene);
     }
 
@@ -202,7 +202,6 @@ public sealed class LoginController : MonoBehaviour
         if (shiftOptionsPanel == null || isSubmitting)
             return;
 
-        AudioManager.Instance?.PlayClick();
         if (shiftOptionsPanel.gameObject.activeSelf)
             CloseShiftOptions(immediate: false);
         else
@@ -331,7 +330,6 @@ public sealed class LoginController : MonoBehaviour
         ClearError();
         UpdateSubmitState();
         CloseShiftOptions(immediate: false);
-        AudioManager.Instance?.PlayClick();
 
         if (shiftValueText == null)
             return;

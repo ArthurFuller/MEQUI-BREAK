@@ -31,12 +31,6 @@ public static class FirstRunGuideHierarchyInstaller
             new Vector2(250f, 125f),
             new Vector2(0f, 500f)),
         new SceneSetup(
-            "Assets/Scenes/Minigames/Minigames.unity",
-            1,
-            Vector2.zero,
-            new Vector2(285f, 285f),
-            new Vector2(0f, -610f)),
-        new SceneSetup(
             "Assets/Scenes/EnergyStation/EnergyStation.unity",
             2,
             new Vector2(-270f, 0f),
@@ -140,7 +134,7 @@ public static class FirstRunGuideHierarchyInstaller
         TMP_Text progress = CreateText(
             panel,
             "Progresso",
-            $"GUIA {setup.Step + 1} DE 3",
+            $"GUIA {(setup.Step == 2 ? 2 : 1)} DE 2",
             25f,
             new Color(1f, 0.78f, 0f, 1f),
             TextAlignmentOptions.Left);

@@ -3,6 +3,7 @@ using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public sealed class EnergyStationController : MonoBehaviour
 {
@@ -18,13 +19,13 @@ public sealed class EnergyStationController : MonoBehaviour
     [SerializeField] private Button completeButton;
     [SerializeField] private Button resetButton;
     [SerializeField] private TMP_Text instructionLabel;
-    [SerializeField] private Image avatarImage;
+    [SerializeField] private AvatarView avatarView;
     [SerializeField] private Image trayLockOverlay;
     [SerializeField] private CanvasGroup interactionTray;
 
-    [Header("Sprites do avatar")]
-    [SerializeField] private Sprite initialAvatarSprite;
-    [SerializeField] private Sprite completedAvatarSprite;
+    [Header("Estado do avatar")]
+    [Tooltip("Índice da face de olhos fechados usada enquanto o Méqui descansa.")]
+    [SerializeField, Range(0, 11)] private int sleepingFaceIndex;
 
     [Header("Mensagens")]
     [SerializeField, TextArea(2, 3)] private string initialMessage = "Que tipo de pausa o Méqui precisa hoje?";
@@ -90,6 +91,14 @@ public sealed class EnergyStationController : MonoBehaviour
 
     private void Start()
     {
+        PlayerManager player = PlayerManager.Instance;
+        if (player != null && !player.CanPlayEnergyStation)
+        {
+            Debug.LogWarning("Energy Station indisponível: a atividade já foi concluída hoje.", this);
+            SceneManager.LoadScene("HUB");
+            return;
+        }
+
         elapsedTime = 0f;
         lastInteractionTime = 0f;
         interactionCount = 0;
@@ -259,7 +268,7 @@ public sealed class EnergyStationController : MonoBehaviour
         for (int i = 0; i < interactionCards.Length; i++)
         {
             DraggableInteraction interaction = interactionCards[i];
-            if (interaction != null && interaction.gameObject.activeInHierarchy)
+            if (interaction != null && interaction.IsAvailable)
                 return interaction;
         }
 
@@ -335,7 +344,12 @@ public sealed class EnergyStationController : MonoBehaviour
 
         // Mantém os pontos pendentes para a animação ao entrar no HUB.
         if (PlayerManager.Instance != null && pointsEarned > 0)
+        {
             PlayerManager.Instance.SetPendingPoints(pointsEarned);
+            PlayerManager.Instance.MarkEnergyStationCompleted();
+        }
+
+        AudioManager.Instance?.PlayCompletion();
 
         if (resultPopup != null)
         {
@@ -357,8 +371,7 @@ public sealed class EnergyStationController : MonoBehaviour
         if (feedbackLabel != null)
             feedbackLabel.text = string.Empty;
 
-        if (avatarImage != null && initialAvatarSprite != null)
-            avatarImage.sprite = initialAvatarSprite;
+        ApplySleepingFace();
 
         if (resetButton != null)
             resetButton.gameObject.SetActive(true);
@@ -385,8 +398,27 @@ public sealed class EnergyStationController : MonoBehaviour
         if (instructionLabel != null)
             instructionLabel.text = completedMessage;
 
-        if (avatarImage != null && completedAvatarSprite != null)
-            avatarImage.sprite = completedAvatarSprite;
+        ApplySelectedFace();
+    }
+
+    private void ApplySleepingFace()
+    {
+        AvatarCustomizationData customization = PlayerManager.Instance?.Profile?.Avatar;
+        if (avatarView == null || customization == null)
+            return;
+
+        // Garante primeiro que cor e chapéu sejam exatamente os salvos.
+        avatarView.Apply(customization);
+        avatarView.ApplyFace(sleepingFaceIndex);
+    }
+
+    private void ApplySelectedFace()
+    {
+        AvatarCustomizationData customization = PlayerManager.Instance?.Profile?.Avatar;
+        if (avatarView == null || customization == null)
+            return;
+
+        avatarView.ApplyFace(customization.FaceIndex);
     }
 
     private void SetTrayLocked(bool locked)
@@ -397,8 +429,24 @@ public sealed class EnergyStationController : MonoBehaviour
             interactionTray.blocksRaycasts = !locked;
         }
 
+        // O bloqueio visual é individual: cards escolhidos deixam o slot vazio;
+        // somente os cards que não foram usados recebem a versão escurecida.
+        if (locked)
+            LockCardsForSessionEnd();
+
+        // Mantido apenas para compatibilidade com cenas antigas. O painel
+        // inteiro não deve cobrir as segundas versões dos cards.
         if (trayLockOverlay != null)
-            trayLockOverlay.gameObject.SetActive(locked);
+            trayLockOverlay.gameObject.SetActive(false);
+    }
+
+    private void LockCardsForSessionEnd()
+    {
+        if (interactionCards == null)
+            return;
+
+        for (int i = 0; i < interactionCards.Length; i++)
+            interactionCards[i]?.LockForSessionEnd();
     }
 
     private void ResetCardsToOrigin()

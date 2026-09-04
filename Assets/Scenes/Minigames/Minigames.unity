@@ -139,10 +139,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: Energy StationCard
       objectReference: {fileID: 0}
-    - target: {fileID: 4250108089268622782, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
-      propertyPath: m_text
-      value: Energy Station
-      objectReference: {fileID: 0}
     - target: {fileID: 7626302229359114088, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -1235,7 +1231,7 @@ MonoBehaviour:
   pulseScale: 1.04
   pulseDuration: 0.55
   pulseEase: 4
-  executarSempreParaTeste: 1
+  executarSempreParaTeste: 0
 --- !u!114 &1166938415
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,8 +14,8 @@ public sealed class AppBootstrapper : MonoBehaviour
     [SerializeField] private string hubScene = "HUB";
 
     [Header("Fluxo inicial")]
-    [Tooltip("Quando ativado, o Boot sempre abre a tela de Login, mesmo que já exista um cadastro válido salvo.")]
-    [SerializeField] private bool alwaysShowLoginOnBoot = true;
+    [Tooltip("Use apenas para testes. Em produção, o Login aparece somente sem cadastro válido salvo.")]
+    [SerializeField] private bool alwaysShowLoginOnBoot;
 
     private void Awake()
     {
@@ -43,9 +43,14 @@ public sealed class AppBootstrapper : MonoBehaviour
         bool hasRegistration = playerManager != null
             && playerManager.HasValidRegistration;
 
-        string targetScene = alwaysShowLoginOnBoot || !hasRegistration
+        // No Editor o fluxo sempre começa pelo Login. Em uma build, respeita
+        // o cadastro salvo e usa a cena HUB quando o registro estiver válido.
+        string targetScene = Application.isEditor
+            || alwaysShowLoginOnBoot
+            || !hasRegistration
             ? loginScene
             : hubScene;
+
         if (!string.IsNullOrWhiteSpace(targetScene))
             SceneManager.LoadScene(targetScene);
     }

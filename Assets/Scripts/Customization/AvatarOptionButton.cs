@@ -5,22 +5,28 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Deve ser anexado a cada botão de opção das grades de cabelo, roupa e acessório.
+/// Deve ser anexado a cada botão das grades de chapéu, rosto e cor.
 ///
-/// Encaminha os cliques ao CustomizationController e controla as animações de
-/// pressionar, soltar, confirmar seleção, desbloquear e tentar usar item bloqueado.
+/// Encaminha os cliques ao CustomizationController e reproduz um único pulso
+/// simples para seleção ou tentativa de usar um item bloqueado.
 /// </summary>
 [RequireComponent(typeof(Button))]
 [RequireComponent(typeof(RectTransform))]
 [DisallowMultipleComponent]
 public sealed class AvatarOptionButton : MonoBehaviour,
-    IPointerDownHandler,
-    IPointerUpHandler,
-    IPointerClickHandler,
-    IPointerExitHandler
+    IPointerClickHandler
 {
     [Header("Referências")]
     [SerializeField] private CustomizationController controller;
+
+    [Tooltip("Cor do fundo quando esta opção está selecionada.")]
+    [SerializeField] private Color selectedBackgroundColor = new Color(0.24f, 0.20f, 0.04f, 1f);
+
+    [Tooltip("Cor clara usada por todos os cards disponíveis.")]
+    [SerializeField] private Color unlockedBackgroundColor = new Color(0.38f, 0.38f, 0.38f, 1f);
+
+    [Tooltip("Cor usada enquanto o item ainda está bloqueado.")]
+    [SerializeField] private Color lockedBackgroundColor = new Color(0.27f, 0.27f, 0.27f, 1f);
 
     [SerializeField, Min(0)]
     private int optionIndex;
@@ -33,49 +39,24 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     [SerializeField] private TMP_Text unlockLabel;
 
     [Header("Configurações de animação")]
-    [Tooltip("Multiplicador da escala ao pressionar. Exemplo: 0,92 corresponde a 92% da escala original.")]
-    [SerializeField, Range(0.8f, 1f)]
-    private float pressScale = 0.92f;
+    [Tooltip("Aumento máximo do pulso único ao clicar.")]
+    [SerializeField, Range(1f, 1.1f)] private float pulseScale = 1.04f;
 
-    [Tooltip("Duração da animação de pressionar.")]
-    [SerializeField, Min(0.01f)]
-    private float pressDuration = 0.08f;
-
-    [Tooltip("Escala excedente ao soltar ou clicar. Exemplo: 1,05 corresponde a 105%.")]
-    [SerializeField, Range(1f, 1.2f)]
-    private float releaseOvershoot = 1.05f;
-
-    [Tooltip("Duração da animação excedente ao soltar.")]
-    [SerializeField, Min(0.01f)]
-    private float releaseDuration = 0.12f;
-
-    [Tooltip("Intensidade do pulso de escala ao confirmar uma seleção.")]
-    [SerializeField, Min(0f)]
-    private float punchIntensity = 0.15f;
-
-    [Tooltip("Duração do pulso ao confirmar uma seleção.")]
-    [SerializeField, Min(0.01f)]
-    private float punchDuration = 0.3f;
-
-    [Tooltip("Força do balanço ao pressionar um item bloqueado.")]
-    [SerializeField, Min(0f)]
-    private float shakeStrength = 10f;
-
-    [Tooltip("Duração do balanço do item bloqueado.")]
-    [SerializeField, Min(0.01f)]
-    private float shakeDuration = 0.3f;
+    [Tooltip("Duração de cada metade do pulso.")]
+    [SerializeField, Min(0.01f)] private float pulseHalfDuration = 0.1f;
 
     private Button _button;
+    private Image _backgroundImage;
     private RectTransform _rectTransform;
 
     private Vector3 _originalScale;
     private Quaternion _originalRotation;
-
     private bool _isLocked;
+    private bool _isSelected;
+    private bool _referencesCached;
+    private bool _lockStateInitialized;
 
-    private Tween _pressTween;
     private Sequence _selectionSequence;
-    private Sequence _lockedSequence;
 
     public int OptionIndex => optionIndex;
 
@@ -83,13 +64,24 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
     private void Awake()
     {
+        CacheReferences();
+
+        if (!_lockStateInitialized)
+            SetLockVisuals(false, string.Empty);
+    }
+
+    private void CacheReferences()
+    {
+        if (_referencesCached)
+            return;
+
         _button = GetComponent<Button>();
+        _backgroundImage = GetComponent<Image>();
         _rectTransform = GetComponent<RectTransform>();
 
         _originalScale = _rectTransform.localScale;
         _originalRotation = _rectTransform.localRotation;
-
-        SetLockVisuals(false, string.Empty);
+        _referencesCached = true;
     }
 
     private void OnDisable()
@@ -102,7 +94,9 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     /// </summary>
     public void SetLocked(bool isLocked, string label)
     {
+        CacheReferences();
         _isLocked = isLocked;
+        _lockStateInitialized = true;
         SetLockVisuals(isLocked, label);
 
         if (_rectTransform != null)
@@ -112,37 +106,12 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         }
     }
 
-    public void OnPointerDown(PointerEventData eventData)
+    /// <summary>Destaca a opção salva ou selecionada sem criar elementos em runtime.</summary>
+    public void SetSelected(bool isSelected)
     {
-        if (!CanUsePressAnimation())
-            return;
-
-        AnimatePress();
-    }
-
-    public void OnPointerUp(PointerEventData eventData)
-    {
-        if (!CanUsePressAnimation())
-            return;
-
-        AnimateRelease();
-    }
-
-    public void OnPointerExit(PointerEventData eventData)
-    {
-        if (!CanUsePressAnimation())
-            return;
-
-        KillPressTween();
-
-        if (_rectTransform == null)
-            return;
-
-        // Ao sair do botão, cancela o pressionamento sem aplicar o excedente.
-        _pressTween = _rectTransform
-            .DOScale(_originalScale, releaseDuration)
-            .SetEase(Ease.OutQuad)
-            .SetUpdate(UpdateType.Late);
+        CacheReferences();
+        _isSelected = isSelected;
+        ApplyBackgroundColor();
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -154,128 +123,20 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         controller?.HandleOptionClicked(optionIndex);
     }
 
-    private bool CanUsePressAnimation()
-    {
-        return _button != null && _button.interactable && !_isLocked;
-    }
-
-    private void AnimatePress()
-    {
-        KillPressTween();
-
-        _pressTween = _rectTransform
-            .DOScale(_originalScale * pressScale, pressDuration)
-            .SetEase(Ease.OutQuad)
-            .SetUpdate(UpdateType.Late);
-    }
-
-    private void AnimateRelease()
-    {
-        KillPressTween();
-
-        Sequence releaseSequence = DOTween.Sequence();
-        releaseSequence.SetUpdate(UpdateType.Late);
-        _pressTween = releaseSequence;
-
-        releaseSequence.Append(
-            _rectTransform
-                .DOScale(
-                    _originalScale * releaseOvershoot,
-                    releaseDuration * 0.5f
-                )
-                .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        releaseSequence.Append(
-            _rectTransform
-                .DOScale(
-                    _originalScale,
-                    releaseDuration
-                )
-                .SetEase(Ease.OutBack)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        releaseSequence.Play();
-    }
-
     /// <summary>
     /// Reproduz o feedback visual de uma seleção confirmada.
     /// </summary>
     public void AnimateSelectionConfirmed()
     {
-        KillAnimationSequences();
-
-        _selectionSequence = DOTween.Sequence();
-        _selectionSequence.SetUpdate(UpdateType.Late);
-
-        _selectionSequence.Append(
-            _rectTransform
-                .DOScale(
-                    _originalScale * releaseOvershoot,
-                    0.06f
-                )
-                .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        _selectionSequence.Append(
-            _rectTransform
-                .DOPunchScale(
-                    Vector3.one * punchIntensity,
-                    punchDuration,
-                    10,
-                    0.5f
-                )
-                .SetUpdate(UpdateType.Late)
-        );
-
-        _selectionSequence.OnComplete(RestoreScale);
-
-        _selectionSequence.Play();
+        PlaySinglePulse();
     }
 
     /// <summary>
-    /// Reproduz o balanço de tentativa bloqueada e chama o retorno ao concluir.
+    /// Reproduz o mesmo pulso simples na tentativa bloqueada e chama o retorno ao concluir.
     /// </summary>
     public void AnimateLockedFeedback(System.Action onComplete = null)
     {
-        // Usa rotação para não disputar anchoredPosition com a animação da grade.
-        KillAnimationSequences();
-
-        if (_rectTransform == null)
-        {
-            onComplete?.Invoke();
-            return;
-        }
-
-        _rectTransform.localRotation = _originalRotation;
-
-        _lockedSequence = DOTween.Sequence();
-        _lockedSequence.SetUpdate(UpdateType.Late);
-
-        _lockedSequence.Append(
-            _rectTransform
-                .DOShakeRotation(
-                    shakeDuration,
-                    new Vector3(0f, 0f, shakeStrength),
-                    20,
-                    90f,
-                    true
-                )
-                .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        _lockedSequence.OnComplete(() =>
-        {
-            if (_rectTransform != null)
-                _rectTransform.localRotation = _originalRotation;
-
-            onComplete?.Invoke();
-        });
-        _lockedSequence.Play();
+        PlaySinglePulse(onComplete);
     }
 
     /// <summary>
@@ -284,68 +145,45 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     public void AnimateUnlock()
     {
         _isLocked = false;
-
-        KillAnimationSequences();
         SetLockVisuals(false, string.Empty);
-
-        _selectionSequence = DOTween.Sequence();
-        _selectionSequence.SetUpdate(UpdateType.Late);
-
-        _selectionSequence.Append(
-            _rectTransform
-                .DOScale(
-                    _originalScale * 1.15f,
-                    0.15f
-                )
-                .SetEase(Ease.OutBack)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        _selectionSequence.Append(
-            _rectTransform
-                .DOScale(
-                    _originalScale,
-                    0.1f
-                )
-                .SetEase(Ease.OutQuad)
-                .SetUpdate(UpdateType.Late)
-        );
-
-        _selectionSequence.OnComplete(RestoreScale);
-
-        _selectionSequence.Play();
     }
 
-    private void KillPressTween()
+    private void PlaySinglePulse(System.Action onComplete = null)
     {
-        if (_pressTween == null)
+        KillAnimationSequences();
+
+        if (_rectTransform == null)
+        {
+            onComplete?.Invoke();
             return;
+        }
 
-        if (_pressTween.IsActive())
-            _pressTween.Kill(true);
-
-        _pressTween = null;
+        _selectionSequence = DOTween.Sequence();
+        _selectionSequence
+            .SetUpdate(UpdateType.Late)
+            .Append(_rectTransform
+                .DOScale(_originalScale * pulseScale, pulseHalfDuration)
+                .SetEase(Ease.OutSine)
+                .SetUpdate(UpdateType.Late))
+            .Append(_rectTransform
+                .DOScale(_originalScale, pulseHalfDuration)
+                .SetEase(Ease.InOutSine)
+                .SetUpdate(UpdateType.Late))
+            .OnComplete(() =>
+            {
+                RestoreScale();
+                onComplete?.Invoke();
+            });
     }
 
     private void KillAnimationSequences()
     {
-        KillPressTween();
-
         if (_selectionSequence != null)
         {
             if (_selectionSequence.IsActive())
-                _selectionSequence.Kill(true);
+                _selectionSequence.Kill(false);
 
             _selectionSequence = null;
-        }
-
-        if (_lockedSequence != null)
-        {
-            // Não conclui o balanço interrompido para não antecipar seu callback.
-            if (_lockedSequence.IsActive())
-                _lockedSequence.Kill(false);
-
-            _lockedSequence = null;
         }
 
         if (_rectTransform != null)
@@ -362,6 +200,8 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
     private void SetLockVisuals(bool isLocked, string label)
     {
+        ApplyBackgroundColor();
+
         if (lockOverlay != null)
             lockOverlay.SetActive(isLocked);
 
@@ -373,6 +213,16 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
         if (showLabel)
             unlockLabel.text = label;
+    }
+
+    private void ApplyBackgroundColor()
+    {
+        if (_backgroundImage == null)
+            return;
+
+        _backgroundImage.color = _isSelected && !_isLocked
+            ? selectedBackgroundColor
+            : (_isLocked ? lockedBackgroundColor : unlockedBackgroundColor);
     }
 
     private void RestoreScale()

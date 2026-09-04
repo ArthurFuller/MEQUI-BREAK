@@ -25,10 +25,14 @@ public sealed class PointAnimationManager : MonoBehaviour
     [Tooltip("RectTransform do Canvas usado como pai das moedas em movimento.")]
     [SerializeField] private RectTransform canvasRect;
 
+    [Tooltip("Origem visual da recompensa no HUB (normalmente o card do minigame).")]
+    [SerializeField] private RectTransform spawnAnchor;
+
     [Header("Animação das moedas")]
     [SerializeField, Min(0.1f)] private float duration = 0.8f;
     [SerializeField, Min(0f)] private float spawnDelay = 0.05f;
     [SerializeField] private Vector2 arcOffset = new Vector2(0f, 150f);
+    [SerializeField, Min(0f)] private float spawnSpread = 18f;
 
     [Header("Pulso do contador")]
     [Tooltip("Multiplicador aplicado ao contador sempre que uma moeda chega.")]
@@ -119,6 +123,10 @@ public sealed class PointAnimationManager : MonoBehaviour
         pointsLabel.SetText("{0} PB", baseValue);
         pointsLabel.transform.localScale = _pointsLabelBaseScale;
 
+        // O som acompanha o início do lote, evitando sobreposição do mesmo efeito
+        // a cada moeda enquanto várias moedas chegam em sequência.
+        AudioManager.Instance?.PlayReward();
+
         _batchSequence = DOTween.Sequence().SetTarget(this);
 
         for (int i = 0; i < amount; i++)
@@ -134,20 +142,41 @@ public sealed class PointAnimationManager : MonoBehaviour
         if (!IsAnimating || coinPrefab == null || pointsLabel == null || canvasRect == null)
             return;
 
-        Vector2 spawnPos = (Vector2)canvasRect.position + UnityEngine.Random.insideUnitCircle * 10f;
-        Vector2 targetPos = pointsLabel.rectTransform.position;
+        Vector2 spawnPos = GetCanvasLocalPoint(spawnAnchor != null ? spawnAnchor : canvasRect)
+            + UnityEngine.Random.insideUnitCircle * spawnSpread;
+        Vector2 targetPos = GetCanvasLocalPoint(pointsLabel.rectTransform);
+
+        // O destino e a origem são convertidos para o mesmo espaço local do Canvas.
+        // O movimento é aplicado por anchoredPosition (e não localPosition), evitando
+        // o erro clássico de misturar coordenadas de RectTransform com Transform.
         Vector2 midPoint = (spawnPos + targetPos) * 0.5f + arcOffset;
 
         GameObject coin = GetCoin();
         _activeCoins.Add(coin);
-        coin.transform.position = spawnPos;
+        RectTransform coinRect = coin.transform as RectTransform;
+        if (coinRect == null)
+        {
+            ReleaseCoin(coin);
+            return;
+        }
 
-        Vector3[] path = { midPoint, targetPos };
+        coinRect.anchorMin = new Vector2(0.5f, 0.5f);
+        coinRect.anchorMax = new Vector2(0.5f, 0.5f);
+        coinRect.anchoredPosition = spawnPos;
 
         Sequence coinSequence = DOTween.Sequence().SetTarget(this);
-        coinSequence.Append(coin.transform.DOPath(path, duration, PathType.CatmullRom).SetEase(Ease.OutQuad));
+        coinSequence.Append(
+            DOTween.To(
+                () => 0f,
+                t => coinRect.anchoredPosition = EvaluateQuadraticBezier(spawnPos, midPoint, targetPos, t),
+                1f,
+                duration)
+                .SetEase(Ease.InOutCubic));
         coinSequence.Join(coin.transform.DORotate(new Vector3(0f, 0f, 360f), duration, RotateMode.FastBeyond360));
-        coinSequence.Join(coin.transform.DOScale(1.3f, duration * 0.3f).SetLoops(2, LoopType.Yoyo));
+        coinSequence.Join(
+            coin.transform.DOScale(_coinBaseScale * 1.12f, duration * 0.3f)
+                .SetEase(Ease.OutQuad)
+                .SetLoops(2, LoopType.Yoyo));
 
         coinSequence.OnComplete(() =>
         {
@@ -163,6 +192,39 @@ public sealed class PointAnimationManager : MonoBehaviour
             PlayCounterPulse(isFinalCoin);
             ReleaseCoin(coin);
         });
+    }
+
+
+    private static Vector2 EvaluateQuadraticBezier(Vector2 start, Vector2 control, Vector2 end, float t)
+    {
+        t = Mathf.Clamp01(t);
+        float inverse = 1f - t;
+        return inverse * inverse * start
+            + 2f * inverse * t * control
+            + t * t * end;
+    }
+
+    private Vector2 GetCanvasLocalPoint(RectTransform source)
+    {
+        if (source == null || canvasRect == null)
+            return Vector2.zero;
+
+        Canvas canvas = canvasRect.GetComponent<Canvas>();
+        if (canvas == null)
+            canvas = canvasRect.GetComponentInParent<Canvas>();
+
+        Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? canvas.worldCamera
+            : null;
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(camera, source.position);
+
+        return RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect,
+            screenPoint,
+            camera,
+            out Vector2 localPoint)
+            ? localPoint
+            : Vector2.zero;
     }
 
     /// <summary>

@@ -109,7 +109,7 @@ public sealed class SceneLoader : MonoBehaviour
         while (loadOperation.progress < 0.9f)
             yield return null;
 
-        SetAudioListenersEnabled(currentScene, false);
+        // O AudioManager persistente mantém o listener durante a transição.
         loadOperation.allowSceneActivation = true;
 
         while (!loadOperation.isDone)
@@ -119,11 +119,11 @@ public sealed class SceneLoader : MonoBehaviour
         if (!incomingScene.IsValid() || !incomingScene.isLoaded)
         {
             SetEventSystemsEnabled(currentScene, true);
-            SetAudioListenersEnabled(currentScene, true);
             isTransitioning = false;
             yield break;
         }
 
+        SetAudioListenersEnabled(incomingScene, false);
         SetEventSystemsEnabled(incomingScene, false);
 
         List<RectTransform> incomingRoots = GetOrCreateTransitionRoots(incomingScene);
@@ -197,8 +197,7 @@ public sealed class SceneLoader : MonoBehaviour
         if (!IsHub(targetScene))
             return false;
 
-        return IsProfile(currentScene)
-            || IsScene(currentScene, "Customization")
+        return IsScene(currentScene, "Customization")
             || IsScene(currentScene, "Settings")
             || IsScene(currentScene, "EnergyStation")
             || IsScene(currentScene, "Result");
@@ -437,11 +436,6 @@ public sealed class SceneLoader : MonoBehaviour
     {
         return string.Equals(sceneName, "Hub", StringComparison.OrdinalIgnoreCase)
             || string.Equals(sceneName, "HUB", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsProfile(string sceneName)
-    {
-        return IsScene(sceneName, "Profile");
     }
 
     private static bool IsScene(string sceneName, string expectedName)

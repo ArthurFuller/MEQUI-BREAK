@@ -10,10 +10,9 @@ using UnityEngine.UI;
 public sealed class FirstRunGuideController : MonoBehaviour
 {
     private const int HubStep = 0;
-    private const int EnergyStationHubStep = 1;
     private const int EnergyStationStep = 2;
     private const int CompletedStep = 3;
-    private const int TotalSteps = 3;
+    private const int TotalSteps = 2;
 
     private const string HubSceneName = "HUB";
     private const string EnergyStationSceneName = "EnergyStation";
@@ -30,7 +29,6 @@ public sealed class FirstRunGuideController : MonoBehaviour
     private int energyGuideHighlightIndex;
     private int showingStep = -1;
     private bool showing;
-    private int testingStepOverride = -1;
 
     private void Awake()
     {
@@ -134,8 +132,15 @@ public sealed class FirstRunGuideController : MonoBehaviour
         if (view.ExecutarSempreParaTeste)
             return view.SupportsStep(requestedStep);
 
+        bool isCompatibleHubStep = requestedStep == HubStep
+            && (profile.OnboardingStep == HubStep || profile.OnboardingStep == 1);
+        bool isCompatibleEnergyStep = requestedStep == EnergyStationStep
+            && profile.OnboardingStep == 1;
+
         return profile.OnboardingStep < CompletedStep
-            && profile.OnboardingStep == requestedStep
+            && (profile.OnboardingStep == requestedStep
+                || isCompatibleHubStep
+                || isCompatibleEnergyStep)
             && view.SupportsStep(requestedStep);
     }
 
@@ -168,7 +173,11 @@ public sealed class FirstRunGuideController : MonoBehaviour
             BindEnergyGuideCard(energyStation.GetFirstAvailableInteraction());
         }
 
-        currentView.Show(showingStep, TotalSteps, GetStepMessage(showingStep));
+        currentView.Show(
+            showingStep,
+            showingStep == EnergyStationStep ? 2 : 1,
+            TotalSteps,
+            GetStepMessage(showingStep));
     }
 
     private void HandleTargetClicked()
@@ -180,13 +189,7 @@ public sealed class FirstRunGuideController : MonoBehaviour
         bool testing = IsTestingMode();
         if (testing)
         {
-            testingStepOverride = completedStep == HubStep
-                ? EnergyStationHubStep
-                : EnergyStationStep;
             HideGuide();
-
-            if (completedStep == HubStep)
-                QueueScene(SceneManager.GetActiveScene());
             return;
         }
 
@@ -197,18 +200,13 @@ public sealed class FirstRunGuideController : MonoBehaviour
         if (profile == null)
             return;
 
-        if (completedStep == HubStep && profile.OnboardingStep == HubStep)
-            profile.OnboardingStep = EnergyStationHubStep;
-        else if (completedStep == EnergyStationHubStep
-            && profile.OnboardingStep == EnergyStationHubStep)
+        if (completedStep == HubStep
+            && (profile.OnboardingStep == HubStep || profile.OnboardingStep == 1))
             profile.OnboardingStep = EnergyStationStep;
         else
             return;
 
         player.SaveProfile();
-
-        if (completedStep == HubStep)
-            QueueScene(SceneManager.GetActiveScene());
     }
 
     public void RestartGuide()
@@ -224,11 +222,6 @@ public sealed class FirstRunGuideController : MonoBehaviour
             player.Profile.OnboardingStep = HubStep;
             player.SaveProfile();
         }
-        else
-        {
-            testingStepOverride = HubStep;
-        }
-
         HideGuide();
         Scene activeScene = SceneManager.GetActiveScene();
         if (activeScene.name == HubSceneName)
@@ -293,7 +286,9 @@ public sealed class FirstRunGuideController : MonoBehaviour
         PlayerManager player = PlayerManager.Instance;
         bool testing = IsTestingMode();
         bool canComplete = testing
-            || (player?.Profile != null && player.Profile.OnboardingStep == EnergyStationStep);
+            || (player?.Profile != null
+                && (player.Profile.OnboardingStep == EnergyStationStep
+                    || player.Profile.OnboardingStep == 1));
 
         HideGuide();
         if (!canComplete || testing)
@@ -415,16 +410,15 @@ public sealed class FirstRunGuideController : MonoBehaviour
             return -1;
 
         if (view.ExecutarSempreParaTeste)
-        {
-            if (scene.name == HubSceneName)
-                return testingStepOverride == EnergyStationHubStep
-                    ? EnergyStationHubStep
-                    : HubStep;
+            return scene.name == HubSceneName ? HubStep : EnergyStationStep;
 
+        int savedStep = PlayerManager.Instance?.Profile?.OnboardingStep ?? -1;
+        if (scene.name == HubSceneName && savedStep == 1)
+            return HubStep;
+        if (scene.name == EnergyStationSceneName && savedStep == 1)
             return EnergyStationStep;
-        }
 
-        return PlayerManager.Instance?.Profile?.OnboardingStep ?? -1;
+        return savedStep;
     }
 
     private static Button ResolveTargetButton(FirstRunGuideSceneView view, int requestedStep)
@@ -449,8 +443,7 @@ public sealed class FirstRunGuideController : MonoBehaviour
     {
         return step switch
         {
-            HubStep => "Este é o Energy Station. Toque para continuar.",
-            EnergyStationHubStep => "Agora toque em Energy Station para começar.",
+            HubStep => "Toque em Energy Station para começar.",
             _ => "Arraste um card até o avatar para indicar uma pausa."
         };
     }

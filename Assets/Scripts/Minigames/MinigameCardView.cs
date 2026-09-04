@@ -1,12 +1,10 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+[RequireComponent(typeof(Button))]
 public sealed class MinigameCardView : MonoBehaviour
 {
-    [SerializeField] private Button iconButton;
-    [SerializeField] private Image icon;
-    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private Button button;
     [Header("Configuração da cena")]
     [SerializeField] private MinigameDefinition definition;
     [SerializeField] private SceneLoader sceneLoader;
@@ -15,7 +13,14 @@ public sealed class MinigameCardView : MonoBehaviour
 
     private void Awake()
     {
-        ApplyViewAndListener();
+        ApplyListener();
+    }
+
+    private void OnEnable()
+    {
+        RefreshAvailability();
+        if (PlayerManager.Instance != null)
+            PlayerManager.Instance.EnergyStationAvailabilityChanged += RefreshAvailability;
     }
 
     public void Bind(MinigameDefinition data, SceneLoader loader)
@@ -23,25 +28,38 @@ public sealed class MinigameCardView : MonoBehaviour
         definition = data;
         sceneLoader = loader;
 
-        ApplyViewAndListener();
+        ApplyListener();
     }
 
-    private void ApplyViewAndListener()
+    private void ApplyListener()
     {
-        if (definition == null)
+        if (button == null)
+            button = GetComponent<Button>();
+
+        if (button == null)
             return;
 
-        if (icon != null)
-            icon.sprite = definition.Icon;
+        button.onClick.RemoveListener(Play);
 
-        if (titleText != null)
-            titleText.text = definition.DisplayName;
+        if (definition != null)
+            button.onClick.AddListener(Play);
 
-        if (iconButton != null)
-        {
-            iconButton.onClick.RemoveListener(Play);
-            iconButton.onClick.AddListener(Play);
-        }
+        RefreshAvailability();
+    }
+
+    public void RefreshAvailability()
+    {
+        if (button == null || definition == null)
+            return;
+
+        bool isEnergyStation = string.Equals(
+            definition.SceneName,
+            "EnergyStation",
+            System.StringComparison.OrdinalIgnoreCase);
+
+        button.interactable = !isEnergyStation
+            || PlayerManager.Instance == null
+            || PlayerManager.Instance.CanPlayEnergyStation;
     }
 
     private void Play()
@@ -62,10 +80,16 @@ public sealed class MinigameCardView : MonoBehaviour
         sceneLoader.Load(definition.SceneName);
     }
 
+    private void OnDisable()
+    {
+        if (PlayerManager.Instance != null)
+            PlayerManager.Instance.EnergyStationAvailabilityChanged -= RefreshAvailability;
+    }
+
     private void OnDestroy()
     {
-        if (iconButton != null)
-            iconButton.onClick.RemoveListener(Play);
+        if (button != null)
+            button.onClick.RemoveListener(Play);
     }
 
 #if UNITY_EDITOR
@@ -73,7 +97,7 @@ public sealed class MinigameCardView : MonoBehaviour
     {
         definition = data;
         sceneLoader = loader;
-        ApplyViewAndListener();
+        ApplyListener();
     }
 #endif
 }

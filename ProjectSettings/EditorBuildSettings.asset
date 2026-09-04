@@ -20,9 +20,6 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/EnergyStation/EnergyStation.unity
     guid: cd33356f80145ca4991285701a59261f
-  - enabled: 1
-    path: Assets/Scenes/Profile/Profile.unity
-    guid: 08edb7b7fce74904192d3045fcac3448
   - enabled: 0
     path: Assets/Scenes/Result/Result.unity
     guid: 81309a3bd68e12c429a0d9b34928f80d

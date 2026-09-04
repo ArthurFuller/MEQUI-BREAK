@@ -162,11 +162,11 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: f6b2d4a9c1834e54aa96b801c2d7e3f1, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
-  Loop: 1
+  Loop: 0
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
@@ -303,6 +303,7 @@ GameObject:
   m_Component:
   - component: {fileID: 277686736}
   - component: {fileID: 277686737}
+  - component: {fileID: 277686738}
   m_Layer: 0
   m_Name: AudioManager
   m_TagString: Untagged
@@ -339,10 +340,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40e962c94c1e2e744bbe59dd0b94c43b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  persistentListener: {fileID: 277686738}
   musicSource: {fileID: 119183391}
   sfxSource: {fileID: 2126734228}
-  clickClip: {fileID: 0}
-  confirmClip: {fileID: 0}
+  uiClickClip: {fileID: 8300000, guid: 111111111111111111111111111111a1, type: 3}
+  confirmClip: {fileID: 8300000, guid: 111111111111111111111111111111a2, type: 3}
+  rewardClip: {fileID: 8300000, guid: 111111111111111111111111111111a3, type: 3}
+  completionClip: {fileID: 8300000, guid: 111111111111111111111111111111a4, type: 3}
+  energyDragClip: {fileID: 8300000, guid: a98c1de5398b4f0caf7b4fa5944138ce, type: 3}
+  loginJingleClip: {fileID: 8300000, guid: f6b2d4a9c1834e54aa96b801c2d7e3f1, type: 3}
+  musicVolume: 0.695
+  sfxVolume: 0.776
+  clickCooldown: 0.04
+--- !u!81 &277686738
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 277686735}
+  m_Enabled: 1
 --- !u!1 &320265634
 GameObject:
   m_ObjectHideFlags: 0
@@ -391,7 +408,7 @@ MonoBehaviour:
   settingsManager: {fileID: 964514662}
   loginScene: Login
   hubScene: HUB
-  alwaysShowLoginOnBoot: 1
+  alwaysShowLoginOnBoot: 0
 --- !u!1 &960397235
 GameObject:
   m_ObjectHideFlags: 0
@@ -436,6 +453,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90b2dcce1306f4c418b06f7a24fc52d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerManager
+  lifetimePointsPerLevel: 0000000064000000fa000000c2010000bc020000e8030000
 --- !u!1 &964514660
 GameObject:
   m_ObjectHideFlags: 0
@@ -551,7 +569,7 @@ AudioListener:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1233327322}
-  m_Enabled: 1
+  m_Enabled: 0
 --- !u!20 &1233327324
 Camera:
   m_ObjectHideFlags: 0
@@ -832,11 +850,11 @@ AudioSource:
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_Resource: {fileID: 8300000, guid: 111111111111111111111111111111a1, type: 3}
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
-  Loop: 1
+  Loop: 0
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0

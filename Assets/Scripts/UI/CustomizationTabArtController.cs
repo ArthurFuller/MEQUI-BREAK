@@ -2,8 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Alterna os sprites ativos e inativos das abas sem assumir a seleção ou persistência.
-/// Cabelo, roupa e acessório são apresentados visualmente como chapéu, rosto e cor.
+/// Alterna os sprites ativos e inativos das abas de chapéu, rosto e cor.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class CustomizationTabArtController : MonoBehaviour

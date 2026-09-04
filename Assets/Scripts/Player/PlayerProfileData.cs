@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine.Serialization;
 
 [Serializable]
 public sealed class PlayerProfileData
@@ -8,8 +9,9 @@ public sealed class PlayerProfileData
     public bool RegistrationCompleted;
 
     /// <summary>
-    /// Etapa do guia inicial: 0 = seção de minigames no Hub, 1 = Energy Station
-    /// no Hub, 2 = interação na Energy Station e 3 = guia concluído ou ignorado.
+    /// Etapa do guia inicial: 0 = Energy Station no Hub, 2 = interação na
+    /// Energy Station e 3 = guia concluído ou ignorado. O valor 1 é aceito
+    /// apenas para compatibilidade com perfis da antiga etapa intermediária.
     /// </summary>
     public int OnboardingStep;
 
@@ -21,6 +23,12 @@ public sealed class PlayerProfileData
 
     /// <summary>Turno informado no cadastro.</summary>
     public string Shift;
+
+    /// <summary>Data local da última conclusão válida do Energy Station (yyyy-MM-dd).</summary>
+    public string LastEnergyStationCompletionDate;
+
+    /// <summary>Turno associado à última conclusão válida do Energy Station.</summary>
+    public string LastEnergyStationCompletionShift;
 
     public int Level = 1;
 
@@ -39,8 +47,12 @@ public sealed class PlayerProfileData
 [Serializable]
 public sealed class AvatarCustomizationData
 {
-    public int BodyIndex;
-    public int HairIndex;
-    public int OutfitIndex;
-    public int AccessoryIndex;
+    [FormerlySerializedAs("HairIndex")]
+    public int HatIndex;
+
+    [FormerlySerializedAs("OutfitIndex")]
+    public int FaceIndex;
+
+    [FormerlySerializedAs("AccessoryIndex")]
+    public int ColorIndex;
 }
