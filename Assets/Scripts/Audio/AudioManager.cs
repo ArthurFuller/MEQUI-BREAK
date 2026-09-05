@@ -2,10 +2,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-/// <summary>
-/// Serviço global de áudio. Todos os componentes e clipes são referências
-/// serializadas da cena Boot; nada é criado ou carregado em runtime.
-/// </summary>
 [DefaultExecutionOrder(-1000)]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(AudioListener))]
@@ -180,8 +176,7 @@ public sealed class AudioManager : MonoBehaviour
         if (musicSource == null || loginJingleClip == null)
             return;
 
-        // O jingle confirma um login válido e deve tocar mesmo se uma preferência
-        // antiga tiver deixado a música desativada durante os testes no Editor.
+        // O jingle do login toca mesmo se a música estiver desligada nas preferências.
         musicSource.enabled = true;
         musicSource.mute = false;
         musicSource.volume = musicVolume;

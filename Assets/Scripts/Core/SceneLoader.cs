@@ -7,13 +7,6 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
-/// <summary>
-/// Ponto central de navegação entre cenas.
-///
-/// A API Load(string) é preservada para manter os callbacks configurados no Inspector.
-/// A única animação global é um deslizamento horizontal: no avanço, a cena atual
-/// sai pela esquerda e a próxima entra pela direita; no retorno, o sentido é invertido.
-/// </summary>
 public sealed class SceneLoader : MonoBehaviour
 {
     private const string TransitionRootName = "__SceneTransitionRoot";
@@ -30,7 +23,6 @@ public sealed class SceneLoader : MonoBehaviour
     private static readonly List<EventSystem> eventSystemBuffer = new();
     private static readonly List<AudioListener> audioListenerBuffer = new();
 
-    /// <summary>Indica se uma troca de cena está sendo carregada ou animada.</summary>
     public static bool IsTransitionInProgress => isTransitioning;
 
     private enum TransitionDirection
@@ -67,7 +59,7 @@ public sealed class SceneLoader : MonoBehaviour
             return;
         }
 
-        // Mantém o carregamento comum para cenas que não estão no Build Settings.
+        // Fallback para cenas fora do Build Settings.
         CommitNavigation(currentScene.name, targetSceneName, direction);
         SceneManager.LoadScene(targetSceneName);
     }
@@ -104,12 +96,11 @@ public sealed class SceneLoader : MonoBehaviour
             yield break;
         }
 
-        // Aguarda apenas o carregamento real; não existe espera adicional antes do slide.
         loadOperation.allowSceneActivation = false;
         while (loadOperation.progress < 0.9f)
             yield return null;
 
-        // O AudioManager persistente mantém o listener durante a transição.
+        // O AudioManager persistente mantém o listener durante a troca.
         loadOperation.allowSceneActivation = true;
 
         while (!loadOperation.isDone)
@@ -168,7 +159,6 @@ public sealed class SceneLoader : MonoBehaviour
         CommitNavigation(currentScene.name, targetSceneName, direction);
         isTransitioning = false;
 
-        // A cena anterior deixa de participar da navegação após a animação.
         SceneManager.UnloadSceneAsync(currentScene);
     }
 
@@ -312,7 +302,6 @@ public sealed class SceneLoader : MonoBehaviour
         root.anchoredPosition = Vector2.zero;
         root.SetSiblingIndex(0);
 
-        // O contêiner mantém o layout original de todos os elementos da cena.
         while (canvas.transform.childCount > 1)
             canvas.transform.GetChild(1).SetParent(root, false);
 

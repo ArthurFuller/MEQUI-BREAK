@@ -4,10 +4,6 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
-/// <summary>
-/// Controla o cadastro inicial de Nome, Loja e Turno.
-/// O nome público Login é preservado para manter o UnityEvent da cena.
-/// </summary>
 public sealed class LoginController : MonoBehaviour
 {
     [Header("Navegação")]
@@ -80,9 +76,6 @@ public sealed class LoginController : MonoBehaviour
         KillShiftTweens();
     }
 
-    /// <summary>
-    /// Valida, salva o cadastro e carrega o HUB uma única vez.
-    /// </summary>
     public void Login()
     {
         if (isSubmitting)

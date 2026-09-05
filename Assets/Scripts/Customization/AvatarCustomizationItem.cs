@@ -2,9 +2,6 @@ using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-/// <summary>
-/// Entrada do catálogo de chapéus, rostos e cores, com sua regra de desbloqueio.
-/// </summary>
 [Serializable]
 public sealed class AvatarCustomizationItem
 {

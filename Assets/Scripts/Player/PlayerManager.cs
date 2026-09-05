@@ -25,7 +25,7 @@ public sealed class PlayerManager : MonoBehaviour
     public event System.Action<int> BreakPointsChanged;
     public event System.Action EnergyStationAvailabilityChanged;
 
-    // Pontos pendentes para animação na entrada do HUB.
+    // PB pendentes para a animação do HUB.
     public int PendingBreakPoints { get; private set; }
 
     private void Awake()
@@ -66,10 +66,6 @@ public sealed class PlayerManager : MonoBehaviour
         RecalculateLevel();
     }
 
-    /// <summary>
-    /// Valida, normaliza e persiste Nome, Loja e Turno em uma única operação.
-    /// Também pode ser reutilizado futuramente para editar o cadastro.
-    /// </summary>
     public bool TryCompleteRegistration(
         string displayName,
         string storeId,
@@ -112,10 +108,6 @@ public sealed class PlayerManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>
-    /// Limpa somente os dados do cadastro, preservando progressão e avatar.
-    /// Nenhuma tela oferece essa ação por enquanto.
-    /// </summary>
     public bool ClearRegistration()
     {
         if (Profile == null)
@@ -143,10 +135,6 @@ public sealed class PlayerManager : MonoBehaviour
 
     public void SaveProfile() => TrySaveProfile();
 
-    /// <summary>
-    /// O Energy Station pode ser concluído uma vez por dia local.
-    /// Durante o guia inicial ele permanece liberado para não bloquear o onboarding.
-    /// </summary>
     public bool CanPlayEnergyStation
     {
         get
@@ -220,7 +208,6 @@ public sealed class PlayerManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Atualiza Loja e Turno sem reabrir ou invalidar o cadastro inicial.</summary>
     public bool TryUpdateWorkData(string storeId, string shift, out string errorMessage)
     {
         if (Profile == null || !HasValidRegistration)
@@ -238,9 +225,6 @@ public sealed class PlayerManager : MonoBehaviour
             && SaveManager.Instance.TrySaveProfile(Profile);
     }
 
-    /// <summary>
-    /// Confere os três valores obrigatórios sem depender de componentes visuais.
-    /// </summary>
     public static bool TryValidateRegistration(
         string displayName,
         string storeId,
@@ -272,9 +256,6 @@ public sealed class PlayerManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// Concede Break Points ao saldo e ao total histórico, recalculando o nível.
-    /// </summary>
     public void AddBreakPoints(int amount)
     {
         if (Profile == null || amount <= 0)
@@ -286,12 +267,8 @@ public sealed class PlayerManager : MonoBehaviour
         BreakPointsChanged?.Invoke(Profile.BreakPoints);
     }
 
-    /// <summary>
-    /// Tenta gastar Break Points sem alterar o total histórico nem o nível.
-    /// </summary>
     public bool TrySpendBreakPoints(int amount)
     {
-        // Também funciona quando a cena de customização é aberta diretamente.
         if (Profile == null)
             Initialize();
 
@@ -336,13 +313,10 @@ public sealed class PlayerManager : MonoBehaviour
                 level = i + 1;
         }
 
-        // O nível deriva do total histórico, que nunca diminui.
+        // O nível usa o total histórico, não o saldo atual.
         Profile.Level = level;
     }
 
-    /// <summary>
-    /// Migra perfis antigos usando o saldo existente como total histórico inicial.
-    /// </summary>
     private void MigrateLegacyProfile()
     {
         if (Profile == null)
@@ -351,9 +325,7 @@ public sealed class PlayerManager : MonoBehaviour
         Profile.UnlockedCustomizationIds ??= new List<string>();
         Profile.Avatar ??= new AvatarCustomizationData();
 
-        // Perfis antigos não possuíam o campo do guia; o valor padrão zero
-        // inicia a primeira etapa. Valores fora do intervalo são corrigidos
-        // para evitar que um arquivo editado deixe o onboarding travado.
+        // Corrige valores antigos do tutorial para evitar save travado.
         if (Profile.OnboardingStep < 0 || Profile.OnboardingStep > 3)
             Profile.OnboardingStep = 0;
 
@@ -386,17 +358,11 @@ public sealed class PlayerManager : MonoBehaviour
 
     private static string Normalize(string value) => value?.Trim() ?? string.Empty;
 
-    /// <summary>
-    /// Define a quantidade de pontos que será animada ao entrar no HUB.
-    /// </summary>
     public void SetPendingPoints(int amount)
     {
         PendingBreakPoints = amount;
     }
 
-    /// <summary>
-    /// Limpa os pontos pendentes após a animação.
-    /// </summary>
     public void ClearPendingPoints()
     {
         PendingBreakPoints = 0;

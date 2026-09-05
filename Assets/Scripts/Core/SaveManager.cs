@@ -20,9 +20,6 @@ public sealed class SaveManager : MonoBehaviour
         Instance = this;
     }
 
-    /// <summary>
-    /// Salva o perfil e informa se a gravação foi concluída.
-    /// </summary>
     public bool TrySaveProfile(PlayerProfileData profile)
     {
         if (profile == null)

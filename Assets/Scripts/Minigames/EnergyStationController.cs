@@ -51,18 +51,10 @@ public sealed class EnergyStationController : MonoBehaviour
     private bool rewardGranted;
     private bool sessionStarted;
 
-    /// <summary>
-    /// Disparado somente depois que uma interação válida foi registrada.
-    /// O parâmetro informa quantas interações foram aceitas na sessão atual.
-    /// </summary>
     public event System.Action<int> InteractionAccepted;
 
-    /// <summary>
-    /// Disparado depois que as escolhas foram restauradas aos slots de origem.
-    /// </summary>
     public event System.Action ChoicesReset;
 
-    /// <summary>Quantidade de interações necessária para concluir a sessão.</summary>
     public int InteractionsToComplete => interactionsToComplete;
 
     private enum SessionState
@@ -192,9 +184,6 @@ public sealed class EnergyStationController : MonoBehaviour
         return true;
     }
 
-    /// <summary>
-    /// Mantém a API pública anterior para eventuais UnityEvents ou integrações externas.
-    /// </summary>
     public void RegisterInteraction(string interactionId, string feedbackMessage)
     {
         TryRegisterInteraction(interactionId, feedbackMessage);
@@ -220,10 +209,6 @@ public sealed class EnergyStationController : MonoBehaviour
         EventLogger.Instance?.AbandonSession();
     }
 
-    /// <summary>
-    /// Restaura as escolhas sem recriar objetos. Depois do timeout, inicia uma
-    /// nova tentativa completa; durante uma tentativa ativa, mantém o tempo.
-    /// </summary>
     public void ResetChoices()
     {
         if (sessionState == SessionState.RewardCollected ||
@@ -256,10 +241,6 @@ public sealed class EnergyStationController : MonoBehaviour
         ChoicesReset?.Invoke();
     }
 
-    /// <summary>
-    /// Retorna o primeiro card ainda disponível no tray, sem criar objetos nem
-    /// alterar a ordem das referências configuradas no Inspector.
-    /// </summary>
     public DraggableInteraction GetFirstAvailableInteraction()
     {
         if (interactionCards == null)
@@ -342,7 +323,7 @@ public sealed class EnergyStationController : MonoBehaviour
             );
         }
 
-        // Mantém os pontos pendentes para a animação ao entrar no HUB.
+        // Os PB ficam pendentes até a animação de entrada do HUB.
         if (PlayerManager.Instance != null && pointsEarned > 0)
         {
             PlayerManager.Instance.SetPendingPoints(pointsEarned);
@@ -407,7 +388,6 @@ public sealed class EnergyStationController : MonoBehaviour
         if (avatarView == null || customization == null)
             return;
 
-        // Garante primeiro que cor e chapéu sejam exatamente os salvos.
         avatarView.Apply(customization);
         avatarView.ApplyFace(sleepingFaceIndex);
     }
@@ -429,13 +409,10 @@ public sealed class EnergyStationController : MonoBehaviour
             interactionTray.blocksRaycasts = !locked;
         }
 
-        // O bloqueio visual é individual: cards escolhidos deixam o slot vazio;
-        // somente os cards que não foram usados recebem a versão escurecida.
         if (locked)
             LockCardsForSessionEnd();
 
-        // Mantido apenas para compatibilidade com cenas antigas. O painel
-        // inteiro não deve cobrir as segundas versões dos cards.
+        // Referência mantida para cenas antigas.
         if (trayLockOverlay != null)
             trayLockOverlay.gameObject.SetActive(false);
     }

@@ -31,15 +31,11 @@ public sealed class AppBootstrapper : MonoBehaviour
 
     private void Awake()
     {
-        // O projeto usa um único inicializador persistente; o limite é aplicado
-        // uma vez antes de qualquer troca de cena.
         QualitySettings.vSyncCount = 0;
         Application.targetFrameRate = 60;
 
         DontDestroyOnLoad(transform.root.gameObject);
 
-        // O guia é um único componente persistente; ele observa as cenas sem
-        // substituir os ouvintes já configurados nos botões.
         if (GetComponent<FirstRunGuideController>() == null)
             gameObject.AddComponent<FirstRunGuideController>();
     }
@@ -55,8 +51,7 @@ public sealed class AppBootstrapper : MonoBehaviour
         bool hasRegistration = playerManager != null
             && playerManager.HasValidRegistration;
 
-        // No Editor o fluxo sempre começa pelo Login. Em uma build, respeita
-        // o cadastro salvo e usa a cena HUB quando o registro estiver válido.
+        // No Editor começa pelo Login; na build respeita o cadastro salvo.
         string targetScene = Application.isEditor
             || alwaysShowLoginOnBoot
             || !hasRegistration

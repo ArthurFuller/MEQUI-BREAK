@@ -5,10 +5,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Controla a edição temporária do avatar, as regras de desbloqueio, a compra
-/// de itens e a persistência da seleção após a confirmação do jogador.
-/// </summary>
 public sealed class CustomizationController : MonoBehaviour
 {
     [Header("Cena")]
@@ -84,7 +80,6 @@ public sealed class CustomizationController : MonoBehaviour
     private AvatarCustomizationCategory selectedCategory = AvatarCustomizationCategory.Hat;
     private AvatarCustomizationItem pendingPurchaseItem;
 
-    // Referências armazenadas uma vez para evitar buscas durante atualizações visuais.
     private AvatarOptionButton[] hatButtons;
     private AvatarOptionButton[] faceButtons;
     private AvatarOptionButton[] colorButtons;
@@ -109,7 +104,6 @@ public sealed class CustomizationController : MonoBehaviour
 
     private Sequence _feedbackSequence;
 
-    // Indicador pré-configurado na cena e ignorado pelo sistema de layout.
     private RectTransform _tabIndicator;
     private Sequence _tabIndicatorSequence;
     private bool _started;
@@ -153,16 +147,11 @@ public sealed class CustomizationController : MonoBehaviour
 
         StartCoroutine(PlayInitialOptionWaveWhenReady());
 
-        // O painel de compra sempre começa oculto.
         if (purchaseConfirmPanel != null)
             purchaseConfirmPanel.SetActive(false);
 
     }
 
-
-    /// <summary>
-    /// Prepara as opções para a primeira onda sem desativar o cálculo do layout.
-    /// </summary>
     private void PrepareOptionsHiddenForInitialWave()
     {
         if (!animateOptionWave)
@@ -185,23 +174,17 @@ public sealed class CustomizationController : MonoBehaviour
         }
     }
 
-
-    /// <summary>
-    /// Aguarda a transição global terminar antes de iniciar a onda das opções.
-    /// </summary>
     private IEnumerator PlayInitialOptionWaveWhenReady()
     {
         while (SceneLoader.IsTransitionInProgress)
             yield return null;
 
-        // Aguarda um frame para o layout assumir suas posições finais.
         yield return null;
         PlayOptionWave();
     }
 
     private void OnDisable()
     {
-        // Restaura alphas e posições se a tela sair durante a animação.
         KillOptionWave(true);
         KillFeedbackTween();
         KillPurchasePanelTween();
@@ -226,9 +209,6 @@ public sealed class CustomizationController : MonoBehaviour
         UnbindButtons();
     }
 
-    /// <summary>
-    /// Armazena as referências usadas nas animações temporárias.
-    /// </summary>
     private void CachePanelReferences()
     {
         EnsurePurchasePanelReferences();
@@ -255,7 +235,7 @@ public sealed class CustomizationController : MonoBehaviour
     {
         if (selectedCategory == category)
         {
-            // Tocar novamente na aba ativa reinicia sua onda.
+            // A aba ativa também pode reiniciar a animação.
             PlayOptionWave();
             return;
         }
@@ -332,9 +312,6 @@ public sealed class CustomizationController : MonoBehaviour
                     .SetUpdate(UpdateType.Late));
     }
 
-    /// <summary>
-    /// Valida as regras do catálogo antes de selecionar ou oferecer a compra.
-    /// </summary>
     public void HandleOptionClicked(int optionIndex)
     {
         if (optionIndex < 0)
@@ -351,9 +328,6 @@ public sealed class CustomizationController : MonoBehaviour
         HandleLockedOptionClicked(item, optionIndex);
     }
 
-    /// <summary>
-    /// Aplica uma opção já validada à pré-visualização mantida em memória.
-    /// </summary>
     public void SelectOption(int optionIndex)
     {
         if (optionIndex < 0)
@@ -378,9 +352,6 @@ public sealed class CustomizationController : MonoBehaviour
         AnimateSelectionConfirmed(optionIndex);
     }
 
-    /// <summary>
-    /// Anima o botão correspondente à seleção confirmada.
-    /// </summary>
     private void AnimateSelectionConfirmed(int optionIndex)
     {
         FindButton(optionIndex)?.AnimateSelectionConfirmed();
@@ -424,7 +395,7 @@ public sealed class CustomizationController : MonoBehaviour
             return;
         }
 
-        // Garante compatibilidade ao abrir a cena diretamente ou carregar perfil antigo.
+        // Também cobre abertura direta da cena e saves antigos.
         if (player.Profile == null)
             player.Initialize();
 
@@ -449,19 +420,14 @@ public sealed class CustomizationController : MonoBehaviour
 
     public void Cancel()
     {
-        // Como previewData ainda não foi persistido, sair descarta as alterações.
 
         sceneLoader?.Load(hubScene);
     }
 
     public void Back() => Cancel();
 
-
-
-    /// <summary>Confirma a compra pendente com Break Points.</summary>
     public void ConfirmPurchase()
     {
-        // Preserva o item localmente até a transação terminar.
         AvatarCustomizationItem item = pendingPurchaseItem;
 
         if (item == null)
@@ -508,16 +474,12 @@ public sealed class CustomizationController : MonoBehaviour
         });
     }
 
-    /// <summary>Cancela a compra pendente.</summary>
     public void CancelPurchase()
     {
         pendingPurchaseItem = null;
         AnimatePurchasePanelExit();
     }
 
-    /// <summary>
-    /// Anima o botão desbloqueado após a compra.
-    /// </summary>
     private void AnimateUnlockedButton(int optionIndex)
     {
         FindButton(optionIndex)?.AnimateUnlock();
@@ -525,7 +487,7 @@ public sealed class CustomizationController : MonoBehaviour
 
     private bool IsItemUnlocked(AvatarCustomizationItem item)
     {
-        // Sem entrada no catálogo, a opção continua disponível.
+        // Sem item no catálogo, a opção é tratada como gratuita.
         if (item == null)
             return true;
 
@@ -554,7 +516,6 @@ public sealed class CustomizationController : MonoBehaviour
             return;
         }
 
-        // O pulso termina antes da mensagem ou painel correspondente aparecer.
         if (item.UnlockType == AvatarUnlockType.Level)
         {
             if (!AnimateLockedFeedbackOnButton(
@@ -578,9 +539,6 @@ public sealed class CustomizationController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Anima a tentativa bloqueada e informa se o botão correspondente existe.
-    /// </summary>
     private bool AnimateLockedFeedbackOnButton(
         int optionIndex,
         System.Action onComplete = null)
@@ -599,7 +557,6 @@ public sealed class CustomizationController : MonoBehaviour
 
         if (purchaseConfirmPanel == null)
         {
-            // Sem interface de confirmação, tenta a compra imediatamente.
             ConfirmPurchase();
             return;
         }
@@ -610,9 +567,6 @@ public sealed class CustomizationController : MonoBehaviour
         AnimatePurchasePanelEnter();
     }
 
-    /// <summary>
-    /// Anima a entrada do painel de compra com escala e transparência.
-    /// </summary>
     private void AnimatePurchasePanelEnter()
     {
         if (purchaseConfirmPanel == null) return;
@@ -644,9 +598,6 @@ public sealed class CustomizationController : MonoBehaviour
         _purchasePanelSequence.Play();
     }
 
-    /// <summary>
-    /// Anima a saída do painel de compra com escala e transparência.
-    /// </summary>
     private void AnimatePurchasePanelExit(System.Action onComplete = null)
     {
         if (purchaseConfirmPanel == null)
@@ -722,7 +673,6 @@ public sealed class CustomizationController : MonoBehaviour
         if (_feedbackCanvasGroup == null)
             return;
 
-        // A mensagem nova substitui completamente qualquer sequência anterior.
         KillFeedbackTween();
         _feedbackCanvasGroup.alpha = 0f;
 
@@ -742,7 +692,6 @@ public sealed class CustomizationController : MonoBehaviour
 
         _feedbackSequence = null;
 
-        // Ao sair da tela, o texto temporário volta ao estado oculto.
         if (_feedbackCanvasGroup != null)
             _feedbackCanvasGroup.alpha = 0f;
     }
@@ -763,9 +712,6 @@ public sealed class CustomizationController : MonoBehaviour
         avatarPreview?.Apply(previewData);
     }
 
-    /// <summary>
-    /// Anima as opções visíveis de baixo para cima usando suas posições reais no layout.
-    /// </summary>
     private void PlayOptionWave(bool forceLayout = true)
     {
         if (!animateOptionWave)
@@ -801,7 +747,7 @@ public sealed class CustomizationController : MonoBehaviour
         _activeOptionWaveTargets.Clear();
         _activeOptionWaveTargets.AddRange(_optionWaveSortBuffer);
 
-        // Ordena de baixo para cima e, em cada linha, da esquerda para a direita.
+        // Ordem visual: de baixo para cima e da esquerda para a direita.
         _optionWaveSortBuffer.Sort(CompareWaveTargets);
 
         _optionWaveSequence = DOTween.Sequence();
@@ -814,7 +760,6 @@ public sealed class CustomizationController : MonoBehaviour
         {
             OptionWaveTarget target = _optionWaveSortBuffer[i];
 
-            // Uma mudança em Y indica o avanço para outra linha.
             if (i > 0)
             {
                 bool newRow = !Mathf.Approximately(target.Y, previousY);
@@ -924,9 +869,6 @@ public sealed class CustomizationController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Atualiza os visuais de bloqueio de todas as categorias.
-    /// </summary>
     private void RefreshLockVisuals()
     {
         RefreshCategoryLockVisuals(AvatarCustomizationCategory.Hat, hatButtons);
@@ -1066,7 +1008,6 @@ public sealed class CustomizationController : MonoBehaviour
         if (_buttonsBound)
             return;
 
-        // Confirmação e compra possuem uma única origem de listeners em runtime.
         confirmButton?.onClick.AddListener(Confirm);
         purchaseConfirmYesButton?.onClick.AddListener(ConfirmPurchase);
         purchaseConfirmNoButton?.onClick.AddListener(CancelPurchase);

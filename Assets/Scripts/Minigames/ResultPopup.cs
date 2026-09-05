@@ -31,7 +31,6 @@ public sealed class ResultPopup : MonoBehaviour
 
     [SerializeField] private Ease pointsCountEase = Ease.OutCubic;
 
-
     [Header("Navegação")]
     [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private string hubSceneName = "Hub";

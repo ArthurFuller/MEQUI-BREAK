@@ -3,11 +3,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Interface manual do tutorial. Posição, tamanho, âncoras e ordem visual são
-/// definidos diretamente no Canvas da cena. Em runtime este componente apenas
-/// mostra/oculta os objetos e anima a escala dos destaques já posicionados.
-/// </summary>
 public sealed class FirstRunGuideSceneView : MonoBehaviour
 {
     private const int EnergyStationStep = 2;
@@ -137,8 +132,7 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
             return;
 
         CacheOriginalScales();
-        // Na primeira exibição, ativar o TutorialRoot dispara Awake(), que
-        // chama Hide(). A etapa precisa ser definida somente depois disso.
+        // Na primeira ativação, Awake chama Hide; por isso a etapa é aplicada depois.
         root.gameObject.SetActive(true);
         activeStep = requestedStep;
         SetIntroTargetActive(activeStep == stepIndex);
@@ -169,10 +163,6 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
             messageText.text = message ?? string.Empty;
     }
 
-    /// <summary>
-    /// Alterna somente a visibilidade dos dois destaques manuais da Energy
-    /// Station. Posição e tamanho continuam definidos nos RectTransforms.
-    /// </summary>
     public void ShowEnergyHighlight(int completedInteractions)
     {
         if (activeStep != EnergyStationStep
@@ -186,10 +176,6 @@ public sealed class FirstRunGuideSceneView : MonoBehaviour
         StartPulse(showSecond ? secondaryHighlightImage : highlightImage);
     }
 
-    /// <summary>
-    /// Oculta os destaques enquanto o card indicado está sendo arrastado.
-    /// O pulso recomeça somente quando o controlador mandar exibir novamente.
-    /// </summary>
     public void HideEnergyHighlights()
     {
         if (activeStep != EnergyStationStep)

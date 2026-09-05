@@ -2,7 +2,6 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 
-/// <summary>Faz todo Play no Editor começar pelo Boot durante os testes.</summary>
 [InitializeOnLoad]
 public static class PlayModeStartSceneInstaller
 {

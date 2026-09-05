@@ -3,10 +3,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Conecta a tela de Configurações aos serviços persistentes e permite editar
-/// Loja/Turno sem invalidar o primeiro login.
-/// </summary>
 public sealed class SettingsController : MonoBehaviour
 {
     [Header("Preferências")]
@@ -196,15 +192,12 @@ public sealed class SettingsController : MonoBehaviour
     {
         SettingsManager.Instance?.SetSFXEnabled(enabled);
 
-        // O mesmo toque que liga os efeitos pode chegar ao feedback visual
-        // antes ou depois do callback do Toggle, dependendo da ordem dos
-        // componentes. Disparar aqui garante confirmação audível já no
-        // primeiro toque; o cooldown do AudioManager evita duplicação.
+        // Toca a confirmação aqui; o cooldown evita som duplicado.
         if (enabled)
             AudioManager.Instance?.PlayClick();
     }
 
-    // Compatibilidade com cenas e componentes hápticos de versões anteriores.
+    // Compatibilidade com cenas antigas.
     public void SetVibration(bool enabled) => SettingsManager.Instance?.SetVibration(enabled);
 
     public void SetNotifications(bool enabled)

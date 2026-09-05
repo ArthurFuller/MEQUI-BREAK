@@ -18,10 +18,6 @@ public enum AvatarHatPreviewOption
     [InspectorName("11 - Coroa")] Coroa = 11
 }
 
-/// <summary>
-/// Fonte central das regras que definem opções gratuitas, compráveis com
-/// Break Points ou desbloqueadas por nível.
-/// </summary>
 [CreateAssetMenu(fileName = "AvatarCustomizationCatalog", menuName = "Mequi Break/Avatar Customization Catalog")]
 public sealed class AvatarCustomizationCatalog : ScriptableObject
 {
@@ -76,10 +72,6 @@ public sealed class AvatarCustomizationCatalog : ScriptableObject
         }
     }
 
-    /// <summary>
-    /// Retorna a entrada correspondente à categoria e ao índice informados.
-    /// Sem entrada configurada, o controlador considera a opção gratuita.
-    /// </summary>
     public AvatarCustomizationItem GetItem(AvatarCustomizationCategory category, int optionIndex)
     {
         IReadOnlyList<AvatarCustomizationItem> items = GetItems(category);
@@ -92,10 +84,6 @@ public sealed class AvatarCustomizationCatalog : ScriptableObject
         return null;
     }
 
-    /// <summary>
-    /// Preenche as três categorias com 12 itens: índices 0 a 2 gratuitos,
-    /// 3 a 7 por Break Points e 8 a 11 por nível. Os valores podem ser ajustados depois.
-    /// </summary>
     [ContextMenu("Generate Default 12/12/12 (3 Free + 5 PB + 4 Level)")]
     private void GenerateDefaults()
     {

@@ -4,12 +4,6 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-/// <summary>
-/// Deve ser anexado a cada botão das grades de chapéu, rosto e cor.
-///
-/// Encaminha os cliques ao CustomizationController e reproduz um único pulso
-/// simples para seleção ou tentativa de usar um item bloqueado.
-/// </summary>
 [RequireComponent(typeof(Button))]
 [RequireComponent(typeof(RectTransform))]
 [DisallowMultipleComponent]
@@ -89,9 +83,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         KillTweens();
     }
 
-    /// <summary>
-    /// Atualiza os visuais para refletir o estado de bloqueio atual.
-    /// </summary>
     public void SetLocked(bool isLocked, string label)
     {
         CacheReferences();
@@ -106,7 +97,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         }
     }
 
-    /// <summary>Destaca a opção salva ou selecionada sem criar elementos em runtime.</summary>
     public void SetSelected(bool isSelected)
     {
         CacheReferences();
@@ -119,29 +109,19 @@ public sealed class AvatarOptionButton : MonoBehaviour,
         if (_button == null || !_button.interactable)
             return;
 
-        // O controlador revalida o catálogo e o perfil no momento do clique.
         controller?.HandleOptionClicked(optionIndex);
     }
 
-    /// <summary>
-    /// Reproduz o feedback visual de uma seleção confirmada.
-    /// </summary>
     public void AnimateSelectionConfirmed()
     {
         PlaySinglePulse();
     }
 
-    /// <summary>
-    /// Reproduz o mesmo pulso simples na tentativa bloqueada e chama o retorno ao concluir.
-    /// </summary>
     public void AnimateLockedFeedback(System.Action onComplete = null)
     {
         PlaySinglePulse(onComplete);
     }
 
-    /// <summary>
-    /// Reproduz o feedback visual após a compra e desbloqueio do item.
-    /// </summary>
     public void AnimateUnlock()
     {
         _isLocked = false;

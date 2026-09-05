@@ -1,9 +1,6 @@
 using TMPro;
 using UnityEngine;
 
-/// <summary>
-/// Exibe os dados do perfil e disponibiliza as ações de navegação.
-/// </summary>
 public sealed class ProfileController : MonoBehaviour
 {
     [SerializeField] private SceneLoader sceneLoader;
