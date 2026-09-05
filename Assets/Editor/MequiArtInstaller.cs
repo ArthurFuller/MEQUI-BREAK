@@ -349,7 +349,7 @@ public static class MequiArtInstaller
         SetObject(pointsBinder, "target", pointsValue);
 
         Transform tabs = Find(scene, "Canvas/SafeArea/TabsBar");
-        AnchorBottom(tabs as RectTransform, new Vector2(880f, 115f), new Vector2(0f, 680f), true);
+        AnchorBottom(tabs as RectTransform, new Vector2(960f, 120f), new Vector2(0f, 790f), true);
         HorizontalLayoutGroup tabLayout = GetOrAdd<HorizontalLayoutGroup>(tabs.gameObject);
         tabLayout.spacing = 22f;
         tabLayout.childAlignment = TextAnchor.MiddleCenter;
@@ -358,15 +358,15 @@ public static class MequiArtInstaller
         tabLayout.childForceExpandWidth = false;
         tabLayout.childForceExpandHeight = false;
 
-        Button hat = ComponentAt<Button>(scene, "Canvas/SafeArea/TabsBar/HairTab");
-        Button face = ComponentAt<Button>(scene, "Canvas/SafeArea/TabsBar/OutfitTab");
-        Button color = ComponentAt<Button>(scene, "Canvas/SafeArea/TabsBar/AccessoryTab");
+        Button hat = ComponentAt<Button>(scene, "Canvas/SafeArea/TabsBar/HatTab");
+        Button face = ComponentAt<Button>(scene, "Canvas/SafeArea/TabsBar/FaceTab");
+        Button color = ComponentAt<Button>(scene, "Canvas/SafeArea/TabsBar/ColorTab");
         SetButtonSprite(hat, S("Assets/Art/UI/PersonalizarPersonagem1/tab-bone.png"));
         SetButtonSprite(face, S("Assets/Art/UI/PersonalizarPersonagem1/tab-cara.png"));
         SetButtonSprite(color, S("Assets/Art/UI/PersonalizarPersonagem1/tab-cor.png"));
-        Center(hat.transform as RectTransform, new Vector2(270f, 100f), Vector2.zero);
-        Center(face.transform as RectTransform, new Vector2(230f, 100f), Vector2.zero);
-        Center(color.transform as RectTransform, new Vector2(190f, 100f), Vector2.zero);
+        Center(hat.transform as RectTransform, new Vector2(290f, 100f), Vector2.zero);
+        Center(face.transform as RectTransform, new Vector2(290f, 100f), Vector2.zero);
+        Center(color.transform as RectTransform, new Vector2(290f, 100f), Vector2.zero);
         DisableDirectText(hat.transform);
         DisableDirectText(face.transform);
         DisableDirectText(color.transform);
@@ -383,8 +383,14 @@ public static class MequiArtInstaller
         SetObject(tabArt, "colorInactive", S("Assets/Art/UI/PersonalizarPersonagem1/tab-cor.png"));
 
         Transform scroll = Find(scene, "Canvas/SafeArea/OptionsScrollView");
-        AnchorBottom(scroll as RectTransform, new Vector2(980f, 520f), new Vector2(0f, 350f), true);
+        AnchorBottom(scroll as RectTransform, new Vector2(980f, 700f), new Vector2(0f, 370f), true);
         Transform content = Find(scene, "Canvas/SafeArea/OptionsScrollView/Viewport/Content");
+        RectTransform contentRect = content as RectTransform;
+        contentRect.anchorMin = new Vector2(0f, 1f);
+        contentRect.anchorMax = new Vector2(1f, 1f);
+        contentRect.pivot = new Vector2(0f, 1f);
+        contentRect.anchoredPosition = Vector2.zero;
+        tabs.SetSiblingIndex(scroll.GetSiblingIndex() + 1);
         GridLayoutGroup grid = content.GetComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(210f, 192f);
         grid.spacing = new Vector2(28f, 26f);
@@ -797,8 +803,7 @@ public static class MequiArtInstaller
             scaler = canvasTransform.gameObject.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1080f, 1920f);
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 0.5f;
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
     }
 
     private static void ConfigureSafeArea(Transform safe)
