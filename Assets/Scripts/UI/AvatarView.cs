@@ -26,8 +26,10 @@ public sealed class AvatarView : MonoBehaviour
     [SerializeField] private Color[] colorOptions;
 
     [Header("Pré-visualização em tempo real")]
+#if UNITY_EDITOR
     [Tooltip("Atualiza o avatar na Scene View sem precisar dar Play.")]
     [SerializeField] private bool atualizarNoEditor = true;
+#endif
     [Tooltip("Quando ativo, selecione o objeto Hat e use as ferramentas Move, Scale e Rotate da Scene View. Os valores serão salvos no chapéu escolhido no catálogo.")]
     [SerializeField] private bool editarChapeuDiretamenteNaScene;
     [Range(0, 11)]

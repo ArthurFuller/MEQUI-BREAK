@@ -47,28 +47,8 @@ public static class HapticFeedback
         if (SettingsManager.Instance != null && !SettingsManager.Instance.VibrationEnabled)
             return;
 
-#if UNITY_IOS && !UNITY_EDITOR
-        // iOS advanced haptics via UIKit (requires iOS 10+)
-        // Note: This would need a native plugin or Unity's new Input System haptics API
-        // For now, fallback to standard Vibrate
-        // Future: use UIImpactFeedbackGenerator with style mapping:
-        // Light -> UIImpactFeedbackStyle.Light
-        // Medium -> UIImpactFeedbackStyle.Medium
-        // Heavy -> UIImpactFeedbackStyle.Heavy
-        // Selection -> UISelectionFeedbackGenerator
-        // Success/Warning/Error -> UINotificationFeedbackGenerator with appropriate type
-        Handheld.Vibrate();
-#elif UNITY_ANDROID && !UNITY_EDITOR
-        // Android advanced haptics via VibrationEffect (API 26+)
-        // Would need JNI or Unity's Input System haptics
-        // Future: use VibrationEffect.createPredefined() with mapping:
-        // Light -> EFFECT_CLICK
-        // Medium -> EFFECT_TICK
-        // Heavy -> EFFECT_HEAVY_CLICK
-        // Selection -> EFFECT_TICK
-        // Success/Warning/Error -> custom patterns
-        Handheld.Vibrate();
-#else
+#if (UNITY_IOS || UNITY_ANDROID) && !UNITY_EDITOR
+        // Mantém o comportamento atual nos dispositivos móveis suportados.
         Handheld.Vibrate();
 #endif
     }

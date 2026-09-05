@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, viewport-fit=cover, user-scalable=no">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #0d0d0f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #0d0d0f;
+      }
+
+      #unity-stage {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 100vh;
+        background: #0d0d0f;
+      }
+
+      @supports (height: 100dvh) {
+        #unity-stage {
+          height: 100dvh;
+        }
+      }
+
+      #unity-container {
+        position: relative;
+        width: min(100vw, 56.25vh);
+        height: min(100vh, 177.7778vw);
+        overflow: hidden;
+        background: #171717;
+      }
+
+      @supports (height: 100dvh) {
+        #unity-container {
+          width: min(100vw, 56.25dvh);
+          height: min(100dvh, 177.7778vw);
+        }
+      }
+
+      #unity-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #171717;
+        outline: none;
+      }
+
+      #unity-loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 32px;
+        color: #f5f5f5;
+        font: 600 16px/1.3 Arial, sans-serif;
+        background: #171717;
+      }
+
+      #unity-progress-track {
+        width: min(72%, 320px);
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #333;
+      }
+
+      #unity-progress-bar {
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: #ffbd00;
+        transition: width 120ms linear;
+      }
+
+      #unity-fullscreen-button {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        z-index: 3;
+        display: none;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 10px;
+        color: #fff;
+        font: 700 24px/1 Arial, sans-serif;
+        cursor: pointer;
+        background: rgba(20, 20, 20, 0.72);
+      }
+
+      #unity-warning {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 4;
+        width: 100%;
+      }
+
+      #unity-warning div {
+        padding: 10px 14px;
+        color: #111;
+        font: 600 13px/1.3 Arial, sans-serif;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="unity-stage">
+      <div id="unity-container">
+        <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1"></canvas>
+        <div id="unity-loading">
+          <div>Carregando {{{ PRODUCT_NAME }}}</div>
+          <div id="unity-progress-track"><div id="unity-progress-bar"></div></div>
+        </div>
+        <button id="unity-fullscreen-button" type="button" aria-label="Alternar tela cheia" title="Tela cheia">&#x26F6;</button>
+        <div id="unity-warning"></div>
+      </div>
+    </main>
+
+    <script>
+      const canvas = document.querySelector("#unity-canvas");
+      const stage = document.querySelector("#unity-stage");
+      const loading = document.querySelector("#unity-loading");
+      const progressBar = document.querySelector("#unity-progress-bar");
+      const fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      const warningBanner = document.querySelector("#unity-warning");
+
+      function unityShowBanner(message, type) {
+        const banner = document.createElement("div");
+        banner.textContent = message;
+        banner.style.background = type === "error" ? "#ff4d4d" : "#ffbd00";
+        warningBanner.appendChild(banner);
+
+        if (type !== "error") {
+          setTimeout(() => {
+            warningBanner.removeChild(banner);
+          }, 5000);
+        }
+      }
+
+      const buildUrl = "Build";
+      const loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      const config = {
+        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "{{{ COMPANY_NAME }}}",
+        productName: "{{{ PRODUCT_NAME }}}",
+        productVersion: "{{{ PRODUCT_VERSION }}}",
+        showBanner: unityShowBanner
+      };
+
+      fullscreenButton.addEventListener("click", () => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          stage.requestFullscreen();
+        }
+      });
+
+      const loaderScript = document.createElement("script");
+      loaderScript.src = loaderUrl;
+      loaderScript.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBar.style.width = `${100 * progress}%`;
+        }).then(() => {
+          loading.style.display = "none";
+          fullscreenButton.style.display = "block";
+          canvas.focus();
+        }).catch((message) => {
+          unityShowBanner(message, "error");
+        });
+      };
+      document.body.appendChild(loaderScript);
+    </script>
+  </body>
+</html>

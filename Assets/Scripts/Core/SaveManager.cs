@@ -7,6 +7,7 @@ public sealed class SaveManager : MonoBehaviour
 
     private const string ProfileFileName = "profile.json";
     private string ProfilePath => Path.Combine(Application.persistentDataPath, ProfileFileName);
+    public bool HasSavedProfile => File.Exists(ProfilePath);
 
     private void Awake()
     {

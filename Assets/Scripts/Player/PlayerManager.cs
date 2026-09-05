@@ -4,6 +4,8 @@ using UnityEngine;
 
 public sealed class PlayerManager : MonoBehaviour
 {
+    private const int InitialBreakPoints = 500;
+
     public const int DisplayNameMaxLength = 60;
     public const int StoreIdMaxLength = 50;
     public const int ShiftMaxLength = 30;
@@ -39,6 +41,9 @@ public sealed class PlayerManager : MonoBehaviour
 
     public void Initialize()
     {
+        bool hasSavedProfile = SaveManager.Instance != null
+            && SaveManager.Instance.HasSavedProfile;
+
         if (Profile == null)
         {
             Profile = SaveManager.Instance != null
@@ -48,6 +53,16 @@ public sealed class PlayerManager : MonoBehaviour
 
         NormalizeRegistrationData(Profile);
         MigrateLegacyProfile();
+
+        if (!Profile.BreakPointsInitialized)
+        {
+            if (!hasSavedProfile)
+                Profile.BreakPoints = InitialBreakPoints;
+
+            Profile.BreakPointsInitialized = true;
+            TrySaveProfile();
+        }
+
         RecalculateLevel();
     }
 
@@ -157,6 +172,42 @@ public sealed class PlayerManager : MonoBehaviour
 
         Profile.LastEnergyStationCompletionDate = DateTime.Now.ToString("yyyy-MM-dd");
         Profile.LastEnergyStationCompletionShift = Shift;
+
+        if (!TrySaveProfile())
+        {
+            Profile.LastEnergyStationCompletionDate = previousDate;
+            Profile.LastEnergyStationCompletionShift = previousShift;
+            return false;
+        }
+
+        EnergyStationAvailabilityChanged?.Invoke();
+        return true;
+    }
+
+    public bool ResetTutorial()
+    {
+        if (Profile == null)
+            return false;
+
+        int previousStep = Profile.OnboardingStep;
+        Profile.OnboardingStep = 0;
+
+        if (TrySaveProfile())
+            return true;
+
+        Profile.OnboardingStep = previousStep;
+        return false;
+    }
+
+    public bool ResetEnergyStation()
+    {
+        if (Profile == null)
+            return false;
+
+        string previousDate = Profile.LastEnergyStationCompletionDate;
+        string previousShift = Profile.LastEnergyStationCompletionShift;
+        Profile.LastEnergyStationCompletionDate = string.Empty;
+        Profile.LastEnergyStationCompletionShift = string.Empty;
 
         if (!TrySaveProfile())
         {
@@ -306,7 +357,9 @@ public sealed class PlayerManager : MonoBehaviour
         if (Profile.OnboardingStep < 0 || Profile.OnboardingStep > 3)
             Profile.OnboardingStep = 0;
 
-        if (Profile.LifetimeBreakPoints <= 0 && Profile.BreakPoints > 0)
+        if (!Profile.BreakPointsInitialized
+            && Profile.LifetimeBreakPoints <= 0
+            && Profile.BreakPoints > 0)
             Profile.LifetimeBreakPoints = Profile.BreakPoints;
     }
 

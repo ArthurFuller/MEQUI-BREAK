@@ -35,6 +35,9 @@ public sealed class PlayerProfileData
     /// <summary>Saldo disponível para compras de customização.</summary>
     public int BreakPoints;
 
+    /// <summary>Diferencia um saldo ainda não criado de um saldo salvo em zero.</summary>
+    public bool BreakPointsInitialized;
+
     /// <summary>Total histórico recebido. Nunca diminui e define o nível do jogador.</summary>
     public int LifetimeBreakPoints;
 
