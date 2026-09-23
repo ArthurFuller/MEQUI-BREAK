@@ -6,7 +6,16 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using DeviceScreen = UnityEngine.Device.Screen;
 
+/// <summary>
+/// Ponto central de navegação entre cenas.
+///
+/// A API Load(string) é preservada para manter os callbacks configurados no Inspector.
+/// Cenas com a mesma orientação usam o deslizamento horizontal existente. Quando a
+/// navegação troca entre portrait e landscape, a orientação é resolvida antes do load
+/// para que a cena de destino nunca seja calculada no aspect ratio anterior.
+/// </summary>
 public sealed class SceneLoader : MonoBehaviour
 {
     private const string TransitionRootName = "__SceneTransitionRoot";
@@ -23,7 +32,9 @@ public sealed class SceneLoader : MonoBehaviour
     private static readonly List<EventSystem> eventSystemBuffer = new();
     private static readonly List<AudioListener> audioListenerBuffer = new();
 
+    /// <summary>Indica se uma troca de cena está sendo carregada ou animada.</summary>
     public static bool IsTransitionInProgress => isTransitioning;
+    public static event Action<Scene> SceneLeaving;
 
     private enum TransitionDirection
     {
@@ -53,13 +64,20 @@ public sealed class SceneLoader : MonoBehaviour
 
         TransitionDirection direction = ResolveDirection(currentScene.name, targetSceneName);
 
+        if (UsesLandscapeLayout(currentScene.name) != UsesLandscapeLayout(targetSceneName))
+        {
+            StartCoroutine(LoadWithOrientationChange(currentScene, targetSceneName, direction));
+            return;
+        }
+
         if (ShouldUseSlideTransition(targetSceneName))
         {
             StartCoroutine(LoadWithSlideTransition(currentScene, targetSceneName, direction));
             return;
         }
 
-        // Fallback para cenas fora do Build Settings.
+        // Mantém o carregamento comum para cenas que não estão no Build Settings.
+        SceneLeaving?.Invoke(currentScene);
         CommitNavigation(currentScene.name, targetSceneName, direction);
         SceneManager.LoadScene(targetSceneName);
     }
@@ -71,7 +89,81 @@ public sealed class SceneLoader : MonoBehaviour
 
         Scene current = SceneManager.GetActiveScene();
         if (current.IsValid())
-            SceneManager.LoadScene(current.buildIndex);
+            StartCoroutine(ReloadWithRequiredOrientation(current));
+    }
+
+    private IEnumerator LoadWithOrientationChange(
+        Scene currentScene,
+        string targetSceneName,
+        TransitionDirection direction)
+    {
+        isTransitioning = true;
+        SetEventSystemsEnabled(currentScene, false);
+
+        // O controlador da cena atual pode restaurar sua orientação em SceneLeaving.
+        // Depois disso, aplicamos a orientação da cena de destino e aguardamos o SO.
+        SceneLeaving?.Invoke(currentScene);
+        ScreenOrientation targetOrientation = RequiredOrientationFor(targetSceneName);
+        DeviceScreen.orientation = targetOrientation;
+        yield return WaitForOrientation(targetOrientation);
+
+        CommitNavigation(currentScene.name, targetSceneName, direction);
+        isTransitioning = false;
+        SceneManager.LoadScene(targetSceneName);
+    }
+
+    private IEnumerator ReloadWithRequiredOrientation(Scene currentScene)
+    {
+        isTransitioning = true;
+        SetEventSystemsEnabled(currentScene, false);
+        SceneLeaving?.Invoke(currentScene);
+
+        ScreenOrientation targetOrientation = RequiredOrientationFor(currentScene.name);
+        DeviceScreen.orientation = targetOrientation;
+        yield return WaitForOrientation(targetOrientation);
+
+        isTransitioning = false;
+        SceneManager.LoadScene(currentScene.buildIndex);
+    }
+
+    private static IEnumerator WaitForOrientation(ScreenOrientation orientation)
+    {
+        // Dois frames permitem que o Android/iOS processe a solicitação antes de o
+        // CanvasScaler e a Safe Area recalcularem o layout.
+        yield return null;
+        yield return null;
+
+        if (Application.isMobilePlatform || Application.isEditor)
+        {
+            float deadline = Time.realtimeSinceStartup + 1.5f;
+            while (Time.realtimeSinceStartup < deadline && !ScreenMatches(orientation))
+                yield return null;
+        }
+
+        Canvas.ForceUpdateCanvases();
+    }
+
+    private static bool ScreenMatches(ScreenOrientation orientation)
+    {
+        if (orientation == ScreenOrientation.LandscapeLeft || orientation == ScreenOrientation.LandscapeRight)
+            return DeviceScreen.width >= DeviceScreen.height;
+
+        if (orientation == ScreenOrientation.Portrait || orientation == ScreenOrientation.PortraitUpsideDown)
+            return DeviceScreen.height >= DeviceScreen.width;
+
+        return true;
+    }
+
+    private static ScreenOrientation RequiredOrientationFor(string sceneName)
+    {
+        return UsesLandscapeLayout(sceneName)
+            ? ScreenOrientation.LandscapeLeft
+            : ScreenOrientation.Portrait;
+    }
+
+    private static bool UsesLandscapeLayout(string sceneName)
+    {
+        return IsScene(sceneName, "ComboCrew");
     }
 
     private IEnumerator LoadWithSlideTransition(
@@ -81,6 +173,21 @@ public sealed class SceneLoader : MonoBehaviour
     {
         isTransitioning = true;
         SetEventSystemsEnabled(currentScene, false);
+
+        ScreenOrientation previousOrientation = DeviceScreen.orientation;
+        SceneLeaving?.Invoke(currentScene);
+        if (DeviceScreen.orientation != previousOrientation)
+        {
+            // Restaura o layout antes de medir a largura da transição de retorno.
+            yield return null;
+            yield return null;
+            float deadline = Time.realtimeSinceStartup + 1.5f;
+            while ((Application.isMobilePlatform || Application.isEditor) && Time.realtimeSinceStartup < deadline
+                && ((DeviceScreen.orientation == ScreenOrientation.Portrait && DeviceScreen.width > DeviceScreen.height)
+                    || (DeviceScreen.orientation == ScreenOrientation.PortraitUpsideDown && DeviceScreen.width > DeviceScreen.height)))
+                yield return null;
+            Canvas.ForceUpdateCanvases();
+        }
 
         List<RectTransform> outgoingRoots = GetOrCreateTransitionRoots(currentScene);
         ResetRoots(outgoingRoots);
@@ -96,11 +203,12 @@ public sealed class SceneLoader : MonoBehaviour
             yield break;
         }
 
+        // Aguarda apenas o carregamento real; não existe espera adicional antes do slide.
         loadOperation.allowSceneActivation = false;
         while (loadOperation.progress < 0.9f)
             yield return null;
 
-        // O AudioManager persistente mantém o listener durante a troca.
+        // O AudioManager persistente mantém o listener durante a transição.
         loadOperation.allowSceneActivation = true;
 
         while (!loadOperation.isDone)
@@ -159,6 +267,7 @@ public sealed class SceneLoader : MonoBehaviour
         CommitNavigation(currentScene.name, targetSceneName, direction);
         isTransitioning = false;
 
+        // A cena anterior deixa de participar da navegação após a animação.
         SceneManager.UnloadSceneAsync(currentScene);
     }
 
@@ -189,7 +298,9 @@ public sealed class SceneLoader : MonoBehaviour
 
         return IsScene(currentScene, "Customization")
             || IsScene(currentScene, "Settings")
-            || IsScene(currentScene, "EnergyStation");
+            || IsScene(currentScene, "EnergyStation")
+            || IsScene(currentScene, "RushBalance")
+            || IsScene(currentScene, "ComboCrew");
     }
 
     private static void CommitNavigation(
@@ -302,6 +413,7 @@ public sealed class SceneLoader : MonoBehaviour
         root.anchoredPosition = Vector2.zero;
         root.SetSiblingIndex(0);
 
+        // O contêiner mantém o layout original de todos os elementos da cena.
         while (canvas.transform.childCount > 1)
             canvas.transform.GetChild(1).SetParent(root, false);
 
@@ -337,14 +449,14 @@ public sealed class SceneLoader : MonoBehaviour
     private static float GetRootWidth(RectTransform root)
     {
         if (root == null)
-            return Mathf.Max(Screen.width, 1f);
+            return Mathf.Max(DeviceScreen.width, 1f);
 
         float width = root.rect.width;
         if (width <= 0.01f && root.parent is RectTransform parent)
             width = parent.rect.width;
 
         if (width <= 0.01f)
-            width = Screen.width;
+            width = DeviceScreen.width;
 
         return Mathf.Max(width, 1f);
     }

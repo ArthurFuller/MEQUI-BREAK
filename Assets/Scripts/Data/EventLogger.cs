@@ -64,6 +64,13 @@ public sealed class EventLogger : MonoBehaviour
         eventTypes.Add("USER_ACTION");
     }
 
+    /// <summary>Registra um desfecho do jogo sem contá-lo como toque ou ação do usuário.</summary>
+    public void RecordActivityEvent(string eventType)
+    {
+        if (!string.IsNullOrWhiteSpace(sessionId) && !string.IsNullOrWhiteSpace(eventType))
+            eventTypes.Add(eventType);
+    }
+
     public void RecordInactive(float seconds)
     {
         if (string.IsNullOrWhiteSpace(sessionId) || seconds <= 0f)

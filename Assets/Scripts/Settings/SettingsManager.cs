@@ -30,7 +30,8 @@ public sealed class SettingsManager : MonoBehaviour
 
     private void Load()
     {
-        // Não migra volume antigo em zero para os novos toggles.
+        // These boolean switches are the current settings UI. A legacy slider
+        // value of 0 must not migrate the app into a permanently silent state.
         MusicEnabled = PlayerPrefs.HasKey(MusicEnabledKey)
             ? PlayerPrefs.GetInt(MusicEnabledKey) == 1
             : true;

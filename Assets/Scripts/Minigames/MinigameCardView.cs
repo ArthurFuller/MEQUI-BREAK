@@ -57,9 +57,11 @@ public sealed class MinigameCardView : MonoBehaviour
             "EnergyStation",
             System.StringComparison.OrdinalIgnoreCase);
 
-        button.interactable = !isEnergyStation
+        bool sceneAvailable = !string.IsNullOrWhiteSpace(definition.SceneName)
+            && Application.CanStreamedLevelBeLoaded(definition.SceneName);
+        button.interactable = sceneAvailable && (!isEnergyStation
             || PlayerManager.Instance == null
-            || PlayerManager.Instance.CanPlayEnergyStation;
+            || PlayerManager.Instance.CanPlayEnergyStation);
     }
 
     private void Play()

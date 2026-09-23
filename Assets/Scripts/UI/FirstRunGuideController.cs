@@ -3,6 +3,10 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+/// <summary>
+/// Controla somente o fluxo do tutorial. Não calcula posição, tamanho, âncora
+/// ou recorte: todo o layout permanece exatamente como foi montado na cena.
+/// </summary>
 public sealed class FirstRunGuideController : MonoBehaviour
 {
     private const int HubStep = 0;
@@ -61,7 +65,8 @@ public sealed class FirstRunGuideController : MonoBehaviour
 
         if (scene.IsValid() && scene.isLoaded && IsGuideScene(scene.name))
         {
-            // Os destaques ficam editáveis na Hierarchy, mas começam ocultos em runtime.
+            // Os destaques ficam ativos na Hierarchy para edição manual, mas
+            // precisam começar ocultos caso o guia já tenha sido concluído.
             FindSceneComponent<FirstRunGuideSceneView>(scene)?.Hide();
             searchRoutine = StartCoroutine(WaitForManualView(scene));
         }

@@ -2,6 +2,10 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>Visual de switch para as preferências da tela de Configurações.
+/// O Toggle continua sendo a fonte da verdade; somente a bolinha desliza.
+/// Textos, escala e cores não recebem tween.
+/// </summary>
 [RequireComponent(typeof(Toggle))]
 public sealed class SettingsToggleVisual : MonoBehaviour
 {
@@ -46,7 +50,9 @@ public sealed class SettingsToggleVisual : MonoBehaviour
             && (!Mathf.Approximately(lastTrackWidth, track.rectTransform.rect.width)
                 || !Mathf.Approximately(lastHandleWidth, handle.rect.width));
 
-        // O layout ainda pode estar com largura zero no OnEnable; reaplica o estado no frame seguinte.
+        // Vertical/HorizontalLayoutGroup resolve their final geometry after
+        // OnEnable. Reapply the state when that geometry becomes available so
+        // the first user click never animates toward a stale zero-width track.
         if (geometryChanged)
             Refresh(toggle.isOn, true);
         else if (!stateInitialized || lastKnownState != toggle.isOn)
@@ -68,7 +74,8 @@ public sealed class SettingsToggleVisual : MonoBehaviour
 
     private void Start()
     {
-        // Start pega a largura final calculada pelo LayoutGroup.
+        // Start acontece depois da ativação inicial e dá aos LayoutGroups a
+        // oportunidade de definir a largura real do trilho.
         Canvas.ForceUpdateCanvases();
         Refresh(toggle != null && toggle.isOn, true);
     }
@@ -115,6 +122,8 @@ public sealed class SettingsToggleVisual : MonoBehaviour
             return;
         }
 
+        // A mudança de cor representa o estado, mas é imediata. A única
+        // animação do switch é o deslocamento horizontal da bolinha.
         track.color = targetTrack;
         if (handleImage != null)
             handleImage.color = targetHandle;

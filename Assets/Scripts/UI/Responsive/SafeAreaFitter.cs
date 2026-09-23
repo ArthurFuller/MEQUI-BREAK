@@ -1,4 +1,5 @@
 using UnityEngine;
+using DeviceScreen = UnityEngine.Device.Screen;
 
 /// <summary>
 /// Ajusta um contêiner de interface à área segura da tela atual.
@@ -52,9 +53,9 @@ public sealed class SafeAreaFitter : MonoBehaviour
 #if UNITY_EDITOR
     private void Update()
     {
-        // No Editor, o Device Simulator pode alterar a área segura sem callback de dimensão.
-        if (!Application.isPlaying)
-            ApplySafeArea(force: false);
+        // Device Simulator pode mudar orientação/safe area em Play Mode sem um callback
+        // confiável em todos os devices. O método sai cedo quando nada mudou.
+        ApplySafeArea(force: false);
     }
 #endif
 
@@ -74,12 +75,12 @@ public sealed class SafeAreaFitter : MonoBehaviour
     {
         CacheRectTransform();
 
-        int screenWidth = Screen.width;
-        int screenHeight = Screen.height;
+        int screenWidth = DeviceScreen.width;
+        int screenHeight = DeviceScreen.height;
         if (_rectTransform == null || screenWidth <= 0 || screenHeight <= 0)
             return;
 
-        Rect safeArea = Screen.safeArea;
+        Rect safeArea = DeviceScreen.safeArea;
         if (safeArea.width <= 0f || safeArea.height <= 0f)
             safeArea = new Rect(0f, 0f, screenWidth, screenHeight);
 

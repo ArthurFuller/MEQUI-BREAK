@@ -3,6 +3,10 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+/// <summary>
+/// Fornece um pequeno feedback reutilizável de pressionar e soltar para elementos interativos.
+/// Atua somente sobre a escala e não interfere no comportamento funcional do elemento.
+/// </summary>
 public sealed class UIInteractionFeedback : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler, IPointerClickHandler
 {
     [Header("Feedback de pressão")]

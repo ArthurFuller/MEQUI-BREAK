@@ -1,6 +1,12 @@
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// Verifica Break Points pendentes ao carregar o HUB e inicia sua animação.
+///
+/// Em carregamentos aditivos, aguarda a transição terminar para manter a trajetória
+/// das moedas ancorada ao layout final.
+/// </summary>
 public sealed class HubEntryHandler : MonoBehaviour
 {
     [SerializeField] private PointAnimationManager pointAnimationManager;
@@ -31,19 +37,23 @@ public sealed class HubEntryHandler : MonoBehaviour
         int finalValue = player.Profile?.BreakPoints ?? 0;
         int baseValue = finalValue - pending;
 
+        // Exibe o saldo anterior durante a entrada do HUB.
         if (pointAnimationManager.PointsLabel != null)
             pointAnimationManager.PointsLabel.SetText("{0} PB", baseValue);
 
+        // Separa a animação dos PB da transição aditiva da cena.
         while (SceneLoader.IsTransitionInProgress)
             yield return null;
 
-        // Espera um frame para o layout do HUB fechar antes de animar.
+        // Aguarda um frame para os RectTransforms assumirem suas posições finais.
         yield return null;
         Canvas.ForceUpdateCanvases();
 
+        // Evita acessar referências destruídas durante a espera.
         if (this == null || pointAnimationManager == null)
             yield break;
 
+        // Revalida os pontos caso outro sistema tenha alterado o estado durante a espera.
         pending = player.PendingBreakPoints;
         if (pending <= 0)
             yield break;
@@ -54,8 +64,9 @@ public sealed class HubEntryHandler : MonoBehaviour
         if (pointAnimationManager.PointsLabel != null)
             pointAnimationManager.PointsLabel.SetText("{0} PB", baseValue);
 
+        // Limpa os pontos pendentes somente após o último pulso do contador.
         SubscribeToCompletion();
-        pointAnimationManager.AnimatePoints(baseValue, pending);
+        pointAnimationManager.AnimatePoints(baseValue, pending, player.PendingRewardSource);
 
         if (!pointAnimationManager.IsAnimating)
             UnsubscribeFromCompletion();
@@ -89,13 +100,14 @@ public sealed class HubEntryHandler : MonoBehaviour
     {
         UnsubscribeFromCompletion();
 
-        // Ao sair do HUB, descarta PB pendentes para não repetir a animação.
+        // Sair do HUB consome os pontos pendentes para impedir uma repetição ao retornar.
         PlayerManager currentPlayer = player != null ? player : PlayerManager.Instance;
         if (currentPlayer == null || currentPlayer.PendingBreakPoints <= 0)
             return;
 
         currentPlayer.ClearPendingPoints();
 
+        // Se o objeto ainda estiver ativo durante a saída, deixa o saldo final visível.
         if (pointAnimationManager?.PointsLabel != null)
             pointAnimationManager.PointsLabel.SetText("{0} PB", currentPlayer.Profile?.BreakPoints ?? 0);
     }

@@ -2,6 +2,10 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
+/// <summary>
+/// Exibe o avatar por três camadas leves: corpo colorido, rosto e chapéu.
+/// As referências e opções ficam configuradas diretamente no Inspector.
+/// </summary>
 [ExecuteAlways]
 public sealed class AvatarView : MonoBehaviour
 {
@@ -140,6 +144,9 @@ public sealed class AvatarView : MonoBehaviour
         ApplyItemTransform(hatImage, AvatarCustomizationCategory.Hat, data.HatIndex);
     }
 
+    /// <summary>
+    /// Troca somente a camada do rosto, preservando corpo, cor e chapéu.
+    /// </summary>
     public void ApplyFace(int faceIndex)
     {
         SetSprite(faceImage, faceOptions, faceIndex);

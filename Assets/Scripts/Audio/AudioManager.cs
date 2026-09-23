@@ -2,6 +2,10 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+/// <summary>
+/// Serviço global de áudio. Todos os componentes e clipes são referências
+/// serializadas da cena Boot; nada é criado ou carregado em runtime.
+/// </summary>
 [DefaultExecutionOrder(-1000)]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(AudioListener))]
@@ -21,6 +25,12 @@ public sealed class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip completionClip;
     [SerializeField] private AudioClip energyDragClip;
     [SerializeField] private AudioClip loginJingleClip;
+    [Tooltip("Opcional. Se vazio, usa o clique como fallback.")]
+    [SerializeField] private AudioClip errorClip;
+    [Tooltip("Opcional. Se vazio, usa o som de confirmação como fallback.")]
+    [SerializeField] private AudioClip readyClip;
+    [Tooltip("Opcional. Se vazio, usa o clique como fallback.")]
+    [SerializeField] private AudioClip incidentClip;
 
     [Header("Volumes")]
     [SerializeField, Range(0f, 1f)] private float musicVolume = 0.9f;
@@ -170,13 +180,17 @@ public sealed class AudioManager : MonoBehaviour
     public void PlayReward() => PlayEffect(rewardClip);
     public void PlayCompletion() => PlayEffect(completionClip);
     public void PlayEnergyDrag() => PlayEffect(energyDragClip);
+    public void PlayError() => PlayEffect(errorClip != null ? errorClip : uiClickClip);
+    public void PlayReady() => PlayEffect(readyClip != null ? readyClip : confirmClip);
+    public void PlayIncident() => PlayEffect(incidentClip != null ? incidentClip : uiClickClip);
 
     public void PlayLoginJingle()
     {
         if (musicSource == null || loginJingleClip == null)
             return;
 
-        // O jingle do login toca mesmo se a música estiver desligada nas preferências.
+        // O jingle confirma um login válido e deve tocar mesmo se uma preferência
+        // antiga tiver deixado a música desativada durante os testes no Editor.
         musicSource.enabled = true;
         musicSource.mute = false;
         musicSource.volume = musicVolume;

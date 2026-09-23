@@ -60,12 +60,16 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         StopReturnRoutine(completeReturn: false);
         dragInProgress = true;
 
+        // Atualiza o slot somente quando o card já está sob o pai de origem.
+        // Durante um retorno interrompido, o pai ainda é o Canvas interativo.
         if (!hasOrigin || transform.parent == originParent)
             CacheOrigin();
 
         canvasGroup.blocksRaycasts = false;
         AudioManager.Instance?.PlayEnergyDrag();
 
+        // Move o card para o Canvas da área interativa, acima dos demais cards,
+        // sem cair para baixo do overlay do tutorial.
         if (interactionCanvas != null && transform.parent != interactionCanvas.transform)
             transform.SetParent(interactionCanvas.transform, true);
 
@@ -108,6 +112,9 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
             returnRoutine = StartCoroutine(ReturnToOrigin());
     }
 
+    /// <summary>
+    /// Marca o card como aceito e esconde sua arte, mantendo somente o slot vazio.
+    /// </summary>
     public void AcceptDrop()
     {
         StopReturnRoutine(completeReturn: false);
@@ -129,6 +136,10 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         canvasGroup.blocksRaycasts = false;
     }
 
+    /// <summary>
+    /// Bloqueia a bandeja ao encerrar a rodada. Cards escolhidos continuam
+    /// ausentes; somente os cards que sobraram recebem a versão escurecida.
+    /// </summary>
     public void LockForSessionEnd()
     {
         CacheComponents();
@@ -151,9 +162,13 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         canvasGroup.blocksRaycasts = false;
     }
 
+    /// <summary>
+    /// Reativa o card e o devolve imediatamente ao slot original sem criar clones.
+    /// </summary>
     public void ResetToOrigin()
     {
-        // Alguns cards começam inativos, então o primeiro reset pode acontecer antes do Awake.
+        // Os cards começam inativos na cena. Nesse estado, Awake ainda não foi
+        // executado quando o controlador solicita o primeiro reset.
         CacheComponents();
         CacheVisualReferences();
         StopReturnRoutine(completeReturn: true);
@@ -202,7 +217,8 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         if (canvasGroup == null)
             canvasGroup = GetComponent<CanvasGroup>();
 
-        // Usa o Canvas interativo para manter o card acima do tutorial durante o arraste.
+        // Usa o Canvas interativo mais próximo. Na Energy Station ele fica
+        // serializado acima do overlay do tutorial, preservando drag e drop.
         if (interactionCanvas == null)
             interactionCanvas = GetComponentInParent<Canvas>(true);
     }
@@ -306,7 +322,9 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
     private void OnDisable()
     {
-        // Evita reparentear durante OnDisable; o Unity ainda está desmontando a hierarquia.
+        // Durante OnDisable o Unity ainda está processando a desativação;
+        // alterar a hierarquia nesse ponto gera erro de ativação/desativação.
+        // O reparenting é feito com segurança no reset ou no fim do retorno.
         StopReturnRoutine(completeReturn: false);
         dragInProgress = false;
         rectTransform.localScale = hasOrigin ? originLocalScale : Vector3.one;

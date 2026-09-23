@@ -3,7 +3,12 @@ using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
+/// <summary>
+/// Anima moedas de Break Points viajando até o contador do HUB.
+/// Todo o fluxo visual é controlado pelo DOTween, sem corrotinas de animação.
+/// </summary>
 [RequireComponent(typeof(RectTransform))]
 public sealed class PointAnimationManager : MonoBehaviour
 {
@@ -21,8 +26,11 @@ public sealed class PointAnimationManager : MonoBehaviour
     [Tooltip("RectTransform do Canvas usado como pai das moedas em movimento.")]
     [SerializeField] private RectTransform canvasRect;
 
-    [Tooltip("Origem visual da recompensa no HUB (normalmente o card do minigame).")]
-    [SerializeField] private RectTransform spawnAnchor;
+    [Header("Origem por minigame")]
+    [FormerlySerializedAs("spawnAnchor")]
+    [SerializeField] private RectTransform energyStationSpawnAnchor;
+    [SerializeField] private RectTransform rushBalanceSpawnAnchor;
+    [SerializeField] private RectTransform comboCrewSpawnAnchor;
 
     [Header("Animação das moedas")]
     [SerializeField, Min(0.1f)] private float duration = 0.8f;
@@ -55,6 +63,7 @@ public sealed class PointAnimationManager : MonoBehaviour
     private Quaternion _coinBaseRotation = Quaternion.identity;
     private int _coinsLanded;
     private int _expectedCoins;
+    private RectTransform _activeSpawnAnchor;
 
     public bool IsAnimating { get; private set; }
     public event Action OnAnimationComplete;
@@ -102,7 +111,11 @@ public sealed class PointAnimationManager : MonoBehaviour
         }
     }
 
-    public void AnimatePoints(int baseValue, int amount)
+    /// <summary>
+    /// Anima um lote de pontos. Cada moeda aumenta o valor exibido em uma unidade
+    /// e dispara um pulso completo no contador ao alcançar o texto.
+    /// </summary>
+    public void AnimatePoints(int baseValue, int amount, string sourceScene)
     {
         if (amount <= 0 || coinPrefab == null || pointsLabel == null || canvasRect == null)
             return;
@@ -111,10 +124,13 @@ public sealed class PointAnimationManager : MonoBehaviour
 
         _coinsLanded = 0;
         _expectedCoins = amount;
+        _activeSpawnAnchor = ResolveSpawnAnchor(sourceScene);
         IsAnimating = true;
         pointsLabel.SetText("{0} PB", baseValue);
         pointsLabel.transform.localScale = _pointsLabelBaseScale;
 
+        // O som acompanha o início do lote, evitando sobreposição do mesmo efeito
+        // a cada moeda enquanto várias moedas chegam em sequência.
         AudioManager.Instance?.PlayReward();
 
         _batchSequence = DOTween.Sequence().SetTarget(this);
@@ -132,11 +148,13 @@ public sealed class PointAnimationManager : MonoBehaviour
         if (!IsAnimating || coinPrefab == null || pointsLabel == null || canvasRect == null)
             return;
 
-        Vector2 spawnPos = GetCanvasLocalPoint(spawnAnchor != null ? spawnAnchor : canvasRect)
+        Vector2 spawnPos = GetCanvasLocalPoint(_activeSpawnAnchor != null ? _activeSpawnAnchor : canvasRect)
             + UnityEngine.Random.insideUnitCircle * spawnSpread;
         Vector2 targetPos = GetCanvasLocalPoint(pointsLabel.rectTransform);
 
-        // Origem e destino ficam no mesmo espaço local do Canvas.
+        // O destino e a origem são convertidos para o mesmo espaço local do Canvas.
+        // O movimento é aplicado por anchoredPosition (e não localPosition), evitando
+        // o erro clássico de misturar coordenadas de RectTransform com Transform.
         Vector2 midPoint = (spawnPos + targetPos) * 0.5f + arcOffset;
 
         GameObject coin = GetCoin();
@@ -182,6 +200,16 @@ public sealed class PointAnimationManager : MonoBehaviour
         });
     }
 
+    private RectTransform ResolveSpawnAnchor(string sourceScene)
+    {
+        if (string.Equals(sourceScene, "RushBalance", StringComparison.OrdinalIgnoreCase))
+            return rushBalanceSpawnAnchor;
+        if (string.Equals(sourceScene, "ComboCrew", StringComparison.OrdinalIgnoreCase))
+            return comboCrewSpawnAnchor;
+        return energyStationSpawnAnchor;
+    }
+
+
     private static Vector2 EvaluateQuadraticBezier(Vector2 start, Vector2 control, Vector2 end, float t)
     {
         t = Mathf.Clamp01(t);
@@ -214,6 +242,10 @@ public sealed class PointAnimationManager : MonoBehaviour
             : Vector2.zero;
     }
 
+    /// <summary>
+    /// Executa um pulso DOTween para cada moeda recebida:
+    /// escala original, escala ampliada e retorno à escala original.
+    /// </summary>
     private void PlayCounterPulse(bool finishBatchAfterPulse)
     {
         if (pointsLabel == null)

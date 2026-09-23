@@ -1,9 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Applies application-level mobile settings that do not affect orientation or UI layout.
-/// Screen orientation is authored in Player Settings so Android/iOS can launch in the
-/// correct portrait orientation before the first Unity scene is rendered.
+/// Applies application-level mobile settings that do not affect UI layout.
+/// Portrait remains the application default. Rush Balance and Combo Crew switch to
+/// landscape through SceneLoader/MinigameSessionController when those scenes open.
 /// </summary>
 public static class MobileRuntimeConfigurator
 {

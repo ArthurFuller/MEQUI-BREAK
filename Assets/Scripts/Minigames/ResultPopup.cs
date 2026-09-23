@@ -17,6 +17,10 @@ public sealed class ResultPopup : MonoBehaviour
     [SerializeField] private TMP_Text pointsLabel;
     [SerializeField] private Button continueButton;
 
+    [Header("Resumo opcional dos pedidos")]
+    [Tooltip("Texto existente na Hierarchy. Pode ficar vazio no Energy Station.")]
+    [SerializeField] private TMP_Text ordersSummaryLabel;
+
     [Header("Animação")]
     [SerializeField, Min(0.05f)] private float enterDuration = 0.45f;
     [SerializeField, Min(0.05f)] private float exitDuration = 0.35f;
@@ -31,9 +35,10 @@ public sealed class ResultPopup : MonoBehaviour
 
     [SerializeField] private Ease pointsCountEase = Ease.OutCubic;
 
+
     [Header("Navegação")]
     [SerializeField] private SceneLoader sceneLoader;
-    [SerializeField] private string hubSceneName = "Hub";
+    [SerializeField] private string hubSceneName = "HUB";
 
     private Vector2 _shownPos;
     private Vector2 _hiddenPos;
@@ -56,7 +61,11 @@ public sealed class ResultPopup : MonoBehaviour
 
     public void Show(int pointsEarned)
     {
+        if (ordersSummaryLabel != null)
+            ordersSummaryLabel.gameObject.SetActive(false);
+
         titleLabel.text = "Minigame Concluído";
+        continueButton.interactable = false;
         _displayedRewardPoints = 0;
         _lastRewardLabelValue = int.MinValue;
         UpdateRewardLabel(0);
@@ -65,6 +74,17 @@ public sealed class ResultPopup : MonoBehaviour
         gameObject.SetActive(true);
         PlayIn();
         PlayRewardCounter(pointsEarned);
+        MequiHaptics.Success();
+    }
+
+    public void Show(int pointsEarned, int delivered, int missed)
+    {
+        Show(pointsEarned);
+        if (ordersSummaryLabel == null)
+            return;
+
+        ordersSummaryLabel.gameObject.SetActive(true);
+        ordersSummaryLabel.SetText("Entregues: {0}\nNão entregues: {1}", delivered, missed);
     }
 
     private void PlayIn()
@@ -74,19 +94,23 @@ public sealed class ResultPopup : MonoBehaviour
         popupCanvasGroup.blocksRaycasts = true;
 
         _activeSequence = DOTween.Sequence()
+            .SetUpdate(UpdateType.Normal, UIMotionDefaults.UseUnscaledTime)
             .Join(overlayImage.DOFade(overlayMaxAlpha, enterDuration * 0.6f).SetEase(Ease.OutQuad))
             .Join(popupCanvasGroup.DOFade(1f, enterDuration).SetEase(Ease.OutQuad))
-            .Join(popupPanel.DOAnchorPos(_shownPos, enterDuration).SetEase(Ease.OutCubic));
+            .Join(popupPanel.DOAnchorPos(_shownPos, enterDuration).SetEase(Ease.OutCubic))
+            .OnComplete(() => continueButton.interactable = true);
     }
 
     private void PlayOut()
     {
         popupCanvasGroup.blocksRaycasts = false;
+        continueButton.interactable = false;
 
         KillSequence();
         KillPointsSequence(complete: true);
 
         _activeSequence = DOTween.Sequence()
+            .SetUpdate(UpdateType.Normal, UIMotionDefaults.UseUnscaledTime)
             .Join(overlayImage.DOFade(0f, exitDuration).SetEase(Ease.InQuad))
             .Join(popupCanvasGroup.DOFade(0f, exitDuration).SetEase(Ease.InQuad))
             .Join(popupPanel.DOAnchorPos(_hiddenPos, exitDuration).SetEase(Ease.InCubic))
@@ -101,7 +125,8 @@ public sealed class ResultPopup : MonoBehaviour
         _displayedRewardPoints = 0;
         UpdateRewardLabel(0);
 
-        _pointsSequence = DOTween.Sequence();
+        _pointsSequence = DOTween.Sequence()
+            .SetUpdate(UpdateType.Normal, UIMotionDefaults.UseUnscaledTime);
 
         if (pointsCountDelay > 0f)
             _pointsSequence.AppendInterval(pointsCountDelay);
@@ -165,6 +190,7 @@ public sealed class ResultPopup : MonoBehaviour
     {
         ResetVisualState();
         popupCanvasGroup.blocksRaycasts = false;
+        continueButton.interactable = false;
         gameObject.SetActive(false);
     }
 
