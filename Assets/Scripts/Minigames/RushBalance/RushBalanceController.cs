@@ -19,10 +19,20 @@ public sealed class RushBalanceController : MonoBehaviour
     [SerializeField] private RectTransform customerEntrance;
     [SerializeField] private RectTransform customerExit;
     [SerializeField] private TMP_Text feedback;
+    [SerializeField] private GameObject finalCycleBanner;
+    [SerializeField] private RectTransform finalCyclePanel;
+    [SerializeField] private CanvasGroup finalCycleGroup;
+    [SerializeField] private TMP_Text finalCycleLabel;
     [Tooltip("Pausa após a saída completa, antes de a fila avançar.")]
     [SerializeField, Min(0f)] private float replacementPause = .18f;
     [Tooltip("Tempo reservado para a fila avançar e o novo cliente entrar.")]
     [SerializeField, Min(.01f)] private float replacementSettleSeconds = .34f;
+
+    [Header("Aviso de ciclo final")]
+    [SerializeField, Min(.01f)] private float finalNoticeEnterSeconds = .22f;
+    [SerializeField, Min(0f)] private float finalNoticeHoldSeconds = 1.15f;
+    [SerializeField, Min(.01f)] private float finalNoticeExitSeconds = .2f;
+    [SerializeField, Min(0f)] private float finalNoticeOffset = 55f;
 
     [Header("Balanceamento inicial")]
     [Tooltip("Tempos para pedidos de um, dois e três itens.")]
@@ -42,6 +52,8 @@ public sealed class RushBalanceController : MonoBehaviour
     private readonly bool[] pendingDelivered = new bool[4];
     private RushRound round;
     private Sequence replacementSequence;
+    private Sequence finalNoticeSequence;
+    private Vector2 finalNoticeBasePosition;
     private int bufferCustomer = 4;
     private int pendingCount;
     private float feedbackClock;
@@ -65,6 +77,8 @@ public sealed class RushBalanceController : MonoBehaviour
         for (int i = 0; i < customers.Length; i++) customers[i].Initialize(this, i);
         for (int i = 0; i < orderViews.Length; i++) orderViews[i].Clear();
         for (int i = 0; i < queueTargets.Length; i++) queueTargets[i].Highlight(false);
+        finalNoticeBasePosition = finalCyclePanel.anchoredPosition;
+        finalCycleBanner.SetActive(false);
     }
 
     private void OnEnable()
@@ -77,7 +91,9 @@ public sealed class RushBalanceController : MonoBehaviour
     private void OnDisable()
     {
         replacementSequence?.Kill();
+        finalNoticeSequence?.Kill();
         replacementSequence = null;
+        finalNoticeSequence = null;
         if (session != null)
         {
             session.MatchStarted -= BeginMatch;
@@ -95,6 +111,12 @@ public sealed class RushBalanceController : MonoBehaviour
         processingResolution = false;
         pendingCount = 0;
         feedback.text = string.Empty;
+        finalNoticeSequence?.Kill();
+        finalNoticeSequence = null;
+        finalCyclePanel.anchoredPosition = finalNoticeBasePosition;
+        finalCyclePanel.localScale = Vector3.one;
+        finalCycleGroup.alpha = 0f;
+        finalCycleBanner.SetActive(false);
         round.Reset();
         customerLine.Clear();
         bufferCustomer = 4;
@@ -363,8 +385,30 @@ public sealed class RushBalanceController : MonoBehaviour
         if (ending || finalCycle) return;
 
         finalCycle = true;
-        Message("Tempo encerrado — finalize os clientes atuais.");
+        ShowFinalCycleNotice();
         TryCompleteFinalCycle();
+    }
+
+    private void ShowFinalCycleNotice()
+    {
+        finalNoticeSequence?.Kill();
+        finalCycleLabel.text = "TEMPO ENCERRADO\nFinalize os clientes atuais";
+        finalCycleBanner.SetActive(true);
+        finalCycleGroup.alpha = 0f;
+        finalCyclePanel.anchoredPosition = finalNoticeBasePosition + Vector2.up * finalNoticeOffset;
+        finalCyclePanel.localScale = Vector3.one * .94f;
+
+        finalNoticeSequence = DOTween.Sequence().SetTarget(this)
+            .Join(finalCycleGroup.DOFade(1f, AnimationSeconds(finalNoticeEnterSeconds)).SetEase(Ease.OutQuad))
+            .Join(finalCyclePanel.DOAnchorPos(finalNoticeBasePosition, AnimationSeconds(finalNoticeEnterSeconds)).SetEase(Ease.OutCubic))
+            .Join(finalCyclePanel.DOScale(1f, AnimationSeconds(finalNoticeEnterSeconds)).SetEase(Ease.OutBack))
+            .AppendInterval(AnimationSeconds(finalNoticeHoldSeconds))
+            .Append(finalCycleGroup.DOFade(0f, AnimationSeconds(finalNoticeExitSeconds)).SetEase(Ease.InQuad))
+            .OnComplete(() =>
+            {
+                finalNoticeSequence = null;
+                finalCycleBanner.SetActive(false);
+            });
     }
 
     private void TryCompleteFinalCycle()
@@ -399,6 +443,8 @@ public sealed class RushBalanceController : MonoBehaviour
     {
         if (session == null) return SetupError("session não atribuído.");
         if (feedback == null) return SetupError("feedback não atribuído.");
+        if (finalCycleBanner == null || finalCyclePanel == null || finalCycleGroup == null || finalCycleLabel == null)
+            return SetupError("aviso do ciclo final e suas referências.");
         if (customers == null || customers.Length != 5) return SetupError("customers precisa de cinco elementos.");
         if (orderViews == null || orderViews.Length != 4) return SetupError("orderViews precisa de quatro elementos.");
         if (queueAnchors == null || queueAnchors.Length != 4) return SetupError("queueAnchors precisa de quatro elementos.");
@@ -408,6 +454,8 @@ public sealed class RushBalanceController : MonoBehaviour
         if (customerEntrance == null || customerExit == null) return SetupError("entrada e saída dos clientes.");
         if (replacementPause < 0f || replacementSettleSeconds <= 0f)
             return SetupError("tempos de substituição dos clientes.");
+        if (finalNoticeEnterSeconds <= 0f || finalNoticeHoldSeconds < 0f || finalNoticeExitSeconds <= 0f)
+            return SetupError("tempos do aviso de ciclo final.");
         if (preparationTimes.x <= 0f || preparationTimes.y <= 0f || preparationTimes.z <= 0f
             || patienceTimes.x <= 0f || patienceTimes.y <= 0f || patienceTimes.z <= 0f
             || secondarySpeed < 0f || secondarySpeed > 1f

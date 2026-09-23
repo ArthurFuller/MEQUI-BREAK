@@ -16,6 +16,7 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
     private Vector3 originalScale;
     private bool scaleCached;
     private int pointerId;
+    private bool dropAccepted;
     public bool IsDragging { get; private set; }
     public float LastDragEndTime { get; private set; } = -10f;
     protected CanvasGroup DragCanvasGroup => canvasGroup;
@@ -27,6 +28,12 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
     protected abstract Vector3 RestPosition { get; }
     protected virtual void HighlightTargets(bool visible) { }
     protected virtual void DragStateChanged(bool dragging) { }
+    protected virtual void DragFinished(bool accepted) { }
+
+    protected void MarkDropAccepted()
+    {
+        if (IsDragging) dropAccepted = true;
+    }
 
     protected virtual void Awake()
     {
@@ -50,6 +57,7 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
         scaleFeedback = visual.DOScale(originalScale * 1.04f, .08f).SetEase(Ease.OutQuad);
         pointerOffset = visual.position - point;
         IsDragging = true;
+        dropAccepted = false;
         pointerId = data.pointerId;
         DragStateChanged(true);
         canvasGroup.blocksRaycasts = false;
@@ -69,13 +77,16 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
     {
         if (!OwnsPointer(data)) return;
         LastDragEndTime = Time.unscaledTime;
+        bool accepted = dropAccepted;
         CancelDrag(false);
+        DragFinished(accepted);
     }
 
     public void CancelDrag(bool instant)
     {
         CacheScale();
         IsDragging = false;
+        dropAccepted = false;
         DragStateChanged(false);
         HighlightTargets(false);
         if (canvasGroup != null) canvasGroup.blocksRaycasts = true;
