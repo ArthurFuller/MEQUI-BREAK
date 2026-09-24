@@ -66,6 +66,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     private bool defaultsCached;
     private bool wasReady;
     private bool delivering;
+    private bool waitingForDelivery;
     private int visibleItemCount;
     private int previousRank = -1;
     private Color priorityTargetColor;
@@ -152,6 +153,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         previousAnchor = null;
         wasReady = false;
         delivering = false;
+        waitingForDelivery = false;
         readyPulse?.Kill();
         deliveryTween?.Kill();
         appearanceTween?.Kill();
@@ -197,6 +199,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         stateTween?.Kill();
         invalidDropTween?.Kill();
         delivering = false;
+        waitingForDelivery = false;
         wasReady = false;
         previousAnchor = null;
         visibleItemCount = 0;
@@ -234,7 +237,10 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     public void Refresh(RushRound.Order order, Color bodyColor, Sprite faceSprite)
     {
-        if (delivering) return;
+        // Um segundo pedido pode ser entregue enquanto a animação anterior ainda
+        // está em andamento. Nesse intervalo o estado lógico já é Delivered, mas
+        // o card precisa continuar visível até chegar sua vez na fila visual.
+        if (delivering || waitingForDelivery) return;
         bool visible = order.State == RushRound.Status.Queued || order.State == RushRound.Status.Ready;
         if (!visible)
         {
@@ -359,6 +365,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     public void PlayDelivery(RectTransform target, Action completed)
     {
         if (delivering || target == null) return;
+        waitingForDelivery = false;
         delivering = true;
         CancelDrag(true);
         readyPulse?.Kill();
@@ -397,6 +404,11 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
                 gameObject.SetActive(false);
                 completed?.Invoke();
             });
+    }
+
+    public void HoldForDelivery()
+    {
+        if (!delivering) waitingForDelivery = true;
     }
 
     private static Vector3 EvaluateBezier(Vector3 start, Vector3 control, Vector3 end, float value)

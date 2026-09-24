@@ -267,6 +267,11 @@ public sealed class RushBalanceController : MonoBehaviour
             return;
         }
 
+        // Mantém o card pronto visível enquanto entregas anteriores terminam.
+        // Sem esta reserva visual, o Refresh ocultava o segundo card porque seu
+        // estado lógico já havia mudado para Delivered antes da animação começar.
+        if (delivered) orderViews[id].HoldForDelivery();
+
         if (pendingCount < pendingIds.Length)
         {
             pendingIds[pendingCount] = id;

@@ -5,7 +5,8 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler
+public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler,
+    IPointerDownHandler, IPointerUpHandler
 {
     public enum PatienceProfile { Patient, Normal, Demanding }
 
@@ -23,6 +24,9 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     [SerializeField, Min(1f)] private float barSmoothing = 12f;
     [SerializeField, Min(1f)] private float balloonHoverScale = 1.04f;
     [SerializeField, Min(.01f)] private float balloonHoverSeconds = .1f;
+    [SerializeField, Range(.85f, 1f)] private float balloonPressScale = .94f;
+    [SerializeField, Min(.01f)] private float balloonPressSeconds = .06f;
+    [SerializeField, Min(.01f)] private float balloonReleaseSeconds = .12f;
     [SerializeField, Min(0f)] private float balloonClickPunch = .07f;
     [SerializeField] private string happyMessage = "Oi, tudo bem?";
     [SerializeField] private string seriousMessage = "Vai demorar muito?";
@@ -42,6 +46,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     private int customerIndex;
     private int mood = -1;
     private bool departing;
+    private bool balloonHovered;
+    private bool balloonPressed;
 
     public int OrderId { get; private set; } = -1;
     public bool IsDeparting => departing;
@@ -104,6 +110,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         balloonFeedback?.Kill();
         OrderId = -1;
         departing = false;
+        balloonHovered = false;
+        balloonPressed = false;
         mood = -1;
         character.localScale = characterBaseScale;
         if (balloonRect != null) balloonRect.localScale = balloonBaseScale;
@@ -127,6 +135,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         Profile = profile;
         mood = -1;
         departing = false;
+        balloonHovered = false;
+        balloonPressed = false;
         gameObject.SetActive(true);
         character.gameObject.SetActive(true);
         character.localScale = characterBaseScale;
@@ -171,7 +181,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         speech.enabled = !waiting;
         for (int i = 0; i < itemIcons.Length; i++)
             itemIcons[i].SetActive(waiting && i < order.Items);
-        if (!waiting && !speechWasVisible) PlayBalloonPop(.07f);
+        if (!waiting && !speechWasVisible) PlayBalloonPop(balloonClickPunch);
     }
 
     private void SetMood(int nextMood, bool animate)
@@ -228,6 +238,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (!orderButton.interactable || balloonRect == null) return;
+        balloonHovered = true;
+        if (balloonPressed) return;
         balloonFeedback?.Kill();
         balloonFeedback = balloonRect
             .DOScale(balloonBaseScale * balloonHoverScale, Seconds(balloonHoverSeconds))
@@ -237,6 +249,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     public void OnPointerExit(PointerEventData eventData)
     {
         if (balloonRect == null) return;
+        balloonHovered = false;
+        if (balloonPressed) return;
         balloonFeedback?.Kill();
         balloonFeedback = balloonRect
             .DOScale(balloonBaseScale, Seconds(balloonHoverSeconds))
@@ -246,13 +260,31 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     public void OnPointerDown(PointerEventData eventData)
     {
         if (!orderButton.interactable || balloonRect == null) return;
-        PlayBalloonPop(balloonClickPunch);
+        balloonPressed = true;
+        balloonFeedback?.Kill();
+        balloonFeedback = balloonRect
+            .DOScale(balloonBaseScale * balloonPressScale, Seconds(balloonPressSeconds))
+            .SetEase(Ease.OutQuad);
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        if (!balloonPressed || balloonRect == null) return;
+        balloonPressed = false;
+        balloonFeedback?.Kill();
+        Vector3 target = balloonBaseScale * (balloonHovered && orderButton.interactable
+            ? balloonHoverScale : 1f);
+        balloonFeedback = balloonRect
+            .DOScale(target, Seconds(balloonReleaseSeconds))
+            .SetEase(Ease.OutBack);
     }
 
     private void PlayBalloonPop(float strength)
     {
         if (balloonRect == null) return;
         balloonFeedback?.Kill();
+        balloonHovered = false;
+        balloonPressed = false;
         balloonRect.localScale = balloonBaseScale;
         balloonFeedback = balloonRect
             .DOPunchScale(Vector3.one * strength, Seconds(.2f), 2, .35f)
