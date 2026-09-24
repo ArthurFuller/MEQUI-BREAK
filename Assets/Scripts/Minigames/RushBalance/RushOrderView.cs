@@ -13,6 +13,9 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField] private GameObject[] itemIcons;
     [SerializeField] private Image customerBody;
     [SerializeField] private Image customerFace;
+    [SerializeField] private Image customerHat;
+    [Tooltip("Mesma proporção usada pelo NPC; o card deve ser apenas uma miniatura.")]
+    [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private Image progressFill;
     [SerializeField] private Image priorityIndicator;
     [SerializeField] private GameObject readyHighlight;
@@ -35,8 +38,8 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField] private Color secondaryColor = new Color(.16f, .14f, .12f, 1f);
     [SerializeField] private Color waitingColor = new Color(.12f, .12f, .12f, 1f);
     [SerializeField] private Color readyColor = new Color(.12f, .2f, .14f, 1f);
-    [SerializeField, Range(.4f, 1f)] private float secondaryAlpha = .92f;
-    [SerializeField, Range(.4f, 1f)] private float waitingAlpha = .72f;
+    [SerializeField, Range(.4f, 1f)] private float secondaryAlpha = 1f;
+    [SerializeField, Range(.4f, 1f)] private float waitingAlpha = 1f;
     [SerializeField, Min(.01f)] private float stateTransitionSeconds = .16f;
     [SerializeField, Min(0f)] private float invalidDropShake = 7f;
     [SerializeField, Min(.01f)] private float invalidDropSeconds = .18f;
@@ -83,6 +86,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         deliveryIconsRoot == null ? "deliveryIconsRoot" :
         customerBody == null ? "customerBody" :
         customerFace == null ? "customerFace" :
+        customerHat == null ? "customerHat" :
         progressFill == null ? "progressFill" :
         priorityIndicator == null ? "priorityIndicator" :
         readyHighlight == null ? "readyHighlight" :
@@ -144,7 +148,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         RushBalanceController controller,
         int id,
         int items,
-        Color bodyColor,
+        RushBalanceController.NpcAppearance appearance,
         Sprite faceSprite)
     {
         CacheDefaults();
@@ -166,9 +170,16 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         priorityTargetCached = false;
         visualState = -1;
         stateAlphaTarget = 1f;
-        customerBody.color = bodyColor;
+        customerBody.color = appearance.BodyColor;
         customerFace.sprite = faceSprite;
         customerFace.enabled = faceSprite != null;
+        customerHat.sprite = appearance.HatSprite;
+        customerHat.enabled = appearance.HatSprite != null;
+        AvatarView.ApplyNormalizedTransform(
+            customerHat,
+            appearance.HatOffset,
+            appearance.HatScale * hatScaleMultiplier,
+            appearance.HatRotation);
         deliveryIconsRoot.anchoredPosition = deliveryBasePosition;
         deliveryIconsRoot.localScale = deliveryBaseScale;
         cardVisual.transform.localScale = cardBaseScale;

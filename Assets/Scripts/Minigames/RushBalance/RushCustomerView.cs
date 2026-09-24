@@ -12,8 +12,12 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
 
     [SerializeField] private RectTransform character;
     [SerializeField] private Image bodyImage;
+    [SerializeField] private Image torsoImage;
+    [SerializeField] private Image hatImage;
+    [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private GameObject balloon;
     [SerializeField] private Button orderButton;
+    [SerializeField] private GameObject patienceTrack;
     [SerializeField] private Image patienceFill;
     [SerializeField] private TMP_Text speech;
     [Tooltip("Três ícones já configurados na Hierarchy.")]
@@ -53,13 +57,21 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     public bool IsDeparting => departing;
     public RectTransform DeliveryTarget => character;
     public Color BodyColor => bodyImage != null ? bodyImage.color : Color.white;
+    public Image HatImage => hatImage;
+    public float HatScaleMultiplier => hatScaleMultiplier;
+    public bool HasAppearance { get; private set; }
+    public int HatIndex { get; private set; } = -1;
+    public int ColorIndex { get; private set; } = -1;
     public Sprite CurrentFaceSprite => mood >= 0 && mood < faceSprites.Length ? faceSprites[mood] : null;
     public PatienceProfile Profile { get; private set; }
     public string ConfigurationError =>
         character == null ? "character" :
         bodyImage == null ? "bodyImage" :
+        torsoImage == null ? "torsoImage" :
+        hatImage == null ? "hatImage" :
         balloon == null ? "balloon" :
         orderButton == null ? "orderButton" :
+        patienceTrack == null ? "patienceTrack" :
         patienceFill == null ? "patienceFill" :
         speech == null ? "speech" :
         itemIcons == null || itemIcons.Length != 3 ? "itemIcons: esperado 3 elementos" :
@@ -109,6 +121,9 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         moodFeedback?.Kill();
         balloonFeedback?.Kill();
         OrderId = -1;
+        HasAppearance = false;
+        HatIndex = -1;
+        ColorIndex = -1;
         departing = false;
         balloonHovered = false;
         balloonPressed = false;
@@ -118,6 +133,22 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         if (patienceBar != null) patienceBar.localScale = patienceFullScale;
         patienceTarget = 1f;
         gameObject.SetActive(false);
+    }
+
+    public void ApplyAppearance(RushBalanceController.NpcAppearance appearance)
+    {
+        HasAppearance = true;
+        HatIndex = appearance.HatIndex;
+        ColorIndex = appearance.ColorIndex;
+        bodyImage.color = appearance.BodyColor;
+        torsoImage.color = appearance.BodyColor;
+        hatImage.sprite = appearance.HatSprite;
+        hatImage.enabled = appearance.HatSprite != null;
+        AvatarView.ApplyNormalizedTransform(
+            hatImage,
+            appearance.HatOffset,
+            appearance.HatScale * hatScaleMultiplier,
+            appearance.HatRotation);
     }
 
     public void Enter(
@@ -141,6 +172,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         character.gameObject.SetActive(true);
         character.localScale = characterBaseScale;
         balloon.SetActive(true);
+        patienceTrack.SetActive(true);
         patienceFill.gameObject.SetActive(true);
         speech.gameObject.SetActive(false);
         speech.enabled = false;
@@ -201,6 +233,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         if (departing) return;
         departing = true;
         balloon.SetActive(false);
+        patienceTrack.SetActive(false);
         patienceFill.gameObject.SetActive(false);
         movement?.Kill();
         moodFeedback?.Kill();
@@ -234,6 +267,21 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     {
         if (owner != null) owner.Queue(OrderId);
     }
+
+#if UNITY_EDITOR
+    public void SetHatEditorPreview(bool visible)
+    {
+        gameObject.SetActive(visible);
+        if (!visible) return;
+
+        character.gameObject.SetActive(true);
+        balloon.SetActive(false);
+        patienceTrack.SetActive(false);
+        patienceFill.gameObject.SetActive(false);
+        for (int i = 0; i < faces.Length; i++)
+            faces[i].SetActive(i == 0);
+    }
+#endif
 
     public void OnPointerEnter(PointerEventData eventData)
     {

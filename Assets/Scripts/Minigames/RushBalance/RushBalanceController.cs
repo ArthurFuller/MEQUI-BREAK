@@ -6,6 +6,46 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class RushBalanceController : MonoBehaviour
 {
+    [System.Serializable]
+    public sealed class RushHatVisualAdjustment
+    {
+        [Tooltip("Ajuste adicional normalizado somente para o Rush.")]
+        public Vector2 Offset;
+        [Tooltip("Multiplicador adicional sobre a escala da Customization.")]
+        [Min(.1f)] public float ScaleMultiplier = 1f;
+        [Tooltip("Rotação adicional somente para o Rush.")]
+        public float Rotation;
+    }
+
+    public readonly struct NpcAppearance
+    {
+        public readonly int HatIndex;
+        public readonly int ColorIndex;
+        public readonly Sprite HatSprite;
+        public readonly Color BodyColor;
+        public readonly Vector2 HatOffset;
+        public readonly float HatScale;
+        public readonly float HatRotation;
+
+        public NpcAppearance(
+            int hatIndex,
+            int colorIndex,
+            Sprite hatSprite,
+            Color bodyColor,
+            Vector2 hatOffset,
+            float hatScale,
+            float hatRotation)
+        {
+            HatIndex = hatIndex;
+            ColorIndex = colorIndex;
+            HatSprite = hatSprite;
+            BodyColor = bodyColor;
+            HatOffset = hatOffset;
+            HatScale = hatScale;
+            HatRotation = hatRotation;
+        }
+    }
+
     [Header("Sessão e pool da Hierarchy")]
     [SerializeField] private RushTimedSessionController session;
     [Tooltip("Cinco clientes: quatro visíveis e um reserva.")]
@@ -40,6 +80,26 @@ public sealed class RushBalanceController : MonoBehaviour
     [Tooltip("Paciência: paciente, normal e exigente.")]
     [SerializeField] private Vector3 patienceTimes = new Vector3(35f, 30f, 25f);
     [SerializeField, Range(0f, 1f)] private float secondarySpeed = .5f;
+
+    [Header("Aparência randômica dos NPCs")]
+    [SerializeField] private AvatarCustomizationCatalog customizationCatalog;
+    [Tooltip("Índice 0 deve representar a opção sem chapéu.")]
+    [SerializeField] private Sprite[] npcHatOptions;
+    [SerializeField] private Color[] npcColorOptions;
+    [SerializeField] private bool allowNoHat = true;
+    [SerializeField, Range(0f, 1f)] private float noHatChance = .18f;
+    [SerializeField] private bool avoidRepeatedHats = true;
+    [SerializeField] private bool avoidRepeatedColors = true;
+    [SerializeField] private RushHatVisualAdjustment[] rushHatAdjustments;
+
+    [Header("Prévia dos chapéus no Rush — Editor")]
+    [SerializeField] private RushCustomerView hatPreviewCustomer;
+    [SerializeField] private GameObject hatSafeAreaGuide;
+    [SerializeField] private bool showHatSafeArea = true;
+    [SerializeField] private bool previewHatInEditor = true;
+    [SerializeField] private bool editHatDirectlyInScene;
+    [SerializeField, Min(0)] private int hatPreviewIndex = 1;
+    [SerializeField, Min(0)] private int colorPreviewIndex;
 
     [Header("Ritmo configurável")]
     [Tooltip("Multiplica preparo e perda de paciência. Não altera a duração total da partida.")]
@@ -79,6 +139,7 @@ public sealed class RushBalanceController : MonoBehaviour
         for (int i = 0; i < queueTargets.Length; i++) queueTargets[i].Highlight(false);
         finalNoticeBasePosition = finalCyclePanel.anchoredPosition;
         finalCycleBanner.SetActive(false);
+        if (hatSafeAreaGuide != null) hatSafeAreaGuide.SetActive(false);
     }
 
     private void OnEnable()
@@ -158,14 +219,80 @@ public sealed class RushBalanceController : MonoBehaviour
         if (!round.Activate(id, customerIndex, items, patience, duration)) return;
         RushRound.Order order = round.Orders[id];
         customers[customerIndex].Enter(id, order, profile, customerEntrance, target, instant);
+        NpcAppearance appearance = CreateAppearance(customerIndex);
+        customers[customerIndex].ApplyAppearance(appearance);
         orderViews[id].Bind(
             this,
             id,
             items,
-            customers[customerIndex].BodyColor,
+            appearance,
             customers[customerIndex].CurrentFaceSprite);
         EventLogger.Instance?.RecordActivityEvent(
             $"rush_request_{items}_items_{profile.ToString().ToLowerInvariant()}");
+    }
+
+    private NpcAppearance CreateAppearance(int customerIndex)
+    {
+        int hatIndex = 0;
+        int colorIndex = 0;
+
+        // Apenas quatro clientes ficam visíveis. Uma busca curta e limitada
+        // evita repetições sem alocar listas ou executar lógica a cada frame.
+        for (int attempt = 0; attempt < 48; attempt++)
+        {
+            hatIndex = PickHatIndex();
+            colorIndex = Random.Range(0, npcColorOptions.Length);
+            if (AppearanceIsAvailable(customerIndex, hatIndex, colorIndex)) break;
+        }
+
+        return BuildAppearance(hatIndex, colorIndex);
+    }
+
+    private NpcAppearance BuildAppearance(int hatIndex, int colorIndex)
+    {
+        hatIndex = Mathf.Clamp(hatIndex, 0, npcHatOptions.Length - 1);
+        colorIndex = Mathf.Clamp(colorIndex, 0, npcColorOptions.Length - 1);
+        Sprite hat = npcHatOptions[hatIndex];
+        AvatarCustomizationItem catalogAdjustment = customizationCatalog.GetItem(
+            AvatarCustomizationCategory.Hat, hatIndex);
+        RushHatVisualAdjustment rushAdjustment = rushHatAdjustments != null
+            && hatIndex < rushHatAdjustments.Length ? rushHatAdjustments[hatIndex] : null;
+        Vector2 baseOffset = catalogAdjustment != null
+            ? catalogAdjustment.DeslocamentoNoAvatar : Vector2.zero;
+        float baseScale = catalogAdjustment != null && catalogAdjustment.EscalaNoAvatar > 0f
+            ? catalogAdjustment.EscalaNoAvatar : 1f;
+        float baseRotation = catalogAdjustment != null ? catalogAdjustment.RotacaoNoAvatar : 0f;
+        Vector2 rushOffset = rushAdjustment != null ? rushAdjustment.Offset : Vector2.zero;
+        float rushScale = rushAdjustment != null && rushAdjustment.ScaleMultiplier > 0f
+            ? rushAdjustment.ScaleMultiplier : 1f;
+        float rushRotation = rushAdjustment != null ? rushAdjustment.Rotation : 0f;
+        return new NpcAppearance(
+            hatIndex,
+            colorIndex,
+            hat,
+            npcColorOptions[colorIndex],
+            baseOffset + rushOffset,
+            baseScale * rushScale,
+            baseRotation + rushRotation);
+    }
+
+    private int PickHatIndex()
+    {
+        if (allowNoHat && Random.value < noHatChance) return 0;
+        return npcHatOptions.Length > 1 ? Random.Range(1, npcHatOptions.Length) : 0;
+    }
+
+    private bool AppearanceIsAvailable(int customerIndex, int hatIndex, int colorIndex)
+    {
+        for (int i = 0; i < customers.Length; i++)
+        {
+            RushCustomerView customer = customers[i];
+            if (i == customerIndex || customer == null || !customer.HasAppearance
+                || !customer.gameObject.activeSelf) continue;
+            if (avoidRepeatedHats && customer.HatIndex == hatIndex) return false;
+            if (avoidRepeatedColors && customer.ColorIndex == colorIndex) return false;
+        }
+        return true;
     }
 
     public void Queue(int id)
@@ -466,6 +593,13 @@ public sealed class RushBalanceController : MonoBehaviour
             || secondarySpeed < 0f || secondarySpeed > 1f
             || simulationSpeed <= 0f || animationSpeed <= 0f)
             return SetupError("tempos de preparo, paciência ou velocidade.");
+        if (customizationCatalog == null) return SetupError("customizationCatalog não atribuído.");
+        if (npcHatOptions == null || npcHatOptions.Length < 2)
+            return SetupError("npcHatOptions precisa incluir sem chapéu e ao menos um chapéu.");
+        if (npcColorOptions == null || npcColorOptions.Length < 4)
+            return SetupError("npcColorOptions precisa de pelo menos quatro cores.");
+        if (rushHatAdjustments == null || rushHatAdjustments.Length != npcHatOptions.Length)
+            return SetupError("rushHatAdjustments precisa acompanhar npcHatOptions.");
 
         for (int i = 0; i < customers.Length; i++)
             if (customers[i] == null || !customers[i].Configured)
@@ -481,4 +615,92 @@ public sealed class RushBalanceController : MonoBehaviour
         }
         return true;
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        UnityEditor.EditorApplication.delayCall -= ApplyHatPreviewInEditor;
+        UnityEditor.EditorApplication.delayCall += ApplyHatPreviewInEditor;
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (Application.isPlaying) return;
+        if (!editHatDirectlyInScene || hatPreviewCustomer == null
+            || hatPreviewCustomer.HatImage == null
+            || UnityEditor.Selection.activeGameObject != hatPreviewCustomer.HatImage.gameObject)
+            return;
+
+        SaveRushHatAdjustment();
+    }
+
+    private void ApplyHatPreviewInEditor()
+    {
+        UnityEditor.EditorApplication.delayCall -= ApplyHatPreviewInEditor;
+        if (this == null || Application.isPlaying) return;
+        if (hatSafeAreaGuide != null) hatSafeAreaGuide.SetActive(showHatSafeArea);
+        ApplyHatPreviewVisibilityInEditor();
+        if (!previewHatInEditor || hatPreviewCustomer == null || customizationCatalog == null
+            || npcHatOptions == null || npcHatOptions.Length == 0
+            || npcColorOptions == null || npcColorOptions.Length == 0) return;
+
+        hatPreviewIndex = Mathf.Clamp(hatPreviewIndex, 0, npcHatOptions.Length - 1);
+        colorPreviewIndex = Mathf.Clamp(colorPreviewIndex, 0, npcColorOptions.Length - 1);
+        hatPreviewCustomer.gameObject.SetActive(true);
+        hatPreviewCustomer.ApplyAppearance(BuildAppearance(hatPreviewIndex, colorPreviewIndex));
+    }
+
+    private void ApplyHatPreviewVisibilityInEditor()
+    {
+        if (customers == null) return;
+        for (int i = 0; i < customers.Length; i++)
+        {
+            RushCustomerView customer = customers[i];
+            if (customer != null)
+                customer.SetHatEditorPreview(previewHatInEditor && customer == hatPreviewCustomer);
+        }
+    }
+
+    private void SaveRushHatAdjustment()
+    {
+        if (npcHatOptions == null || npcHatOptions.Length == 0
+            || customizationCatalog == null || hatPreviewCustomer == null
+            || hatPreviewCustomer.HatImage == null) return;
+        int index = Mathf.Clamp(hatPreviewIndex, 0, npcHatOptions.Length - 1);
+        if (rushHatAdjustments == null || index >= rushHatAdjustments.Length) return;
+        RushHatVisualAdjustment adjustment = rushHatAdjustments[index];
+        if (adjustment == null) return;
+
+        RectTransform target = hatPreviewCustomer.HatImage.rectTransform;
+        Rect rect = target.rect;
+        if (rect.width <= 0f || rect.height <= 0f) return;
+        AvatarCustomizationItem catalogAdjustment = customizationCatalog.GetItem(
+            AvatarCustomizationCategory.Hat, index);
+        Vector2 baseOffset = catalogAdjustment != null
+            ? catalogAdjustment.DeslocamentoNoAvatar : Vector2.zero;
+        float baseScale = catalogAdjustment != null && catalogAdjustment.EscalaNoAvatar > 0f
+            ? catalogAdjustment.EscalaNoAvatar : 1f;
+        float baseRotation = catalogAdjustment != null ? catalogAdjustment.RotacaoNoAvatar : 0f;
+        Vector2 finalOffset = new Vector2(
+            target.anchoredPosition.x / rect.width,
+            target.anchoredPosition.y / rect.height);
+        float finalScale = (Mathf.Abs(target.localScale.x) + Mathf.Abs(target.localScale.y))
+            * .5f / hatPreviewCustomer.HatScaleMultiplier;
+        float finalRotation = target.localEulerAngles.z;
+        if (finalRotation > 180f) finalRotation -= 360f;
+
+        Vector2 nextOffset = finalOffset - baseOffset;
+        float nextScale = Mathf.Max(.1f, finalScale / Mathf.Max(.01f, baseScale));
+        float nextRotation = finalRotation - baseRotation;
+        if (Vector2.SqrMagnitude(adjustment.Offset - nextOffset) < .0000001f
+            && Mathf.Abs(adjustment.ScaleMultiplier - nextScale) < .0001f
+            && Mathf.Abs(adjustment.Rotation - nextRotation) < .001f) return;
+
+        adjustment.Offset = nextOffset;
+        adjustment.ScaleMultiplier = nextScale;
+        adjustment.Rotation = nextRotation;
+        UnityEditor.EditorUtility.SetDirty(this);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+    }
+#endif
 }

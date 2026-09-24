@@ -197,21 +197,45 @@ public sealed class AvatarView : MonoBehaviour
 
     private void ApplyItemTransform(Image image, AvatarCustomizationCategory category, int optionIndex)
     {
-        RectTransform target = image != null ? image.rectTransform : null;
-        if (target == null)
-            return;
-
         AvatarCustomizationItem item = catalogoDeAjustes != null
             ? catalogoDeAjustes.GetItem(category, optionIndex)
             : null;
 
+        ApplyCatalogItemTransform(image, item);
+    }
+
+    /// <summary>
+    /// Reutiliza em outras telas os ajustes manuais feitos no catálogo da
+    /// Customization, sem duplicar regras de posição, escala e rotação.
+    /// </summary>
+    public static void ApplyCatalogItemTransform(
+        Image image,
+        AvatarCustomizationItem item,
+        float scaleMultiplier = 1f)
+    {
         Vector2 offset = item != null ? item.DeslocamentoNoAvatar : Vector2.zero;
         float scale = item != null && item.EscalaNoAvatar > 0f ? item.EscalaNoAvatar : 1f;
         float rotation = item != null ? item.RotacaoNoAvatar : 0f;
-        Rect rect = target.rect;
 
-        target.anchoredPosition = new Vector2(offset.x * rect.width, offset.y * rect.height);
-        target.localScale = new Vector3(scale, scale, 1f);
+        ApplyNormalizedTransform(image, offset, scale * scaleMultiplier, rotation);
+    }
+
+    public static void ApplyNormalizedTransform(
+        Image image,
+        Vector2 normalizedOffset,
+        float scale,
+        float rotation)
+    {
+        RectTransform target = image != null ? image.rectTransform : null;
+        if (target == null)
+            return;
+
+        Rect rect = target.rect;
+        target.anchoredPosition = new Vector2(
+            normalizedOffset.x * rect.width,
+            normalizedOffset.y * rect.height);
+        float safeScale = Mathf.Max(.01f, scale);
+        target.localScale = new Vector3(safeScale, safeScale, 1f);
         target.localRotation = Quaternion.Euler(0f, 0f, rotation);
     }
 }

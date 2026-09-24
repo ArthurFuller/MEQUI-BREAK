@@ -91,6 +91,7 @@ public sealed class ResultPopup : MonoBehaviour
     {
         KillSequence();
 
+        popupCanvasGroup.interactable = true;
         popupCanvasGroup.blocksRaycasts = true;
 
         _activeSequence = DOTween.Sequence()
@@ -103,6 +104,7 @@ public sealed class ResultPopup : MonoBehaviour
 
     private void PlayOut()
     {
+        popupCanvasGroup.interactable = false;
         popupCanvasGroup.blocksRaycasts = false;
         continueButton.interactable = false;
 
@@ -189,6 +191,7 @@ public sealed class ResultPopup : MonoBehaviour
     private void HideInstant()
     {
         ResetVisualState();
+        popupCanvasGroup.interactable = false;
         popupCanvasGroup.blocksRaycasts = false;
         continueButton.interactable = false;
         gameObject.SetActive(false);
