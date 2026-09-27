@@ -15,7 +15,17 @@ public enum AvatarHatPreviewOption
     [InspectorName("8 - Chapéu de festa")] ChapeuDeFesta = 8,
     [InspectorName("9 - Formatura")] Formatura = 9,
     [InspectorName("10 - Chapéu de mago")] ChapeuDeMago = 10,
-    [InspectorName("11 - Coroa")] Coroa = 11
+    [InspectorName("11 - Coroa")] Coroa = 11,
+    [InspectorName("12 - Cartola")] Chapeu12 = 12,
+    [InspectorName("13 - Boina")] Chapeu13 = 13,
+    [InspectorName("14 - Fedora")] Chapeu14 = 14,
+    [InspectorName("15 - Chapéu cowboy")] Chapeu15 = 15,
+    [InspectorName("16 - Chapéu pirata")] Chapeu16 = 16,
+    [InspectorName("17 - Chapéu de marinheiro")] Chapeu17 = 17,
+    [InspectorName("18 - Gorro natalino")] Chapeu18 = 18,
+    [InspectorName("19 - Chapéu de palha")] Chapeu19 = 19,
+    [InspectorName("20 - Boné com hélice")] Chapeu20 = 20,
+    [InspectorName("21 - Touca de enfermagem")] Chapeu21 = 21
 }
 
 /// <summary>

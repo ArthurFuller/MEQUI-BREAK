@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c67242130bdcc84bb75c63e25ccde11, type: 3}
   m_Name: AvatarCustomizationCatalog
   m_EditorClassIdentifier: Assembly-CSharp::AvatarCustomizationCatalog
-  chapeuMostradoNaPrevia: 2
+  chapeuMostradoNaPrevia: 21
   ajustesDosChapeus:
   - Id: hat_00
     Category: 0
@@ -131,8 +131,108 @@ MonoBehaviour:
     BreakPointCost: 0
     RequiredLevel: 5
     DisplayName: Coroa
+    DeslocamentoNoAvatar: {x: 0, y: 0.18}
+    EscalaNoAvatar: 1.34
+    RotacaoNoAvatar: 0
+  - Id: hat_12
+    Category: 0
+    OptionIndex: 12
+    UnlockType: 1
+    BreakPointCost: 140
+    RequiredLevel: 1
+    DisplayName: Cartola
+    DeslocamentoNoAvatar: {x: 0, y: 0.21}
+    EscalaNoAvatar: 1.3
+    RotacaoNoAvatar: 0
+  - Id: hat_13
+    Category: 0
+    OptionIndex: 13
+    UnlockType: 1
+    BreakPointCost: 160
+    RequiredLevel: 1
+    DisplayName: Boina
+    DeslocamentoNoAvatar: {x: 0, y: 0.17}
+    EscalaNoAvatar: 1.3
+    RotacaoNoAvatar: 0
+  - Id: hat_14
+    Category: 0
+    OptionIndex: 14
+    UnlockType: 1
+    BreakPointCost: 180
+    RequiredLevel: 1
+    DisplayName: Fedora
+    DeslocamentoNoAvatar: {x: 0, y: 0.16}
+    EscalaNoAvatar: 1.39
+    RotacaoNoAvatar: 0
+  - Id: hat_15
+    Category: 0
+    OptionIndex: 15
+    UnlockType: 1
+    BreakPointCost: 200
+    RequiredLevel: 1
+    DisplayName: "Chap\xE9u cowboy"
+    DeslocamentoNoAvatar: {x: 0, y: 0.08}
+    EscalaNoAvatar: 1.57
+    RotacaoNoAvatar: 0
+  - Id: hat_16
+    Category: 0
+    OptionIndex: 16
+    UnlockType: 1
+    BreakPointCost: 220
+    RequiredLevel: 1
+    DisplayName: "Chap\xE9u pirata"
     DeslocamentoNoAvatar: {x: 0, y: 0.15}
     EscalaNoAvatar: 1.34
+    RotacaoNoAvatar: 0
+  - Id: hat_17
+    Category: 0
+    OptionIndex: 17
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 2
+    DisplayName: "Chap\xE9u de marinheiro"
+    DeslocamentoNoAvatar: {x: 0, y: 0.15}
+    EscalaNoAvatar: 1.33
+    RotacaoNoAvatar: 0
+  - Id: hat_18
+    Category: 0
+    OptionIndex: 18
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 3
+    DisplayName: Gorro natalino
+    DeslocamentoNoAvatar: {x: 0.06, y: 0.14}
+    EscalaNoAvatar: 1.48
+    RotacaoNoAvatar: 0
+  - Id: hat_19
+    Category: 0
+    OptionIndex: 19
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 4
+    DisplayName: "Chap\xE9u de palha"
+    DeslocamentoNoAvatar: {x: 0, y: 0.14}
+    EscalaNoAvatar: 1.36
+    RotacaoNoAvatar: 0
+  - Id: hat_20
+    Category: 0
+    OptionIndex: 20
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 5
+    DisplayName: "Bon\xE9 com h\xE9lice"
+    DeslocamentoNoAvatar: {x: 0, y: 0.15}
+    EscalaNoAvatar: 1.36
+    RotacaoNoAvatar: 0
+  - Id: hat_21
+    Category: 0
+    OptionIndex: 21
+    UnlockType: 2
+    BreakPointCost: 0
+    RequiredLevel: 6
+    DisplayName: Touca de enfermagem
+    DeslocamentoNoAvatar: {x: 0, y: 0.14}
+    EscalaNoAvatar: 1.45
     RotacaoNoAvatar: 0
   faceItems:
   - Id: face_00
