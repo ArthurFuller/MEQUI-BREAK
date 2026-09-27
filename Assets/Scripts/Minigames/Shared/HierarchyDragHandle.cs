@@ -20,6 +20,7 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
     public bool IsDragging { get; private set; }
     public float LastDragEndTime { get; private set; } = -10f;
     protected CanvasGroup DragCanvasGroup => canvasGroup;
+    public RectTransform DragVisual => visual;
     public bool OwnsPointer(PointerEventData data) => IsDragging && data.pointerId == pointerId;
     public string DragConfigurationError => visual == null ? "visual"
         : canvasGroup == null ? "canvasGroup" : canvasRect == null ? "canvasRect" : null;
@@ -28,12 +29,15 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
     protected abstract Vector3 RestPosition { get; }
     protected virtual void HighlightTargets(bool visible) { }
     protected virtual void DragStateChanged(bool dragging) { }
+    protected virtual void DragMoved() { }
     protected virtual void DragFinished(bool accepted) { }
 
     protected void MarkDropAccepted()
     {
         if (IsDragging) dropAccepted = true;
     }
+
+    public void AcceptCurrentDrop() => MarkDropAccepted();
 
     protected virtual void Awake()
     {
@@ -70,7 +74,11 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
     {
         if (!OwnsPointer(data)) return;
         if (!CanDrag) { CancelDrag(false); return; }
-        if (Point(data, out Vector3 point)) visual.position = point + pointerOffset;
+        if (Point(data, out Vector3 point))
+        {
+            visual.position = point + pointerOffset;
+            DragMoved();
+        }
     }
 
     public void OnEndDrag(PointerEventData data)

@@ -163,7 +163,7 @@ public sealed class SceneLoader : MonoBehaviour
 
     private static bool UsesLandscapeLayout(string sceneName)
     {
-        return IsScene(sceneName, "ComboCrew");
+        return false;
     }
 
     private IEnumerator LoadWithSlideTransition(

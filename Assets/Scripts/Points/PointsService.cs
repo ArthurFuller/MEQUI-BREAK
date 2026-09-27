@@ -21,11 +21,17 @@ public sealed class PointsService : MonoBehaviour
 
     public int AwardParticipation()
     {
-        if (PlayerManager.Instance == null)
+        return AwardParticipation(participationPoints);
+    }
+
+    /// <summary>Permite configurar o prêmio de uma atividade sem alterar as demais.</summary>
+    public int AwardParticipation(int amount)
+    {
+        if (PlayerManager.Instance == null || amount <= 0)
             return 0;
 
-        PlayerManager.Instance.AddBreakPoints(participationPoints);
+        PlayerManager.Instance.AddBreakPoints(amount);
         PlayerManager.Instance.SaveProfile();
-        return participationPoints;
+        return amount;
     }
 }

@@ -16,7 +16,7 @@ public sealed class MinigameSessionController : MonoBehaviour
     [Tooltip("Configure exatamente três valores. Rush: 4, 5, 6.")]
     [SerializeField] private int[] ordersPerTurn = { 4, 5, 6 };
     [SerializeField, Min(0f)] private float preparationSeconds = 10f;
-    [Tooltip("Use LandscapeLeft ou LandscapeRight. O modo anterior é restaurado ao sair da cena.")]
+    [Tooltip("Orientação usada pela cena. O modo anterior é restaurado ao sair.")]
     [SerializeField] private ScreenOrientation gameplayOrientation = ScreenOrientation.LandscapeLeft;
 
     [Header("Objetos existentes na Hierarchy")]
@@ -108,13 +108,13 @@ public sealed class MinigameSessionController : MonoBehaviour
 
         if (leaving) yield break;
 
-        // A cena é landscape por definição. Forçamos a orientação antes da validação
+        // Forçamos a orientação antes da validação
         // para impedir que qualquer estado de erro seja exibido no Canvas portrait.
         DeviceScreen.orientation = gameplayOrientation;
         yield return null;
         yield return null;
         float deadline = Time.realtimeSinceStartup + 1.5f;
-        while (!leaving && (Application.isMobilePlatform || Application.isEditor) && DeviceScreen.width < DeviceScreen.height
+        while (!leaving && (Application.isMobilePlatform || Application.isEditor) && !OrientationMatches()
             && Time.realtimeSinceStartup < deadline)
             yield return null;
         if (leaving) yield break;
@@ -239,6 +239,7 @@ public sealed class MinigameSessionController : MonoBehaviour
 
     private void RefreshPreparationLabel()
     {
+        if (preparationLabel == null) return;
         int seconds = Mathf.CeilToInt(preparationRemaining);
         if (seconds == displayedSecond) return;
         displayedSecond = seconds;
@@ -261,7 +262,6 @@ public sealed class MinigameSessionController : MonoBehaviour
     private bool ValidateSetup()
     {
         if (preparationPanel == null) return SetupError("preparationPanel não atribuído.");
-        if (preparationLabel == null) return SetupError("preparationLabel não atribuído.");
         if (turnLabel == null) return SetupError("turnLabel não atribuído.");
         if (startTurnButton == null) return SetupError("startTurnButton não atribuído.");
         if (backButton == null) return SetupError("backButton não atribuído.");
@@ -272,8 +272,9 @@ public sealed class MinigameSessionController : MonoBehaviour
         if (MaximumOrders < 1) return SetupError("ordersPerTurn precisa conter três inteiros positivos (4, 5, 6).");
         if (gameplayControllers != 1) return SetupError($"Controladores registrados: {gameplayControllers}; esperado: 1.");
         if (!gameplayConfigured) return SetupError("O controlador de gameplay falhou na validação. Consulte o erro específico no Console.");
-        if (gameplayOrientation != ScreenOrientation.LandscapeLeft && gameplayOrientation != ScreenOrientation.LandscapeRight)
-            return SetupError("gameplayOrientation precisa ser LandscapeLeft ou LandscapeRight.");
+        if (gameplayOrientation != ScreenOrientation.LandscapeLeft && gameplayOrientation != ScreenOrientation.LandscapeRight
+            && gameplayOrientation != ScreenOrientation.Portrait && gameplayOrientation != ScreenOrientation.PortraitUpsideDown)
+            return SetupError("gameplayOrientation precisa ser portrait ou landscape.");
         if (EventLogger.Instance == null) return SetupError("EventLogger ausente. Execute pelo Boot.");
         if (PointsService.Instance == null) return SetupError("PointsService ausente. Execute pelo Boot.");
         if (PlayerManager.Instance == null) return SetupError("PlayerManager ausente. Execute pelo Boot.");
@@ -298,6 +299,13 @@ public sealed class MinigameSessionController : MonoBehaviour
             DeviceScreen.orientation = previousOrientation;
             orientationCaptured = false;
         }
+    }
+
+    private bool OrientationMatches()
+    {
+        bool portrait = gameplayOrientation == ScreenOrientation.Portrait
+            || gameplayOrientation == ScreenOrientation.PortraitUpsideDown;
+        return portrait ? DeviceScreen.height >= DeviceScreen.width : DeviceScreen.width >= DeviceScreen.height;
     }
 
     private void OnDestroy()
