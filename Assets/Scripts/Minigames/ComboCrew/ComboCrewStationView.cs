@@ -20,6 +20,8 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     private float shown;
     private RectTransform bar;
     private Color highlightColor;
+    private Color progressColor;
+    private bool completionPlayed;
     private bool dragHighlight;
     private Alert alert;
     public RectTransform WorkAnchor => workAnchor;
@@ -34,6 +36,8 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         shown = 0f;
         bar = progressFill.rectTransform;
         highlightColor = highlight.color;
+        progressColor = progressFill.color;
+        completionPlayed = false;
         progressFill.type = Image.Type.Simple;
         SetBar(0f);
         highlight.gameObject.SetActive(false);
@@ -45,6 +49,15 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         float blend = 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime);
         shown = Mathf.Lerp(shown, Mathf.Clamp01(progress), blend);
         SetBar(shown);
+        if (progress < .9f) completionPlayed = false;
+        if (progress >= .99f && shown >= .985f && !completionPlayed)
+        {
+            completionPlayed = true;
+            progressFill.DOKill();
+            progressFill.color = progressColor;
+            progressFill.DOColor(new Color(1f, .87f, .43f), .16f)
+                .SetLoops(2, LoopType.Yoyo).SetTarget(this);
+        }
         status.text = message;
         trayOnCounter.SetActive(hasTray);
     }
@@ -56,7 +69,14 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         bar.localScale = scale;
     }
 
-    public void ResetProgress() { shown = 0f; SetBar(0f); }
+    public void ResetProgress()
+    {
+        progressFill.DOKill();
+        progressFill.color = progressColor;
+        completionPlayed = false;
+        shown = 0f;
+        SetBar(0f);
+    }
     public void Highlight(bool value) { dragHighlight = value; RefreshHighlight(); }
 
     public void SetAlert(Alert level)
@@ -68,8 +88,10 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     private void RefreshHighlight()
     {
         if (highlight == null) return;
-        highlight.color = alert == Alert.Broken ? new Color(1f, .2f, .16f, .3f)
-            : alert == Alert.Repairing ? new Color(.3f, .85f, 1f, .24f) : highlightColor;
+        highlight.color = alert == Alert.Broken ? new Color(1f, .24f, .16f, .8f)
+            : alert == Alert.Repairing ? new Color(.28f, .8f, 1f, .68f)
+            : alert == Alert.Warning ? new Color(1f, .72f, .18f, .55f)
+            : new Color(highlightColor.r, highlightColor.g, highlightColor.b, .5f);
         highlight.gameObject.SetActive(dragHighlight || alert != Alert.None);
     }
 
@@ -94,5 +116,7 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         if (worker != null && worker.OwnsPointer(eventData)
             && owner.AssignWorker(worker.WorkerIndex, index)) worker.AcceptCurrentDrop();
     }
+
+    private void OnDisable() { if (progressFill != null) progressFill.DOKill(); }
 
 }

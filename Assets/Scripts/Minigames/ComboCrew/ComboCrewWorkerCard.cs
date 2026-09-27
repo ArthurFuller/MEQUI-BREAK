@@ -1,17 +1,32 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using TMPro;
 
 /// <summary>Card fixo na prancheta, com rosto e duas funções configurados na Hierarchy.</summary>
-public sealed class ComboCrewWorkerCard : HierarchyDragHandle
+public sealed class ComboCrewWorkerCard : HierarchyDragHandle, IPointerClickHandler
 {
     [SerializeField] private ComboCrewController owner;
     [SerializeField, Min(0)] private int workerIndex;
     [SerializeField] private GameObject portraitWhileDragging;
     [SerializeField] private GameObject cardDetails;
     [SerializeField] private ComboCrewClipboard clipboard;
+    [SerializeField] private TMP_Text traitLabel;
     public int WorkerIndex => workerIndex;
     public bool Configured => DragConfigured && owner != null && clipboard != null
         && portraitWhileDragging != null && cardDetails != null;
     protected override bool CanDrag => owner != null && owner.CanMoveWorker(workerIndex);
+    private void Start()
+    {
+        if (traitLabel != null && owner != null)
+            traitLabel.text = owner.WorkerTrait(workerIndex);
+    }
+
+    public void OnPointerClick(PointerEventData data)
+    {
+        if (data.button == PointerEventData.InputButton.Left && !IsDragging
+            && Time.unscaledTime - LastDragEndTime > .2f)
+            owner?.OpenProfile(workerIndex);
+    }
     protected override Vector3 RestPosition => owner != null && owner.CardHome(workerIndex) != null
         ? owner.CardHome(workerIndex).position : transform.position;
 
