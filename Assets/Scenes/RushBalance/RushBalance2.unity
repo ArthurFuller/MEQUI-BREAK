@@ -12678,7 +12678,7 @@ MonoBehaviour:
   preparationTimes: {x: 4, y: 7, z: 10}
   patienceTimes: {x: 35, y: 30, z: 25}
   secondarySpeed: 0.5
-  appearanceMode: 0
+  appearanceMode: 1
   fullBodyOptions:
   - Sprite: {fileID: 2869016988476099638, guid: f7cbd8064c9271e449099fcfe8a669c2, type: 3}
     SkinColor: {r: 0.89803922, g: 0.56078431, b: 0.65882353, a: 1}

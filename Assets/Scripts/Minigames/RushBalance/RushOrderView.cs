@@ -9,6 +9,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [Header("Card montado na Hierarchy")]
     [SerializeField] private GameObject cardVisual;
     [SerializeField] private Image cardBackground;
+    [SerializeField] private Sprite[] cardStateSprites;
     [SerializeField] private RectTransform deliveryIconsRoot;
     [SerializeField] private GameObject[] itemIcons;
     [SerializeField] private Image customerBody;
@@ -18,7 +19,6 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private Image progressFill;
     [SerializeField] private Image priorityIndicator;
-    [SerializeField] private GameObject readyHighlight;
     [SerializeField, Min(.05f)] private float deliverySeconds = .36f;
     [SerializeField, Min(0f)] private float itemStagger = .1f;
     [SerializeField, Min(0f)] private float deliveryArcHeight = 90f;
@@ -33,29 +33,18 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [Tooltip("Suaviza a troca da cor que indica a prioridade do pedido.")]
     [SerializeField, Min(.01f)] private float priorityColorDuration = .16f;
 
-    [Header("Estados e affordances")]
-    [SerializeField] private Color activeColor = new Color(.18f, .17f, .12f, 1f);
-    [SerializeField] private Color secondaryColor = new Color(.16f, .14f, .12f, 1f);
-    [SerializeField] private Color waitingColor = new Color(.12f, .12f, .12f, 1f);
-    [SerializeField] private Color readyColor = new Color(.12f, .2f, .14f, 1f);
-    [SerializeField, Range(.4f, 1f)] private float secondaryAlpha = 1f;
-    [SerializeField, Range(.4f, 1f)] private float waitingAlpha = 1f;
-    [SerializeField, Min(.01f)] private float stateTransitionSeconds = .16f;
+    [Header("Estados do card: normal, arrastando, falhou, pronto")]
+    [SerializeField] private Color readyCardTint = new Color(.4f, 1f, .48f, 1f);
     [SerializeField, Min(0f)] private float invalidDropShake = 7f;
     [SerializeField, Min(.01f)] private float invalidDropSeconds = .18f;
-    [SerializeField, Min(0f)] private float readyPunch = .065f;
-    [SerializeField, Min(.01f)] private float readyPunchSeconds = .22f;
     [SerializeField, Min(0f)] private float deliveryRotation = 180f;
 
     private RectTransform previousAnchor;
-    private Tween readyPulse;
     private Tween deliveryTween;
     private Tween appearanceTween;
     private Tween cardPulse;
     private Tween priorityTween;
-    private Tween stateTween;
     private Tween invalidDropTween;
-    private Vector3 readyBaseScale;
     private Vector3 cardBaseScale;
     private Vector3 cardBasePosition;
     private Vector3 deliveryBaseScale;
@@ -65,17 +54,18 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     private readonly Quaternion[] itemBaseRotations = new Quaternion[3];
     private Vector3 progressFullScale;
     private RectTransform progressBar;
+    private Image deliveryBox;
     private float progressTarget;
     private bool defaultsCached;
     private bool wasReady;
     private bool delivering;
-    private bool waitingForDelivery;
+    private bool failing;
+    private bool waitingForResolution;
     private int visibleItemCount;
     private int previousRank = -1;
     private Color priorityTargetColor;
     private bool priorityTargetCached;
     private int visualState = -1;
-    private float stateAlphaTarget = 1f;
 
     public RushBalanceController Owner { get; private set; }
     public int OrderId { get; private set; } = -1;
@@ -83,13 +73,15 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         DragConfigurationError != null ? DragConfigurationError :
         cardVisual == null ? "cardVisual" :
         cardBackground == null ? "cardBackground" :
+        cardStateSprites == null || cardStateSprites.Length != 4 ? "cardStateSprites" :
+        cardStateSprites[0] == null || cardStateSprites[1] == null ||
+        cardStateSprites[2] == null || cardStateSprites[3] == null ? "cardStateSprites: sprite ausente" :
         deliveryIconsRoot == null ? "deliveryIconsRoot" :
         customerBody == null ? "customerBody" :
         customerFace == null ? "customerFace" :
         customerHat == null ? "customerHat" :
         progressFill == null ? "progressFill" :
         priorityIndicator == null ? "priorityIndicator" :
-        readyHighlight == null ? "readyHighlight" :
         itemIcons == null || itemIcons.Length != 3 ? "itemIcons: esperado 3 elementos" :
         itemIcons[0] == null ? "itemIcons[0]" :
         itemIcons[1] == null ? "itemIcons[1]" :
@@ -106,7 +98,12 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         // o card ativo como último irmão garante que ele seja renderizado acima
         // dos demais sem trocar de pai ou criar qualquer objeto em runtime.
         if (dragging)
+        {
             transform.SetAsLastSibling();
+            SetVisualState(1);
+        }
+        else if (!delivering && !failing)
+            SetVisualState(wasReady ? 3 : 0);
     }
 
     protected override void Awake()
@@ -117,11 +114,11 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     private void CacheDefaults()
     {
-        if (defaultsCached || readyHighlight == null || deliveryIconsRoot == null) return;
+        if (defaultsCached || deliveryIconsRoot == null) return;
         progressBar = progressFill.rectTransform;
+        deliveryBox = deliveryIconsRoot.GetComponent<Image>();
         progressFullScale = progressBar.localScale;
         progressFill.type = Image.Type.Simple;
-        readyBaseScale = readyHighlight.transform.localScale;
         cardBaseScale = cardVisual.transform.localScale;
         cardBasePosition = cardVisual.transform.localPosition;
         deliveryBaseScale = deliveryIconsRoot.localScale;
@@ -157,19 +154,17 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         previousAnchor = null;
         wasReady = false;
         delivering = false;
-        waitingForDelivery = false;
-        readyPulse?.Kill();
+        failing = false;
+        waitingForResolution = false;
         deliveryTween?.Kill();
         appearanceTween?.Kill();
         cardPulse?.Kill();
         priorityTween?.Kill();
-        stateTween?.Kill();
         invalidDropTween?.Kill();
         visibleItemCount = items;
         previousRank = -1;
         priorityTargetCached = false;
         visualState = -1;
-        stateAlphaTarget = 1f;
         customerBody.color = appearance.BodyColor;
         customerFace.sprite = faceSprite;
         customerFace.enabled = faceSprite != null;
@@ -182,6 +177,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             appearance.HatRotation);
         deliveryIconsRoot.anchoredPosition = deliveryBasePosition;
         deliveryIconsRoot.localScale = deliveryBaseScale;
+        if (deliveryBox != null) deliveryBox.enabled = true;
         cardVisual.transform.localScale = cardBaseScale;
         cardVisual.transform.localPosition = cardBasePosition;
         DragCanvasGroup.alpha = 1f;
@@ -200,24 +196,31 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         gameObject.SetActive(false);
     }
 
+    public void SetFoodSprites(Sprite[] sprites)
+    {
+        for (int i = 0; i < sprites.Length && i < itemIcons.Length; i++)
+        {
+            Image image = itemIcons[i].GetComponentInChildren<Image>(true);
+            if (image != null) image.sprite = sprites[i];
+        }
+    }
+
     public void Clear()
     {
-        readyPulse?.Kill();
         deliveryTween?.Kill();
         appearanceTween?.Kill();
         cardPulse?.Kill();
         priorityTween?.Kill();
-        stateTween?.Kill();
         invalidDropTween?.Kill();
         delivering = false;
-        waitingForDelivery = false;
+        failing = false;
+        waitingForResolution = false;
         wasReady = false;
         previousAnchor = null;
         visibleItemCount = 0;
         previousRank = -1;
         priorityTargetCached = false;
         visualState = -1;
-        stateAlphaTarget = 1f;
         if (cardVisual != null && defaultsCached) cardVisual.transform.localScale = cardBaseScale;
         if (cardVisual != null && defaultsCached) cardVisual.transform.localPosition = cardBasePosition;
         if (DragCanvasGroup != null) DragCanvasGroup.alpha = 1f;
@@ -235,6 +238,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             deliveryIconsRoot.anchoredPosition = deliveryBasePosition;
             deliveryIconsRoot.localScale = deliveryBaseScale;
         }
+        if (deliveryBox != null) deliveryBox.enabled = true;
         progressTarget = 0f;
         if (progressBar != null && defaultsCached)
         {
@@ -242,16 +246,13 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             emptyScale.x = 0f;
             progressBar.localScale = emptyScale;
         }
-        if (readyHighlight != null) readyHighlight.SetActive(false);
         gameObject.SetActive(false);
     }
 
     public void Refresh(RushRound.Order order, Color bodyColor, Sprite faceSprite)
     {
-        // Um segundo pedido pode ser entregue enquanto a animação anterior ainda
-        // está em andamento. Nesse intervalo o estado lógico já é Delivered, mas
-        // o card precisa continuar visível até chegar sua vez na fila visual.
-        if (delivering || waitingForDelivery) return;
+        // Preserva o card na fila visual ate a entrega ou falha terminar.
+        if (delivering || failing || waitingForResolution) return;
         bool visible = order.State == RushRound.Status.Queued || order.State == RushRound.Status.Ready;
         if (!visible)
         {
@@ -260,6 +261,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         }
 
         bool wasVisible = gameObject.activeSelf;
+        if (Owner.HoldQueuePositions && !wasVisible) return;
         gameObject.SetActive(true);
         cardVisual.SetActive(true);
         customerBody.color = bodyColor;
@@ -274,28 +276,22 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             : rank == 0 ? new Color(1f, .73f, .08f)
             : rank == 1 ? new Color(.95f, .48f, .16f) : new Color(.35f, .38f, .4f);
         SetPriorityColor(nextPriorityColor, wasVisible);
-        SetVisualState(ready ? 3 : rank <= 0 ? 0 : rank == 1 ? 1 : 2, wasVisible);
+        if (!IsDragging) SetVisualState(ready ? 3 : 0);
 
         if (wasVisible && previousRank >= 0 && rank != previousRank && rank < 2)
             PlaySinglePulse();
         previousRank = rank;
 
-        readyHighlight.SetActive(ready);
         if (ready && !wasReady)
         {
             AudioManager.Instance?.PlayReady();
             MequiHaptics.Confirm();
-            readyPulse?.Kill();
-            readyHighlight.transform.localScale = readyBaseScale;
-            readyPulse = readyHighlight.transform
-                .DOPunchScale(Vector3.one * readyPunch, Seconds(readyPunchSeconds), 2, .3f)
-                .OnComplete(() => readyHighlight.transform.localScale = readyBaseScale);
             PlaySinglePulse();
         }
         wasReady = ready;
 
         RectTransform anchor = Owner.Anchor(OrderId);
-        if (anchor != previousAnchor || !wasVisible)
+        if (!Owner.HoldQueuePositions && (anchor != previousAnchor || !wasVisible))
         {
             previousAnchor = anchor;
             MoveHome(!wasVisible);
@@ -310,29 +306,47 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         cardVisual.transform.localScale = cardBaseScale * .92f;
         appearanceTween = DOTween.Sequence()
             .SetTarget(this)
-            .Join(DragCanvasGroup.DOFade(stateAlphaTarget, Seconds(appearanceSeconds)).SetEase(Ease.OutQuad))
+            .Join(DragCanvasGroup.DOFade(1f, Seconds(appearanceSeconds)).SetEase(Ease.OutQuad))
             .Join(cardVisual.transform.DOScale(cardBaseScale, Seconds(appearanceSeconds)).SetEase(Ease.OutBack));
     }
 
-    private void SetVisualState(int nextState, bool animate)
+    private void SetVisualState(int nextState)
     {
         if (visualState == nextState) return;
         visualState = nextState;
-        stateAlphaTarget = nextState == 1 ? secondaryAlpha : nextState == 2 ? waitingAlpha : 1f;
-        Color targetColor = nextState == 0 ? activeColor
-            : nextState == 1 ? secondaryColor : nextState == 2 ? waitingColor : readyColor;
+        cardBackground.sprite = cardStateSprites[nextState];
+        cardBackground.color = nextState == 3 ? readyCardTint : Color.white;
+    }
 
-        stateTween?.Kill();
-        if (!animate)
+    public void PlayFailure(Action completed)
+    {
+        waitingForResolution = false;
+        if (!gameObject.activeSelf)
         {
-            DragCanvasGroup.alpha = stateAlphaTarget;
-            cardBackground.color = targetColor;
+            completed?.Invoke();
             return;
         }
 
-        stateTween = DOTween.Sequence().SetTarget(this)
-            .Join(DragCanvasGroup.DOFade(stateAlphaTarget, Seconds(stateTransitionSeconds)).SetEase(Ease.OutQuad))
-            .Join(cardBackground.DOColor(targetColor, Seconds(stateTransitionSeconds)).SetEase(Ease.OutSine));
+        CancelDrag(true);
+        failing = true;
+        appearanceTween?.Kill();
+        cardPulse?.Kill();
+        invalidDropTween?.Kill();
+        cardVisual.SetActive(true);
+        cardVisual.transform.localScale = cardBaseScale;
+        cardVisual.transform.localPosition = cardBasePosition;
+        DragCanvasGroup.alpha = 1f;
+        DragCanvasGroup.blocksRaycasts = false;
+        SetVisualState(2);
+        invalidDropTween = DOTween.Sequence().SetTarget(this)
+            .Append(cardVisual.transform.DOShakePosition(Seconds(.28f), 6f, 10, 0f, false, true))
+            .AppendInterval(Seconds(.12f))
+            .Append(DragCanvasGroup.DOFade(0f, Seconds(.2f)))
+            .OnComplete(() =>
+            {
+                Clear();
+                completed?.Invoke();
+            });
     }
 
     private void PlaySinglePulse()
@@ -376,11 +390,14 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     public void PlayDelivery(RectTransform target, Action completed)
     {
         if (delivering || target == null) return;
-        waitingForDelivery = false;
+        waitingForResolution = false;
         delivering = true;
         CancelDrag(true);
-        readyPulse?.Kill();
+        appearanceTween?.Kill();
+        cardPulse?.Kill();
+        DragCanvasGroup.alpha = 1f;
         cardVisual.SetActive(false);
+        if (deliveryBox != null) deliveryBox.enabled = false;
         deliveryIconsRoot.gameObject.SetActive(true);
         deliveryTween?.Kill();
         Sequence sequence = DOTween.Sequence().SetTarget(this);
@@ -417,9 +434,9 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             });
     }
 
-    public void HoldForDelivery()
+    public void HoldForResolution()
     {
-        if (!delivering) waitingForDelivery = true;
+        if (!delivering) waitingForResolution = true;
     }
 
     private static Vector3 EvaluateBezier(Vector3 start, Vector3 control, Vector3 end, float value)
@@ -436,7 +453,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (Owner == null || delivering || Time.unscaledTime - LastDragEndTime < .15f) return;
+        if (Owner == null || delivering || failing || IsDragging || Time.unscaledTime - LastDragEndTime < .15f) return;
         if (!Owner.IsReady(OrderId)) PlaySinglePulse();
         Owner.Deliver(OrderId);
     }
@@ -451,7 +468,10 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         invalidDropTween = cardVisual.transform
             .DOShakePosition(Seconds(invalidDropSeconds), invalidDropShake, 12, 0f, false, true)
             .SetTarget(this)
-            .OnComplete(() => cardVisual.transform.localPosition = cardBasePosition);
+            .OnComplete(() =>
+            {
+                cardVisual.transform.localPosition = cardBasePosition;
+            });
         AudioManager.Instance?.PlayError();
         MequiHaptics.Reject();
     }
@@ -475,15 +495,11 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     protected override void OnDisable()
     {
         base.OnDisable();
-        readyPulse?.Kill();
         appearanceTween?.Kill();
         cardPulse?.Kill();
         priorityTween?.Kill();
-        stateTween?.Kill();
         invalidDropTween?.Kill();
         if (!delivering) deliveryTween?.Kill();
-        if (readyHighlight != null && defaultsCached)
-            readyHighlight.transform.localScale = readyBaseScale;
         if (cardVisual != null && defaultsCached)
         {
             cardVisual.transform.localScale = cardBaseScale;

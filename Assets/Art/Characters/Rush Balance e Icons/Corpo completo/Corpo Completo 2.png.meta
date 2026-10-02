@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 7fd9895ff46dd54439dea59be4034744
+guid: 3293b277bb1068a4ea9ec1f63def49b8
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 295053997291065053
-    second: Corpo Completo 13_0
+      213: 3122394814887428835
+    second: Corpo Completo 2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -75,7 +75,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -109,11 +109,37 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WindowsStoreApps
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Corpo Completo 13_0
+      name: Corpo Completo 2_0
       rect:
         serializedVersion: 2
         x: 33
@@ -128,8 +154,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: ddec71a1c0e381400800000000000000
-      internalID: 295053997291065053
+      spriteID: 3e203ed7a89f45b20800000000000000
+      internalID: 3122394814887428835
       vertices: []
       indices: 
       edges: []
@@ -148,7 +174,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Corpo Completo 13_0: 295053997291065053
+      Corpo Completo 2_0: 3122394814887428835
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

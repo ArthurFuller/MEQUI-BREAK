@@ -13,7 +13,11 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     [SerializeField] private RectTransform character;
     [SerializeField] private Image bodyImage;
     [SerializeField] private Image torsoImage;
+    [SerializeField] private Image fullBodyImage;
+    [SerializeField] private Image faceCover;
     [SerializeField] private Image hatImage;
+    [SerializeField, Range(.4f, 1f)] private float fullBodyHatScale = .7f;
+    [SerializeField] private Vector2 fullBodyHatOffset = new Vector2(0f, -.17f);
     [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private GameObject balloon;
     [SerializeField] private Button orderButton;
@@ -61,6 +65,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     public float HatScaleMultiplier => hatScaleMultiplier;
     public bool HasAppearance { get; private set; }
     public int HatIndex { get; private set; } = -1;
+    public int TorsoIndex { get; private set; } = -1;
     public int ColorIndex { get; private set; } = -1;
     public Sprite CurrentFaceSprite => mood >= 0 && mood < faceSprites.Length ? faceSprites[mood] : null;
     public PatienceProfile Profile { get; private set; }
@@ -68,6 +73,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         character == null ? "character" :
         bodyImage == null ? "bodyImage" :
         torsoImage == null ? "torsoImage" :
+        fullBodyImage == null ? "fullBodyImage" :
+        faceCover == null ? "faceCover" :
         hatImage == null ? "hatImage" :
         balloon == null ? "balloon" :
         orderButton == null ? "orderButton" :
@@ -123,6 +130,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         OrderId = -1;
         HasAppearance = false;
         HatIndex = -1;
+        TorsoIndex = -1;
         ColorIndex = -1;
         departing = false;
         balloonHovered = false;
@@ -139,16 +147,35 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     {
         HasAppearance = true;
         HatIndex = appearance.HatIndex;
+        TorsoIndex = appearance.TorsoIndex;
         ColorIndex = appearance.ColorIndex;
+        bool useFullBody = appearance.FullBodySprite != null;
         bodyImage.color = appearance.BodyColor;
-        torsoImage.color = appearance.BodyColor;
+        bodyImage.enabled = !useFullBody;
+        torsoImage.sprite = appearance.TorsoSprite;
+        torsoImage.color = Color.white;
+        torsoImage.enabled = !useFullBody;
+        fullBodyImage.sprite = appearance.FullBodySprite;
+        fullBodyImage.color = Color.white;
+        fullBodyImage.enabled = useFullBody;
+        faceCover.color = appearance.BodyColor;
+        faceCover.enabled = useFullBody;
         hatImage.sprite = appearance.HatSprite;
         hatImage.enabled = appearance.HatSprite != null;
         AvatarView.ApplyNormalizedTransform(
             hatImage,
-            appearance.HatOffset,
-            appearance.HatScale * hatScaleMultiplier,
+            appearance.HatOffset + (useFullBody ? fullBodyHatOffset : Vector2.zero),
+            appearance.HatScale * hatScaleMultiplier * (useFullBody ? fullBodyHatScale : 1f),
             appearance.HatRotation);
+    }
+
+    public void SetFoodSprites(Sprite[] sprites)
+    {
+        for (int i = 0; i < sprites.Length && i < itemIcons.Length; i++)
+        {
+            Image image = itemIcons[i].GetComponentInChildren<Image>(true);
+            if (image != null) image.sprite = sprites[i];
+        }
     }
 
     public void Enter(

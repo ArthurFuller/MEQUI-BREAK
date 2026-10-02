@@ -17,11 +17,23 @@ public sealed class RushBalanceController : MonoBehaviour
         public float Rotation;
     }
 
+    public enum AppearanceMode { BorderedClothes, FullBody }
+
+    [System.Serializable]
+    public struct FullBodyOption
+    {
+        public Sprite Sprite;
+        public Color SkinColor;
+    }
+
     public readonly struct NpcAppearance
     {
         public readonly int HatIndex;
+        public readonly int TorsoIndex;
         public readonly int ColorIndex;
         public readonly Sprite HatSprite;
+        public readonly Sprite TorsoSprite;
+        public readonly Sprite FullBodySprite;
         public readonly Color BodyColor;
         public readonly Vector2 HatOffset;
         public readonly float HatScale;
@@ -29,16 +41,22 @@ public sealed class RushBalanceController : MonoBehaviour
 
         public NpcAppearance(
             int hatIndex,
+            int torsoIndex,
             int colorIndex,
             Sprite hatSprite,
+            Sprite torsoSprite,
+            Sprite fullBodySprite,
             Color bodyColor,
             Vector2 hatOffset,
             float hatScale,
             float hatRotation)
         {
             HatIndex = hatIndex;
+            TorsoIndex = torsoIndex;
             ColorIndex = colorIndex;
             HatSprite = hatSprite;
+            TorsoSprite = torsoSprite;
+            FullBodySprite = fullBodySprite;
             BodyColor = bodyColor;
             HatOffset = hatOffset;
             HatScale = hatScale;
@@ -82,13 +100,18 @@ public sealed class RushBalanceController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float secondarySpeed = .5f;
 
     [Header("Aparência randômica dos NPCs")]
+    [SerializeField] private AppearanceMode appearanceMode = AppearanceMode.BorderedClothes;
+    [SerializeField] private FullBodyOption[] fullBodyOptions;
     [SerializeField] private AvatarCustomizationCatalog customizationCatalog;
     [Tooltip("Índice 0 deve representar a opção sem chapéu.")]
     [SerializeField] private Sprite[] npcHatOptions;
+    [SerializeField] private Sprite[] npcTorsoOptions;
+    [SerializeField] private Sprite[] orderFoodOptions;
     [SerializeField] private Color[] npcColorOptions;
     [SerializeField] private bool allowNoHat = true;
     [SerializeField, Range(0f, 1f)] private float noHatChance = .18f;
     [SerializeField] private bool avoidRepeatedHats = true;
+    [SerializeField] private bool avoidRepeatedTorsos = true;
     [SerializeField] private bool avoidRepeatedColors = true;
     [SerializeField] private RushHatVisualAdjustment[] rushHatAdjustments;
 
@@ -110,6 +133,7 @@ public sealed class RushBalanceController : MonoBehaviour
     private readonly List<int> customerLine = new List<int>(4);
     private readonly int[] pendingIds = new int[4];
     private readonly bool[] pendingDelivered = new bool[4];
+    private readonly bool[] visualReserved = new bool[4];
     private RushRound round;
     private Sequence replacementSequence;
     private Sequence finalNoticeSequence;
@@ -118,6 +142,8 @@ public sealed class RushBalanceController : MonoBehaviour
     private int pendingCount;
     private float feedbackClock;
     private bool processingResolution;
+    private int visualResolutionsPending;
+    public bool HoldQueuePositions => visualResolutionsPending > 0;
     private bool finalCycle;
     private bool configured;
     private bool ending;
@@ -170,6 +196,8 @@ public sealed class RushBalanceController : MonoBehaviour
         ending = false;
         finalCycle = false;
         processingResolution = false;
+        visualResolutionsPending = 0;
+        for (int i = 0; i < visualReserved.Length; i++) visualReserved[i] = false;
         pendingCount = 0;
         feedback.text = string.Empty;
         finalNoticeSequence?.Kill();
@@ -221,37 +249,65 @@ public sealed class RushBalanceController : MonoBehaviour
         customers[customerIndex].Enter(id, order, profile, customerEntrance, target, instant);
         NpcAppearance appearance = CreateAppearance(customerIndex);
         customers[customerIndex].ApplyAppearance(appearance);
+        Sprite[] foodSprites = CreateFoodSprites(items);
+        customers[customerIndex].SetFoodSprites(foodSprites);
         orderViews[id].Bind(
             this,
             id,
             items,
             appearance,
             customers[customerIndex].CurrentFaceSprite);
+        orderViews[id].SetFoodSprites(foodSprites);
         EventLogger.Instance?.RecordActivityEvent(
             $"rush_request_{items}_items_{profile.ToString().ToLowerInvariant()}");
+    }
+
+    private Sprite[] CreateFoodSprites(int count)
+    {
+        Sprite[] result = new Sprite[count];
+        for (int i = 0; i < count; i++)
+        {
+            int index;
+            bool repeated;
+            do
+            {
+                index = Random.Range(0, orderFoodOptions.Length);
+                repeated = false;
+                for (int j = 0; j < i; j++)
+                    if (result[j] == orderFoodOptions[index]) repeated = true;
+            } while (repeated);
+            result[i] = orderFoodOptions[index];
+        }
+        return result;
     }
 
     private NpcAppearance CreateAppearance(int customerIndex)
     {
         int hatIndex = 0;
         int colorIndex = 0;
+        int torsoIndex = 0;
 
         // Apenas quatro clientes ficam visíveis. Uma busca curta e limitada
         // evita repetições sem alocar listas ou executar lógica a cada frame.
         for (int attempt = 0; attempt < 48; attempt++)
         {
             hatIndex = PickHatIndex();
-            colorIndex = Random.Range(0, npcColorOptions.Length);
-            if (AppearanceIsAvailable(customerIndex, hatIndex, colorIndex)) break;
+            bool fullBody = appearanceMode == AppearanceMode.FullBody;
+            torsoIndex = Random.Range(0, fullBody ? fullBodyOptions.Length : npcTorsoOptions.Length);
+            colorIndex = fullBody ? torsoIndex : Random.Range(0, npcColorOptions.Length);
+            if (AppearanceIsAvailable(customerIndex, hatIndex, torsoIndex, colorIndex)) break;
         }
 
-        return BuildAppearance(hatIndex, colorIndex);
+        return BuildAppearance(hatIndex, colorIndex, torsoIndex);
     }
 
-    private NpcAppearance BuildAppearance(int hatIndex, int colorIndex)
+    private NpcAppearance BuildAppearance(int hatIndex, int colorIndex, int torsoIndex)
     {
         hatIndex = Mathf.Clamp(hatIndex, 0, npcHatOptions.Length - 1);
-        colorIndex = Mathf.Clamp(colorIndex, 0, npcColorOptions.Length - 1);
+        bool fullBody = appearanceMode == AppearanceMode.FullBody;
+        torsoIndex = Mathf.Clamp(torsoIndex, 0,
+            (fullBody ? fullBodyOptions.Length : npcTorsoOptions.Length) - 1);
+        colorIndex = fullBody ? torsoIndex : Mathf.Clamp(colorIndex, 0, npcColorOptions.Length - 1);
         Sprite hat = npcHatOptions[hatIndex];
         AvatarCustomizationItem catalogAdjustment = customizationCatalog.GetItem(
             AvatarCustomizationCategory.Hat, hatIndex);
@@ -268,9 +324,12 @@ public sealed class RushBalanceController : MonoBehaviour
         float rushRotation = rushAdjustment != null ? rushAdjustment.Rotation : 0f;
         return new NpcAppearance(
             hatIndex,
+            torsoIndex,
             colorIndex,
             hat,
-            npcColorOptions[colorIndex],
+            fullBody ? null : npcTorsoOptions[torsoIndex],
+            fullBody ? fullBodyOptions[torsoIndex].Sprite : null,
+            fullBody ? fullBodyOptions[torsoIndex].SkinColor : npcColorOptions[colorIndex],
             baseOffset + rushOffset,
             baseScale * rushScale,
             baseRotation + rushRotation);
@@ -282,7 +341,7 @@ public sealed class RushBalanceController : MonoBehaviour
         return npcHatOptions.Length > 1 ? Random.Range(1, npcHatOptions.Length) : 0;
     }
 
-    private bool AppearanceIsAvailable(int customerIndex, int hatIndex, int colorIndex)
+    private bool AppearanceIsAvailable(int customerIndex, int hatIndex, int torsoIndex, int colorIndex)
     {
         for (int i = 0; i < customers.Length; i++)
         {
@@ -290,6 +349,7 @@ public sealed class RushBalanceController : MonoBehaviour
             if (i == customerIndex || customer == null || !customer.HasAppearance
                 || !customer.gameObject.activeSelf) continue;
             if (avoidRepeatedHats && customer.HatIndex == hatIndex) return false;
+            if (avoidRepeatedTorsos && customer.TorsoIndex == torsoIndex) return false;
             if (avoidRepeatedColors && customer.ColorIndex == colorIndex) return false;
         }
         return true;
@@ -394,10 +454,14 @@ public sealed class RushBalanceController : MonoBehaviour
             return;
         }
 
-        // Mantém o card pronto visível enquanto entregas anteriores terminam.
-        // Sem esta reserva visual, o Refresh ocultava o segundo card porque seu
-        // estado lógico já havia mudado para Delivered antes da animação começar.
-        if (delivered) orderViews[id].HoldForDelivery();
+        // Mantem o card visivel ate sua propria animacao, mesmo quando outro
+        // pedido esta sendo resolvido antes dele.
+        orderViews[id].HoldForResolution();
+        if (orderViews[id].gameObject.activeSelf && !visualReserved[id])
+        {
+            visualReserved[id] = true;
+            visualResolutionsPending++;
+        }
 
         if (pendingCount < pendingIds.Length)
         {
@@ -434,16 +498,31 @@ public sealed class RushBalanceController : MonoBehaviour
             MequiHaptics.Confirm();
             orderViews[id].PlayDelivery(
                 customers[customerIndex].DeliveryTarget,
-                () => BeginCustomerReplacement(id, customerIndex, true));
+                () =>
+                {
+                    ReleaseVisualReservation(id);
+                    BeginCustomerReplacement(id, customerIndex, true);
+                });
         }
         else
         {
             Message("A paciência acabou.");
             AudioManager.Instance?.PlayError();
             MequiHaptics.Reject();
-            orderViews[id].Clear();
-            BeginCustomerReplacement(id, customerIndex, false);
+            orderViews[id].PlayFailure(() =>
+            {
+                ReleaseVisualReservation(id);
+                BeginCustomerReplacement(id, customerIndex, false);
+            });
         }
+        Refresh();
+    }
+
+    private void ReleaseVisualReservation(int id)
+    {
+        if (!visualReserved[id]) return;
+        visualReserved[id] = false;
+        visualResolutionsPending--;
         Refresh();
     }
 
@@ -596,6 +675,27 @@ public sealed class RushBalanceController : MonoBehaviour
         if (customizationCatalog == null) return SetupError("customizationCatalog não atribuído.");
         if (npcHatOptions == null || npcHatOptions.Length < 2)
             return SetupError("npcHatOptions precisa incluir sem chapéu e ao menos um chapéu.");
+        if (npcTorsoOptions == null || npcTorsoOptions.Length == 0)
+            return SetupError("npcTorsoOptions precisa incluir ao menos uma roupa.");
+        for (int i = 0; i < npcTorsoOptions.Length; i++)
+            if (npcTorsoOptions[i] == null) return SetupError($"npcTorsoOptions[{i}] não atribuído.");
+        if (appearanceMode == AppearanceMode.FullBody)
+        {
+            if (fullBodyOptions == null || fullBodyOptions.Length == 0)
+                return SetupError("fullBodyOptions precisa incluir os corpos completos.");
+            for (int i = 0; i < fullBodyOptions.Length; i++)
+                if (fullBodyOptions[i].Sprite == null)
+                    return SetupError($"fullBodyOptions[{i}] sem sprite.");
+        }
+        if (orderFoodOptions == null || orderFoodOptions.Length < 3)
+            return SetupError("orderFoodOptions precisa de pelo menos três alimentos.");
+        for (int i = 0; i < orderFoodOptions.Length; i++)
+        {
+            if (orderFoodOptions[i] == null) return SetupError($"orderFoodOptions[{i}] não atribuído.");
+            for (int j = 0; j < i; j++)
+                if (orderFoodOptions[i] == orderFoodOptions[j])
+                    return SetupError($"orderFoodOptions[{i}] repete outro alimento.");
+        }
         if (npcColorOptions == null || npcColorOptions.Length < 4)
             return SetupError("npcColorOptions precisa de pelo menos quatro cores.");
         if (rushHatAdjustments == null || rushHatAdjustments.Length != npcHatOptions.Length)
@@ -647,7 +747,7 @@ public sealed class RushBalanceController : MonoBehaviour
         hatPreviewIndex = Mathf.Clamp(hatPreviewIndex, 0, npcHatOptions.Length - 1);
         colorPreviewIndex = Mathf.Clamp(colorPreviewIndex, 0, npcColorOptions.Length - 1);
         hatPreviewCustomer.gameObject.SetActive(true);
-        hatPreviewCustomer.ApplyAppearance(BuildAppearance(hatPreviewIndex, colorPreviewIndex));
+        hatPreviewCustomer.ApplyAppearance(BuildAppearance(hatPreviewIndex, colorPreviewIndex, 0));
     }
 
     private void ApplyHatPreviewVisibilityInEditor()
