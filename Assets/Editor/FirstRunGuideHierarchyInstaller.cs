@@ -78,15 +78,10 @@ public static class FirstRunGuideHierarchyInstaller
 
             if (!string.IsNullOrEmpty(previousScene) && File.Exists(previousScene))
                 EditorSceneManager.OpenScene(previousScene, OpenSceneMode.Single);
-
-            Debug.Log("Mequi Break: layout manual do tutorial instalado nas cenas.");
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            Debug.LogException(exception);
-            Debug.LogError(
-                "Mequi Break: a instalação do tutorial não terminou. " +
-                "Use Mequi Break/Tutorial/Reinstall Manual Layout após corrigir o erro.");
+            return;
         }
     }
 

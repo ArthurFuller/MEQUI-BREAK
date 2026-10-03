@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
@@ -33,10 +33,6 @@ public class ReadmeEditor : Editor
             {
                 FileUtil.DeleteFileOrDirectory(s_ReadmeSourceDirectory);
                 FileUtil.DeleteFileOrDirectory(s_ReadmeSourceDirectory + ".meta");
-            }
-            else
-            {
-                Debug.Log($"Could not find the Readme folder at {s_ReadmeSourceDirectory}");
             }
 
             var readmeAsset = SelectReadme();
@@ -85,11 +81,7 @@ public class ReadmeEditor : Editor
 
             return (Readme)readmeObject;
         }
-        else
-        {
-            Debug.Log("Couldn't find a readme");
-            return null;
-        }
+        return null;
     }
 
     protected override void OnHeaderGUI()

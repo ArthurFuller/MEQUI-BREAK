@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using UnityEngine;
 
@@ -7,7 +8,9 @@ public sealed class SaveManager : MonoBehaviour
 
     private const string ProfileFileName = "profile.json";
     private string ProfilePath => Path.Combine(Application.persistentDataPath, ProfileFileName);
-    public bool HasSavedProfile => File.Exists(ProfilePath);
+    public bool HasSavedProfile => TryReadProfile(ProfilePath, out _)
+        || TryReadProfile(ProfilePath + ".bak", out _)
+        || TryReadProfile(ProfilePath + ".tmp", out _);
 
     private void Awake()
     {
@@ -28,34 +31,45 @@ public sealed class SaveManager : MonoBehaviour
         if (profile == null)
             return false;
 
+        string pendingPath = ProfilePath + ".tmp";
         try
         {
-            File.WriteAllText(ProfilePath, JsonUtility.ToJson(profile));
+            File.WriteAllText(pendingPath, JsonUtility.ToJson(profile));
+            if (File.Exists(ProfilePath))
+            {
+                try { File.Replace(pendingPath, ProfilePath, ProfilePath + ".bak"); }
+                catch (PlatformNotSupportedException)
+                {
+                    File.Copy(ProfilePath, ProfilePath + ".bak", true);
+                    File.Copy(pendingPath, ProfilePath, true);
+                    File.Delete(pendingPath);
+                }
+            }
+            else
+                File.Move(pendingPath, ProfilePath);
             return true;
         }
-        catch (System.Exception exception)
-        {
-            Debug.LogError($"Não foi possível salvar o perfil: {exception.Message}");
-            return false;
-        }
+        catch (Exception) { return false; }
     }
 
     public PlayerProfileData LoadProfile()
     {
+        if (TryReadProfile(ProfilePath, out PlayerProfileData profile)
+            || TryReadProfile(ProfilePath + ".bak", out profile)
+            || TryReadProfile(ProfilePath + ".tmp", out profile))
+            return profile;
+        return new PlayerProfileData();
+    }
+
+    private static bool TryReadProfile(string path, out PlayerProfileData profile)
+    {
+        profile = null;
+        if (!File.Exists(path)) return false;
         try
         {
-            if (!File.Exists(ProfilePath))
-                return new PlayerProfileData();
-
-            string json = File.ReadAllText(ProfilePath);
-            return string.IsNullOrWhiteSpace(json)
-                ? new PlayerProfileData()
-                : JsonUtility.FromJson<PlayerProfileData>(json) ?? new PlayerProfileData();
+            profile = JsonUtility.FromJson<PlayerProfileData>(File.ReadAllText(path));
+            return profile != null;
         }
-        catch (System.Exception exception)
-        {
-            Debug.LogWarning($"O perfil salvo é inválido ou não pôde ser lido: {exception.Message}");
-            return new PlayerProfileData();
-        }
+        catch (Exception) { return false; }
     }
 }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System;
 
 namespace Crystal
@@ -34,7 +34,6 @@ namespace Crystal
                 SimIdx = 0;
 
             SafeArea.Sim = Sims[SimIdx];
-            Debug.LogFormat ("Switched to sim device {0} with debug key '{1}'", Sims[SimIdx], KeySafeArea);
         }
     }
 }

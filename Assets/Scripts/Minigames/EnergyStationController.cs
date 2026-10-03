@@ -94,7 +94,6 @@ public sealed class EnergyStationController : MonoBehaviour
         PlayerManager player = PlayerManager.Instance;
         if (player != null && !player.CanPlayEnergyStation)
         {
-            Debug.LogWarning("Energy Station indisponível: a atividade já foi concluída hoje.", this);
             SceneManager.LoadScene("HUB");
             return;
         }
@@ -331,16 +330,7 @@ public sealed class EnergyStationController : MonoBehaviour
 
         int pointsEarned = 0;
         if (PointsService.Instance != null)
-        {
             pointsEarned = PointsService.Instance.AwardParticipation();
-        }
-        else
-        {
-            Debug.LogError(
-                "EnergyStationController: PointsService.Instance não foi encontrado. " +
-                "Verifique se o PointsService foi inicializado pelo Boot."
-            );
-        }
 
         // Mantém os pontos pendentes para a animação ao entrar no HUB.
         if (PlayerManager.Instance != null && pointsEarned > 0)
@@ -352,15 +342,7 @@ public sealed class EnergyStationController : MonoBehaviour
         AudioManager.Instance?.PlayCompletion();
 
         if (resultPopup != null)
-        {
             resultPopup.Show(pointsEarned);
-        }
-        else
-        {
-            Debug.LogError(
-                "EnergyStationController: ResultPopup não está configurado no Inspector."
-            );
-        }
     }
 
     private void SetInitialVisuals()
@@ -382,10 +364,6 @@ public sealed class EnergyStationController : MonoBehaviour
         if (EventLogger.Instance == null)
         {
             sessionStarted = false;
-            Debug.LogError(
-                "EnergyStationController: EventLogger.Instance não foi encontrado. " +
-                "Verifique se o EventLogger foi inicializado pelo Boot."
-            );
             return;
         }
 

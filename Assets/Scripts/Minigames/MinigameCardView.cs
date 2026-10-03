@@ -51,11 +51,7 @@ public sealed class MinigameCardView : MonoBehaviour
     public void RefreshAvailability()
     {
         if (button == null || definition == null)
-        {
-            if (name == "ComboCrewCard")
-                Debug.LogWarning("Combo Crew no HUB: Button ou MinigameDefinition ausente.", this);
             return;
-        }
 
         bool isEnergyStation = string.Equals(
             definition.SceneName,
@@ -64,9 +60,6 @@ public sealed class MinigameCardView : MonoBehaviour
 
         bool sceneAvailable = !string.IsNullOrWhiteSpace(definition.SceneName)
             && Application.CanStreamedLevelBeLoaded(definition.SceneName);
-        if (!sceneAvailable && name == "ComboCrewCard")
-            Debug.LogWarning("Combo Crew no HUB: cena '" + definition.SceneName
-                + "' indisponível no Build Settings/perfil de build ativo.", this);
         button.interactable = sceneAvailable && (!isEnergyStation
             || PlayerManager.Instance == null
             || PlayerManager.Instance.CanPlayEnergyStation);
@@ -75,20 +68,11 @@ public sealed class MinigameCardView : MonoBehaviour
     private void Play()
     {
         if (definition == null || sceneLoader == null)
-        {
-            Debug.LogWarning("Card de minigame sem definição ou SceneLoader.", this);
             return;
-        }
 
         if (string.IsNullOrWhiteSpace(definition.SceneName)
             || !Application.CanStreamedLevelBeLoaded(definition.SceneName))
-        {
-            Debug.LogWarning(
-                $"Não foi possível abrir o minigame '{definition.DisplayName}': a cena " +
-                $"'{definition.SceneName}' não está disponível nas configurações de compilação.",
-                definition);
             return;
-        }
 
         sceneLoader.Load(definition.SceneName);
     }

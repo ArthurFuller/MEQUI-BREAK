@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "337161250033",
+    "project_id": "mequi-break",
+    "storage_bucket": "mequi-break.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:337161250033:android:b0e68ed8ca71ae18433550",
+        "android_client_info": {
+          "package_name": "com.DefaultCompany.MQUIBREAK"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrc9yDsCFrDIVS8dTYwmzAsfPbbOOcGsY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

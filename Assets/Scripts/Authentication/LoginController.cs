@@ -115,6 +115,7 @@ public sealed class LoginController : MonoBehaviour
         isSubmitting = true;
         SetInputsInteractable(false);
         ClearError();
+        UnityEngine.Object.FindFirstObjectByType<LocalStorage>()?.GetAnonymousParticipantId();
         AudioManager.Instance?.PlayLoginJingle();
         sceneLoader.Load(hubScene);
     }

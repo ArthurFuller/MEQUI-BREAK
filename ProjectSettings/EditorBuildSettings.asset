@@ -30,8 +30,8 @@ EditorBuildSettings:
     path: Assets/Scenes/ComboCrew/ComboCrew.unity
     guid: cbae872fc8e04747bee45ddc7b639a63
   - enabled: 1
-    path: Assets/Scenes/Dashboard/Dashboard.unity
-    guid: a4ef83d9a08924246944cc22982ff27d
+    path: Assets/Scenes/Dashboard/Dashboard2.unity
+    guid: df45ad7b4764422b9e24d2773233a6ee
   - enabled: 1
     path: Assets/Scenes/RushBalance/RushBalance2.unity
     guid: 4966819332ce40b389a6b3166d9aefef

@@ -53,7 +53,6 @@ public static class MequiArtInstaller
     private static void InstallAll()
     {
         string previousScene = SceneManager.GetActiveScene().path;
-
         try
         {
             ConfigureSpriteImports();
@@ -70,13 +69,10 @@ public static class MequiArtInstaller
 
             if (!string.IsNullOrEmpty(previousScene) && File.Exists(previousScene))
                 EditorSceneManager.OpenScene(previousScene, OpenSceneMode.Single);
-
-            Debug.Log("Mequi Break: all Assets/Art images were integrated successfully.");
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            Debug.LogException(exception);
-            Debug.LogError("Mequi Break art integration did not finish. Use Mequi Break/Art/Reinstall All Art after fixing the reported error.");
+            return;
         }
     }
 

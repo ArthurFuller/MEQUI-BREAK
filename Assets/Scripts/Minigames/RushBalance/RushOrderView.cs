@@ -458,8 +458,6 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         Owner.Deliver(OrderId);
     }
 
-    public void AcceptCurrentDrop() => MarkDropAccepted();
-
     protected override void DragFinished(bool accepted)
     {
         if (accepted || cardVisual == null || invalidDropShake <= 0f) return;

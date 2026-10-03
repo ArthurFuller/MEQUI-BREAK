@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function metricKeys() {
+      return [
+        'sessions', 'completed', 'delivered', 'missed',
+        'impatientOrders', 'impatientMissed', 'reorders', 'assignments',
+        'breaks', 'breakReorganizations', 'stationProblems', 'stationRepairs',
+        'specialistPlacements', 'specialistOpportunities',
+        'choice0', 'choice1', 'choice2', 'choice3'
+      ];
+    }
+
+    function sessionPath(id) {
+      return /databases/$(database)/documents/sessions/$(id);
+    }
+
+    function aggregatePath(store, month, shift, activity) {
+      return /databases/$(database)/documents/stores/$(store)/months/$(month)/shifts/$(shift)/games/$(activity);
+    }
+
+    function validMetrics(m) {
+      return m is map
+        && m.keys().hasAll(metricKeys())
+        && m.keys().hasOnly(metricKeys())
+        && m.sessions == 1
+        && m.completed is int && m.completed >= 0 && m.completed <= 1
+        && m.delivered is int && m.delivered >= 0 && m.delivered <= 500
+        && m.missed is int && m.missed >= 0 && m.missed <= 500
+        && m.impatientOrders is int && m.impatientOrders >= 0 && m.impatientOrders <= 500
+        && m.impatientMissed is int && m.impatientMissed >= 0 && m.impatientMissed <= 500
+        && m.reorders is int && m.reorders >= 0 && m.reorders <= 500
+        && m.assignments is int && m.assignments >= 0 && m.assignments <= 500
+        && m.breaks is int && m.breaks >= 0 && m.breaks <= 500
+        && m.breakReorganizations is int && m.breakReorganizations >= 0 && m.breakReorganizations <= 500
+        && m.stationProblems is int && m.stationProblems >= 0 && m.stationProblems <= 500
+        && m.stationRepairs is int && m.stationRepairs >= 0 && m.stationRepairs <= 500
+        && m.specialistPlacements is int && m.specialistPlacements >= 0 && m.specialistPlacements <= 500
+        && m.specialistOpportunities is int && m.specialistOpportunities >= 0 && m.specialistOpportunities <= 500
+        && m.choice0 is int && m.choice0 >= 0 && m.choice0 <= 500
+        && m.choice1 is int && m.choice1 >= 0 && m.choice1 <= 500
+        && m.choice2 is int && m.choice2 >= 0 && m.choice2 <= 500
+        && m.choice3 is int && m.choice3 >= 0 && m.choice3 <= 500;
+    }
+
+    function validSession(id) {
+      let data = request.resource.data;
+      return signedIn()
+        && id.matches('[a-f0-9]{32}')
+        && data.keys().hasAll([
+          'ownerUid', 'deviceId', 'sessionId', 'storeKey', 'monthKey',
+          'shiftKey', 'activity', 'startedAtUtc', 'metrics'
+        ])
+        && data.keys().hasOnly([
+          'ownerUid', 'deviceId', 'sessionId', 'storeKey', 'monthKey',
+          'shiftKey', 'activity', 'startedAtUtc', 'metrics'
+        ])
+        && data.ownerUid == request.auth.uid
+        && data.sessionId == id
+        && data.deviceId is string && data.deviceId.matches('[a-f0-9]{32}')
+        && data.storeKey is string && data.storeKey.matches('[a-f0-9]{64}')
+        && data.monthKey is string && data.monthKey.matches('[0-9]{6}')
+        && data.shiftKey in ['morning', 'afternoon', 'night']
+        && data.activity in ['energy_station', 'rush_balance', 'combo_crew']
+        && data.startedAtUtc is string && data.startedAtUtc.size() <= 40
+        && validMetrics(data.metrics)
+        && getAfter(aggregatePath(data.storeKey, data.monthKey, 'all', data.activity)).data.lastSessionId == id
+        && getAfter(aggregatePath(data.storeKey, data.monthKey, data.shiftKey, data.activity)).data.lastSessionId == id;
+    }
+
+    function validDelta(before, after, m) {
+      return after.keys().hasAll(metricKeys().concat(['lastSessionId']))
+        && after.keys().hasOnly(metricKeys().concat(['lastSessionId']))
+        && after.sessions == before.get('sessions', 0) + m.sessions
+        && after.completed == before.get('completed', 0) + m.completed
+        && after.delivered == before.get('delivered', 0) + m.delivered
+        && after.missed == before.get('missed', 0) + m.missed
+        && after.impatientOrders == before.get('impatientOrders', 0) + m.impatientOrders
+        && after.impatientMissed == before.get('impatientMissed', 0) + m.impatientMissed
+        && after.reorders == before.get('reorders', 0) + m.reorders
+        && after.assignments == before.get('assignments', 0) + m.assignments
+        && after.breaks == before.get('breaks', 0) + m.breaks
+        && after.breakReorganizations == before.get('breakReorganizations', 0) + m.breakReorganizations
+        && after.stationProblems == before.get('stationProblems', 0) + m.stationProblems
+        && after.stationRepairs == before.get('stationRepairs', 0) + m.stationRepairs
+        && after.specialistPlacements == before.get('specialistPlacements', 0) + m.specialistPlacements
+        && after.specialistOpportunities == before.get('specialistOpportunities', 0) + m.specialistOpportunities
+        && after.choice0 == before.get('choice0', 0) + m.choice0
+        && after.choice1 == before.get('choice1', 0) + m.choice1
+        && after.choice2 == before.get('choice2', 0) + m.choice2
+        && after.choice3 == before.get('choice3', 0) + m.choice3;
+    }
+
+    function validAggregate(store, month, shift, activity, before) {
+      let after = request.resource.data;
+      let id = after.get('lastSessionId', '');
+      let path = sessionPath(id);
+      let session = getAfter(path).data;
+      return signedIn()
+        && id is string && id.matches('[a-f0-9]{32}')
+        && !exists(path) && existsAfter(path)
+        && session.ownerUid == request.auth.uid
+        && session.storeKey == store
+        && session.monthKey == month
+        && session.activity == activity
+        && (shift == 'all' || shift == session.shiftKey)
+        && validMetrics(session.metrics)
+        && validDelta(before, after, session.metrics);
+    }
+
+    match /sessions/{sessionId} {
+      allow create: if validSession(sessionId);
+      allow get: if signedIn() && (resource == null || resource.data.ownerUid == request.auth.uid);
+      allow list, update, delete: if false;
+    }
+
+    match /stores/{store}/months/{month}/shifts/{shift}/games/{activity} {
+      allow get: if signedIn();
+      allow create: if validAggregate(store, month, shift, activity, {});
+      allow update: if validAggregate(store, month, shift, activity, resource.data);
+      allow list, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

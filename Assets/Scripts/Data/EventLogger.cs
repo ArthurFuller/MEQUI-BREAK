@@ -160,7 +160,7 @@ public sealed class EventLogger : MonoBehaviour
         if (localStorage == null)
             return;
 
-        List<EventModel> events = localStorage.LoadEvents();
+        List<EventModel> events = new List<EventModel>(localStorage.LoadEvents());
         events.Add(new EventModel
         {
             SessionId = sessionId,
@@ -183,8 +183,11 @@ public sealed class EventLogger : MonoBehaviour
             OptionalClarityChoiceId = optionalClarityChoiceId
         });
 
-        localStorage.SaveEvents(events);
-        ResetSession();
+        if (localStorage.SaveEvents(events))
+        {
+            ResetSession();
+            FirebaseSessionSync.RequestSync();
+        }
     }
 
     private void ResetSession()

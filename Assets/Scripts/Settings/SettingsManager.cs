@@ -47,6 +47,7 @@ public sealed class SettingsManager : MonoBehaviour
     {
         AudioManager.Instance?.SetMusicEnabled(MusicEnabled);
         AudioManager.Instance?.SetSFXEnabled(SFXEnabled);
+        LocalNotificationService.Refresh();
     }
 
     public void SetMusicEnabled(bool enabled)
@@ -76,12 +77,15 @@ public sealed class SettingsManager : MonoBehaviour
 
         if (!enabled && EndOfShiftReminderEnabled)
             SetEndOfShiftReminderEnabled(false);
+        else
+            LocalNotificationService.Refresh();
     }
 
     public void SetEndOfShiftReminderEnabled(bool enabled)
     {
         EndOfShiftReminderEnabled = enabled && NotificationsEnabled;
         SaveBool(EndOfShiftReminderKey, EndOfShiftReminderEnabled);
+        LocalNotificationService.Refresh();
     }
 
     private static void SaveBool(string key, bool value)

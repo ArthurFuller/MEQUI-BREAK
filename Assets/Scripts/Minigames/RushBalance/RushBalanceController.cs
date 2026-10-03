@@ -134,6 +134,8 @@ public sealed class RushBalanceController : MonoBehaviour
     private readonly int[] pendingIds = new int[4];
     private readonly bool[] pendingDelivered = new bool[4];
     private readonly bool[] visualReserved = new bool[4];
+    private readonly int[] telemetryOrderIds = new int[4];
+    private int nextTelemetryOrderId;
     private RushRound round;
     private Sequence replacementSequence;
     private Sequence finalNoticeSequence;
@@ -199,6 +201,7 @@ public sealed class RushBalanceController : MonoBehaviour
         visualResolutionsPending = 0;
         for (int i = 0; i < visualReserved.Length; i++) visualReserved[i] = false;
         pendingCount = 0;
+        nextTelemetryOrderId = 0;
         feedback.text = string.Empty;
         finalNoticeSequence?.Kill();
         finalNoticeSequence = null;
@@ -245,6 +248,8 @@ public sealed class RushBalanceController : MonoBehaviour
             : items == 2 ? preparationTimes.y : preparationTimes.z;
 
         if (!round.Activate(id, customerIndex, items, patience, duration)) return;
+        telemetryOrderIds[id] = ++nextTelemetryOrderId;
+        EventLogger.Instance?.RecordActivityEvent("rush_order_created:" + telemetryOrderIds[id] + ":" + items + ":" + profile.ToString().ToLowerInvariant());
         RushRound.Order order = round.Orders[id];
         customers[customerIndex].Enter(id, order, profile, customerEntrance, target, instant);
         NpcAppearance appearance = CreateAppearance(customerIndex);
@@ -368,6 +373,7 @@ public sealed class RushBalanceController : MonoBehaviour
     {
         if (!session.IsPlaying || ending || !round.Move(id, rank)) return;
         session.RecordReorder();
+        EventLogger.Instance?.RecordActivityEvent("rush_order_reordered:" + telemetryOrderIds[id] + ":" + rank);
         AudioManager.Instance?.PlayConfirm();
         MequiHaptics.Selection();
         Refresh();
@@ -448,6 +454,7 @@ public sealed class RushBalanceController : MonoBehaviour
     private void Resolved(int id, bool delivered)
     {
         session.RecordOrder(delivered);
+        EventLogger.Instance?.RecordActivityEvent("rush_order_resolved:" + telemetryOrderIds[id] + ":" + (delivered ? "delivered" : "missed"));
         if (ending)
         {
             orderViews[id].Clear();
@@ -644,74 +651,68 @@ public sealed class RushBalanceController : MonoBehaviour
         feedbackClock = 1.7f;
     }
 
-    private bool SetupError(string detail)
-    {
-        Debug.LogError($"Rush Balance — {name}: {detail}", this);
-        return false;
-    }
-
     private bool ValidateSetup()
     {
-        if (session == null) return SetupError("session não atribuído.");
-        if (feedback == null) return SetupError("feedback não atribuído.");
+        if (session == null) return false;
+        if (feedback == null) return false;
         if (finalCycleBanner == null || finalCyclePanel == null || finalCycleGroup == null || finalCycleLabel == null)
-            return SetupError("aviso do ciclo final e suas referências.");
-        if (customers == null || customers.Length != 5) return SetupError("customers precisa de cinco elementos.");
-        if (orderViews == null || orderViews.Length != 4) return SetupError("orderViews precisa de quatro elementos.");
-        if (queueAnchors == null || queueAnchors.Length != 4) return SetupError("queueAnchors precisa de quatro elementos.");
-        if (queueTargets == null || queueTargets.Length != 4) return SetupError("queueTargets precisa de quatro elementos.");
+            return false;
+        if (customers == null || customers.Length != 5) return false;
+        if (orderViews == null || orderViews.Length != 4) return false;
+        if (queueAnchors == null || queueAnchors.Length != 4) return false;
+        if (queueTargets == null || queueTargets.Length != 4) return false;
         if (customerAnchors == null || customerAnchors.Length != 4)
-            return SetupError("customerAnchors precisa de quatro elementos.");
-        if (customerEntrance == null || customerExit == null) return SetupError("entrada e saída dos clientes.");
+            return false;
+        if (customerEntrance == null || customerExit == null) return false;
         if (replacementPause < 0f || replacementSettleSeconds <= 0f)
-            return SetupError("tempos de substituição dos clientes.");
+            return false;
         if (finalNoticeEnterSeconds <= 0f || finalNoticeHoldSeconds < 0f || finalNoticeExitSeconds <= 0f)
-            return SetupError("tempos do aviso de ciclo final.");
+            return false;
         if (preparationTimes.x <= 0f || preparationTimes.y <= 0f || preparationTimes.z <= 0f
             || patienceTimes.x <= 0f || patienceTimes.y <= 0f || patienceTimes.z <= 0f
             || secondarySpeed < 0f || secondarySpeed > 1f
             || simulationSpeed <= 0f || animationSpeed <= 0f)
-            return SetupError("tempos de preparo, paciência ou velocidade.");
-        if (customizationCatalog == null) return SetupError("customizationCatalog não atribuído.");
+            return false;
+        if (customizationCatalog == null) return false;
         if (npcHatOptions == null || npcHatOptions.Length < 2)
-            return SetupError("npcHatOptions precisa incluir sem chapéu e ao menos um chapéu.");
+            return false;
         if (npcTorsoOptions == null || npcTorsoOptions.Length == 0)
-            return SetupError("npcTorsoOptions precisa incluir ao menos uma roupa.");
+            return false;
         for (int i = 0; i < npcTorsoOptions.Length; i++)
-            if (npcTorsoOptions[i] == null) return SetupError($"npcTorsoOptions[{i}] não atribuído.");
+            if (npcTorsoOptions[i] == null) return false;
         if (appearanceMode == AppearanceMode.FullBody)
         {
             if (fullBodyOptions == null || fullBodyOptions.Length == 0)
-                return SetupError("fullBodyOptions precisa incluir os corpos completos.");
+                return false;
             for (int i = 0; i < fullBodyOptions.Length; i++)
                 if (fullBodyOptions[i].Sprite == null)
-                    return SetupError($"fullBodyOptions[{i}] sem sprite.");
+                    return false;
         }
         if (orderFoodOptions == null || orderFoodOptions.Length < 3)
-            return SetupError("orderFoodOptions precisa de pelo menos três alimentos.");
+            return false;
         for (int i = 0; i < orderFoodOptions.Length; i++)
         {
-            if (orderFoodOptions[i] == null) return SetupError($"orderFoodOptions[{i}] não atribuído.");
+            if (orderFoodOptions[i] == null) return false;
             for (int j = 0; j < i; j++)
                 if (orderFoodOptions[i] == orderFoodOptions[j])
-                    return SetupError($"orderFoodOptions[{i}] repete outro alimento.");
+                    return false;
         }
         if (npcColorOptions == null || npcColorOptions.Length < 4)
-            return SetupError("npcColorOptions precisa de pelo menos quatro cores.");
+            return false;
         if (rushHatAdjustments == null || rushHatAdjustments.Length != npcHatOptions.Length)
-            return SetupError("rushHatAdjustments precisa acompanhar npcHatOptions.");
+            return false;
 
         for (int i = 0; i < customers.Length; i++)
             if (customers[i] == null || !customers[i].Configured)
-                return SetupError($"customers[{i}] e suas referências.");
+                return false;
         for (int i = 0; i < orderViews.Length; i++)
         {
             if (orderViews[i] == null || !orderViews[i].Configured)
-                return SetupError($"orderViews[{i}] e suas referências.");
+                return false;
             if (queueAnchors[i] == null || queueTargets[i] == null || customerAnchors[i] == null)
-                return SetupError($"slot {i}.");
+                return false;
             if (!queueTargets[i].ConfiguredFor(this, i))
-                return SetupError($"queueTargets[{i}], controller, rank ou highlight.");
+                return false;
         }
         return true;
     }

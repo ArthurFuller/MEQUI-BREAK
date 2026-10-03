@@ -25,14 +25,7 @@ public sealed class HubEntryHandler : MonoBehaviour
             yield break;
 
         if (pointAnimationManager == null)
-        {
-            Debug.LogError(
-                "[HubEntryHandler] PointAnimationManager não atribuído no Inspector.",
-                this
-            );
-
             yield break;
-        }
 
         int finalValue = player.Profile?.BreakPoints ?? 0;
         int baseValue = finalValue - pending;
