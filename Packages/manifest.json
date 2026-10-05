@@ -1,9 +1,12 @@
 {
   "dependencies": {
+    "com.google.external-dependency-manager": "file:../GooglePackages/com.google.external-dependency-manager-1.2.186.tgz",
+    "com.google.firebase.app": "file:../GooglePackages/com.google.firebase.app-13.17.0.tgz",
+    "com.google.firebase.auth": "file:../GooglePackages/com.google.firebase.auth-13.17.0.tgz",
+    "com.google.firebase.firestore": "file:../GooglePackages/com.google.firebase.firestore-13.17.0.tgz",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.inputsystem": "1.18.0",
-    "com.unity.render-pipelines.universal": "17.3.0",
-    "com.unity.ugui": "2.0.0",
+    "com.unity.mobile.notifications": "2.4.2",
     "com.unity.modules.accessibility": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
@@ -27,6 +30,8 @@
     "com.unity.modules.unitywebrequestaudio": "1.0.0",
     "com.unity.modules.unitywebrequesttexture": "1.0.0",
     "com.unity.modules.unitywebrequestwww": "1.0.0",
-    "com.unity.modules.vectorgraphics": "1.0.0"
+    "com.unity.modules.vectorgraphics": "1.0.0",
+    "com.unity.render-pipelines.universal": "17.3.0",
+    "com.unity.ugui": "2.0.0"
   }
 }

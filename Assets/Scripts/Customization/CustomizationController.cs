@@ -146,7 +146,6 @@ public sealed class CustomizationController : MonoBehaviour
         RefreshSelectionVisuals();
         CachePanelReferences();
 
-        CreateTabIndicator();
         if (animateTabIndicator || animateOptionWave)
             Canvas.ForceUpdateCanvases();
         UpdateTabIndicator(animate: false);
@@ -269,12 +268,6 @@ public sealed class CustomizationController : MonoBehaviour
     }
 
     // Indicador de aba
-
-    private void CreateTabIndicator()
-    {
-        if (animateTabIndicator && _tabIndicator == null)
-            Debug.LogWarning("Indicador de aba não foi atribuído no Inspector.", this);
-    }
 
     private void UpdateTabIndicator(bool animate)
     {
@@ -420,7 +413,6 @@ public sealed class CustomizationController : MonoBehaviour
         PlayerManager player = PlayerManager.Instance;
         if (player == null)
         {
-            Debug.LogError("CustomizationController.Confirm: PlayerManager.Instance é nulo. O avatar não foi salvo.");
             return;
         }
 
@@ -430,7 +422,6 @@ public sealed class CustomizationController : MonoBehaviour
 
         if (player.Profile == null)
         {
-            Debug.LogError("CustomizationController.Confirm: o perfil do jogador está indisponível. O avatar não foi salvo.");
             return;
         }
 

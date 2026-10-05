@@ -78,13 +78,6 @@ public sealed class PointAnimationManager : MonoBehaviour
 
         Instance = this;
 
-        if (coinPrefab == null)
-            Debug.LogError("[PointAnimationManager] O prefab da moeda não foi atribuído.", this);
-        if (pointsLabel == null)
-            Debug.LogError("[PointAnimationManager] O texto TMP dos pontos não foi atribuído.", this);
-        if (canvasRect == null)
-            Debug.LogError("[PointAnimationManager] O RectTransform do Canvas não foi atribuído.", this);
-
         if (pointsLabel != null)
             _pointsLabelBaseScale = pointsLabel.transform.localScale;
 

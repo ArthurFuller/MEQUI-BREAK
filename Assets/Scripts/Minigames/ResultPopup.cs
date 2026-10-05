@@ -49,8 +49,6 @@ public sealed class ResultPopup : MonoBehaviour
 
     private void Awake()
     {
-        AssertReferences();
-
         _shownPos = popupPanel.anchoredPosition;
         _hiddenPos = _shownPos + new Vector2(0f, -slideOffset);
 
@@ -217,20 +215,4 @@ public sealed class ResultPopup : MonoBehaviour
             continueButton.onClick.RemoveListener(PlayOut);
     }
 
-    private void AssertReferences()
-    {
-        AssertReference(overlayImage, nameof(overlayImage));
-        AssertReference(popupPanel, nameof(popupPanel));
-        AssertReference(popupCanvasGroup, nameof(popupCanvasGroup));
-        AssertReference(titleLabel, nameof(titleLabel));
-        AssertReference(pointsLabel, nameof(pointsLabel));
-        AssertReference(continueButton, nameof(continueButton));
-        AssertReference(sceneLoader, nameof(sceneLoader));
-    }
-
-    private void AssertReference(Object reference, string fieldName)
-    {
-        if (reference == null)
-            Debug.LogError($"{name}: {fieldName} não atribuído.", this);
-    }
 }

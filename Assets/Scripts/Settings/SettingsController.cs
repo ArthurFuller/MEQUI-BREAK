@@ -1,3 +1,4 @@
+using System.Collections;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -209,9 +210,33 @@ public sealed class SettingsController : MonoBehaviour
 
     public void SetNotifications(bool enabled)
     {
-        SettingsManager.Instance?.SetNotificationsEnabled(enabled);
-        if (!enabled)
+        if (enabled)
+            StartCoroutine(RequestNotificationPermission());
+        else
+        {
+            SettingsManager.Instance?.SetNotificationsEnabled(false);
             endOfShiftReminderToggle?.SetIsOnWithoutNotify(false);
+        }
+        RefreshReminderInteractable();
+    }
+
+    private IEnumerator RequestNotificationPermission()
+    {
+        bool granted = false;
+        yield return LocalNotificationService.RequestPermission(value => granted = value);
+        if (this == null || notificationsToggle == null || !notificationsToggle.isOn)
+            yield break;
+
+        if (!granted)
+        {
+            SettingsManager.Instance?.SetNotificationsEnabled(false);
+            notificationsToggle.SetIsOnWithoutNotify(false);
+            endOfShiftReminderToggle?.SetIsOnWithoutNotify(false);
+            RefreshReminderInteractable();
+            SetFeedback("Permita as notificações nas configurações do aparelho.");
+        }
+        else
+            SettingsManager.Instance?.SetNotificationsEnabled(true);
         RefreshReminderInteractable();
     }
 

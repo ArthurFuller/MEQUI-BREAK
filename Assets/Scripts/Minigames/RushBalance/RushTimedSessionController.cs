@@ -197,27 +197,14 @@ public sealed class RushTimedSessionController : MonoBehaviour
 
     private bool ValidateSetup()
     {
-        string error =
-            matchSeconds <= 0f ? "matchSeconds" :
-            string.IsNullOrWhiteSpace(activityId) ? "activityId" :
-            startPanel == null ? "startPanel" :
-            startButton == null ? "startButton" :
-            backButton == null ? "backButton" :
-            timerLabel == null ? "timerLabel" :
-            scoreLabel == null ? "scoreLabel" :
-            gameplayInput == null ? "gameplayInput" :
-            resultPopup == null ? "resultPopup" :
-            sceneLoader == null ? "sceneLoader" :
-            gameplayControllers != 1 ? $"controladores registrados: {gameplayControllers}; esperado: 1" :
-            !gameplayConfigured ? "controlador do Rush inválido" :
-            EventLogger.Instance == null ? "EventLogger; execute pelo Boot" :
-            PointsService.Instance == null ? "PointsService; execute pelo Boot" :
-            PlayerManager.Instance == null || PlayerManager.Instance.Profile == null
-                ? "perfil do jogador; execute pelo Boot" : null;
-
-        if (error == null) return true;
-        Debug.LogError($"Rush Balance — sessão: configure {error}.", this);
-        return false;
+        return !(matchSeconds <= 0f)
+            && !string.IsNullOrWhiteSpace(activityId)
+            && startPanel != null && startButton != null && backButton != null
+            && timerLabel != null && scoreLabel != null && gameplayInput != null
+            && resultPopup != null && sceneLoader != null
+            && gameplayControllers == 1 && gameplayConfigured
+            && EventLogger.Instance != null && PointsService.Instance != null
+            && PlayerManager.Instance != null && PlayerManager.Instance.Profile != null;
     }
 
     private void OnDisable()

@@ -30,10 +30,7 @@ public sealed class MinigameSelectionController : MonoBehaviour
             card.gameObject.SetActive(available);
 
             if (!available)
-            {
-                Debug.LogWarning("Um card de minigame da cena não possui uma definição válida.", card);
                 continue;
-            }
 
             card.Bind(definition, sceneLoader);
         }

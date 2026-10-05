@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -21,8 +22,15 @@ public sealed class DashboardDonutGraphic : MaskableGraphic
         if (values == null || values.Length != 4) return;
         float sum = 0f;
         for (int i = 0; i < 4; i++) sum += Mathf.Max(0f, values[i]);
-        if (sum <= 0f) return;
+        if (sum <= 0f) { Array.Clear(shares, 0, shares.Length); SetVerticesDirty(); return; }
         for (int i = 0; i < 4; i++) shares[i] = Mathf.Max(0f, values[i]) / sum;
+        SetVerticesDirty();
+    }
+
+    public void SetPalette(Color[] colors)
+    {
+        if (colors == null || colors.Length != 4) return;
+        segmentColors = (Color[])colors.Clone();
         SetVerticesDirty();
     }
 

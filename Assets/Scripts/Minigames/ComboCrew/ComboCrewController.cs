@@ -77,6 +77,7 @@ public sealed class ComboCrewController : MonoBehaviour
     private Incident incident;
     private float incidentRemaining, patienceGrace, absenceWarningRemaining;
     private int absentWorker = -1;
+    private bool breakReorganizationLogged;
     private int absencePendingWorker = -1;
     private int problemWorker = -1;
     private bool absenceTriggered;
@@ -137,46 +138,37 @@ public sealed class ComboCrewController : MonoBehaviour
 
     private bool Validate()
     {
-        string error = sceneLoader == null ? "SceneLoader" : resultPopup == null ? "ResultPopup" :
-            startButton == null ? "StartButton" : backButton == null ? "BackButton" :
-            preparationPanel == null ? "PreparationPanel" :
-            timerLabel == null ? "TimerLabel" : messageLabel == null ? "MessageLabel" :
-            cleanTrayLabel == null || dirtyTrayLabel == null ? "contadores de bandejas" :
-            clipboard == null || !clipboard.Configured ? "Clipboard" :
-            stations == null || stations.Length != 5 ? "cinco estações" :
-            workers == null || workers.Length < 2 ? "jogador + funcionários" :
-            workerCards == null || workerCards.Length != workers.Length ? "cards dos funcionários" :
-            cardAnchors == null || cardAnchors.Length != workers.Length ? "âncoras dos cards" :
-            orderCards == null || orderCards.Length < 2 ? "cards dos pedidos" :
-            orderAnchors == null || orderAnchors.Length != orderCards.Length ? "âncoras dos pedidos" :
-            departureAnchor == null ? "saída dos pedidos" :
-            PlayerManager.Instance == null || PlayerManager.Instance.Profile == null ? "perfil (entre pelo Boot)" :
-            PointsService.Instance == null || EventLogger.Instance == null ? "serviços do Boot" : null;
-        if (error == null)
-        {
+        bool valid = sceneLoader != null && resultPopup != null
+            && startButton != null && backButton != null && preparationPanel != null
+            && timerLabel != null && messageLabel != null
+            && cleanTrayLabel != null && dirtyTrayLabel != null
+            && clipboard != null && clipboard.Configured
+            && stations != null && stations.Length == 5
+            && workers != null && workers.Length >= 2
+            && workerCards != null && workerCards.Length == workers.Length
+            && cardAnchors != null && cardAnchors.Length == workers.Length
+            && orderCards != null && orderCards.Length >= 2
+            && orderAnchors != null && orderAnchors.Length == orderCards.Length
+            && departureAnchor != null
+            && PlayerManager.Instance != null && PlayerManager.Instance.Profile != null
+            && PointsService.Instance != null && EventLogger.Instance != null;
+        if (valid)
             for (int i = 0; i < stations.Length; i++)
-                if (stations[i] == null || !stations[i].Configured) { error = $"station[{i}]"; break; }
-        }
-        if (error == null)
-        {
+                if (stations[i] == null || !stations[i].Configured) { valid = false; break; }
+        if (valid)
             for (int i = 0; i < workers.Length; i++)
                 if (workers[i] == null || !workers[i].Configured || cardAnchors[i] == null
                     || workerCards[i] == null || !workerCards[i].Configured)
-                { error = $"worker[{i}] e seu card"; break; }
-        }
-        if (error == null && (matchSeconds <= 0f
-            || spawnInterval <= 0f || patienceSeconds <= 0f || stageSeconds <= 0f
-            || initialTrays < 1 || washSecondsPerTray <= 0f)) error = "tempos ou bandejas iniciais";
-        if (error == null)
-        {
+                { valid = false; break; }
+        if (valid)
+            valid = !(matchSeconds <= 0f || spawnInterval <= 0f || patienceSeconds <= 0f
+                || stageSeconds <= 0f || initialTrays < 1 || washSecondsPerTray <= 0f);
+        if (valid)
             for (int i = 0; i < orderCards.Length; i++)
                 if (orderCards[i] == null || !orderCards[i].Configured || orderAnchors[i] == null)
-                { error = $"order[{i}]"; break; }
-        }
-        if (error == null) return true;
-        Debug.LogError("Combo Crew: configure " + error, this);
-        if (startButton != null) startButton.interactable = false;
-        return false;
+                { valid = false; break; }
+        if (!valid && startButton != null) startButton.interactable = false;
+        return valid;
     }
 
     private void Update()
@@ -242,6 +234,19 @@ public sealed class ComboCrewController : MonoBehaviour
         EventLogger.Instance.BeginSession("combo_crew");
         logged = true;
         EventLogger.Instance.RecordUserAction("combo_start");
+        breakReorganizationLogged = false;
+        int specialistPlacements = 0;
+        int specialists = 0;
+        for (int employee = 0; employee < workers.Length; employee++)
+        {
+            float best = 1f;
+            for (int stage = 0; stage < stations.Length; stage++) best = Mathf.Max(best, workers[employee].SpeedAt(stage));
+            if (best <= 1f) continue;
+            specialists++;
+            int assignedStation = assigned[employee];
+            if (assignedStation >= 0 && workers[employee].SpeedAt(assignedStation) >= best - .001f) specialistPlacements++;
+        }
+        EventLogger.Instance.RecordActivityEvent("combo_initial_specialists:" + specialistPlacements + ":" + specialists);
         TrySpawn();
         AudioManager.Instance?.PlayConfirm();
         RefreshHud();
@@ -406,6 +411,7 @@ public sealed class ComboCrewController : MonoBehaviour
                 pick -= workers[employee].PauseWeight;
                 if (pick > 0f) continue;
                 absencePendingWorker = employee;
+                breakReorganizationLogged = false;
                 absenceWarningRemaining = 5f;
                 ShowMessage("Pausa em 5 segundos: reorganize a equipe", 3f);
                 break;
@@ -533,6 +539,11 @@ public sealed class ComboCrewController : MonoBehaviour
         workers[worker].Place(stations[station].WorkAnchor, false);
         if (preparing) RefreshHud();
         EventLogger.Instance?.RecordUserAction(worker == 0 ? "combo_player_move" : "combo_assign_worker");
+        if (playing && !breakReorganizationLogged && (absencePendingWorker >= 0 || absentWorker >= 0))
+        {
+            breakReorganizationLogged = true;
+            EventLogger.Instance?.RecordActivityEvent("combo_break_reorganized");
+        }
         AudioManager.Instance?.PlayConfirm();
         MequiHaptics.Selection();
         HighlightStations(false);

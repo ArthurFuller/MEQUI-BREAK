@@ -107,7 +107,10 @@ public sealed class PlayerManager : MonoBehaviour
         }
 
         if (!string.Equals(previousShift, Profile.Shift, StringComparison.OrdinalIgnoreCase))
+        {
             EnergyStationAvailabilityChanged?.Invoke();
+            LocalNotificationService.Refresh();
+        }
 
         errorMessage = string.Empty;
         return true;
@@ -133,7 +136,10 @@ public sealed class PlayerManager : MonoBehaviour
         Profile.RegistrationCompleted = false;
 
         if (TrySaveProfile())
+        {
+            LocalNotificationService.Refresh();
             return true;
+        }
 
         Profile.DisplayName = previousName;
         Profile.StoreId = previousStore;

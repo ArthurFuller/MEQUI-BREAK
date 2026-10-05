@@ -127,6 +127,7 @@ public sealed class DashboardController : MonoBehaviour
     private bool pageInitialized;
     private const float PageEnterDuration = 0.24f;
     private Tween donutTween;
+    private bool externalDataMode;
     private readonly float[] renderedShares = new float[4];
     private bool donutInitialized;
     private readonly Dictionary<GameObject, Sequence> dropdownTweens = new Dictionary<GameObject, Sequence>();
@@ -298,7 +299,7 @@ public sealed class DashboardController : MonoBehaviour
         }
     }
 
-    private void SelectPeriod(int value)
+    public void SelectPeriod(int value)
     {
         selectedPeriod = Mathf.Clamp(value, 0, 1);
         selectedCategory = -1;
@@ -306,7 +307,7 @@ public sealed class DashboardController : MonoBehaviour
         RefreshDashboard();
     }
 
-    private void SelectTurn(int value)
+    public void SelectTurn(int value)
     {
         selectedTurn = Mathf.Clamp(value, 0, 3);
         selectedCategory = -1;
@@ -314,18 +315,28 @@ public sealed class DashboardController : MonoBehaviour
         RefreshDashboard();
     }
 
-    private void SelectCategory(int value)
+    public void SelectCategory(int value)
     {
         selectedCategory = selectedCategory == value ? -1 : value;
         RefreshDashboard();
     }
 
-    private void ShowPage(int page)
+    public void ShowPage(int page)
+    {
+        ShowPageCore(page, true);
+    }
+
+    public void ShowPageImmediate(int page)
+    {
+        ShowPageCore(page, false);
+    }
+
+    private void ShowPageCore(int page, bool animateOnSwitch)
     {
         int nextPage = Mathf.Clamp(page, 0, 2);
         if (pageInitialized && nextPage == selectedPage) return;
         int previousPage = selectedPage;
-        bool animate = pageInitialized;
+        bool animate = pageInitialized && animateOnSwitch;
         pageSequence?.Kill();
         pageSequence = null;
         if (actionForm.activeSelf) CloseForm();
@@ -347,17 +358,9 @@ public sealed class DashboardController : MonoBehaviour
             pages[i].SetActive(i == nextPage);
         }
 
-        CanvasGroup incoming = pages[nextPage].GetComponent<CanvasGroup>();
         if (animate) {
-            RectTransform inRect = (RectTransform)pages[nextPage].transform;
             float direction = nextPage > previousPage ? 1f : -1f;
-            inRect.anchoredPosition = pageBasePositions[nextPage] + Vector2.right * (32f * direction);
-            pageSequence = DOTween.Sequence().SetUpdate(UpdateType.Normal, UIMotionDefaults.UseUnscaledTime);
-            pageSequence.Append(inRect.DOAnchorPos(pageBasePositions[nextPage], PageEnterDuration).SetEase(Ease.OutCubic));
-            pageSequence.OnComplete(() => {
-                if (incoming != null) incoming.blocksRaycasts = true;
-                pageSequence = null;
-            });
+            AnimatePageEntry(pages[nextPage], nextPage, direction);
         }
         for (int i = 0; i < tabButtons.Length; i++) {
             bool active = i == selectedPage;
@@ -369,6 +372,20 @@ public sealed class DashboardController : MonoBehaviour
             tabLabels[i].color = label;
         }
         pageInitialized = true;
+    }
+
+    private void AnimatePageEntry(GameObject page, int pageIndex, float direction)
+    {
+        RectTransform rect = (RectTransform)page.transform;
+        CanvasGroup group = page.GetComponent<CanvasGroup>();
+        if (group != null) group.blocksRaycasts = false;
+        rect.anchoredPosition = pageBasePositions[pageIndex] + Vector2.right * (32f * direction);
+        pageSequence = DOTween.Sequence().SetUpdate(UpdateType.Normal, UIMotionDefaults.UseUnscaledTime);
+        pageSequence.Append(rect.DOAnchorPos(pageBasePositions[pageIndex], PageEnterDuration).SetEase(Ease.OutCubic));
+        pageSequence.OnComplete(() => {
+            if (group != null) group.blocksRaycasts = true;
+            pageSequence = null;
+        });
     }
 
     private void OnDisable()
@@ -422,8 +439,30 @@ public sealed class DashboardController : MonoBehaviour
 
     private static int Total(int[] values) => values.Sum();
 
-    private void RefreshDashboard()
+    public void CloseExternalFilters()
     {
+        SetDropdown(periodOptions, false, true);
+        SetDropdown(shiftOptions, false, true);
+    }
+
+    public void SyncExternalDropdownPositions()
+    {
+        if (periodOptions != null)
+            dropdownPositions[periodOptions] = ((RectTransform)periodOptions.transform).anchoredPosition;
+        if (shiftOptions != null)
+            dropdownPositions[shiftOptions] = ((RectTransform)shiftOptions.transform).anchoredPosition;
+    }
+
+    public void EnableExternalDataMode()
+    {
+        externalDataMode = true;
+        donutTween?.Kill();
+        donutTween = null;
+    }
+
+    public void RefreshDashboard()
+    {
+        if (externalDataMode) return;
         periodText.text = PeriodNames[selectedPeriod];
         shiftText.text = TurnNames[selectedTurn];
         int[] current = Values(selectedPeriod, selectedTurn);
@@ -474,25 +513,61 @@ public sealed class DashboardController : MonoBehaviour
                 turnViews[t].segments[c].anchoredPosition = new Vector2(segmentX, 0f);
                 float segmentWidth = width * percent / 100f;
                 turnViews[t].segments[c].SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, segmentWidth);
+                Text percentage = turnViews[t].percentages[c];
+                RectTransform percentRect = percentage.rectTransform;
+                float barX = turnViews[t].segments[c].transform.parent.GetComponent<RectTransform>().anchoredPosition.x;
+                percentRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, segmentWidth);
+                percentRect.anchoredPosition = new Vector2(barX + segmentX, percentRect.anchoredPosition.y);
+                percentage.alignment = TextAnchor.MiddleCenter;
+                percentage.fontSize = Mathf.Clamp(Mathf.FloorToInt(segmentWidth * 0.55f), 9, 12);
                 segmentX += segmentWidth;
-                turnViews[t].percentages[c].text = Mathf.RoundToInt(percent) + "%";
+                percentage.text = values[c] > 0 ? Mathf.RoundToInt(percent) + "%" : "";
             }
         }
     }
 
     private void LoadActions()
     {
-        try {
-            if (!File.Exists(ActionPath)) return;
-            var data = JsonUtility.FromJson<ActionFile>(File.ReadAllText(ActionPath));
-            if (data?.items != null) records.AddRange(data.items);
-        } catch (Exception e) { Debug.LogWarning("Dashboard: ações não carregadas: " + e.Message); }
+        if (TryReadActions(ActionPath, out ActionFile data)
+            || TryReadActions(ActionPath + ".bak", out data)
+            || TryReadActions(ActionPath + ".tmp", out data))
+            records.AddRange(data.items);
     }
 
-    private void PersistActions()
+    private static bool TryReadActions(string path, out ActionFile data)
     {
-        try { File.WriteAllText(ActionPath, JsonUtility.ToJson(new ActionFile { items = new List<ActionRecord>(records) })); }
-        catch (Exception e) { Debug.LogError("Dashboard: ações não salvas: " + e.Message); }
+        data = null;
+        if (!File.Exists(path)) return false;
+        try
+        {
+            data = JsonUtility.FromJson<ActionFile>(File.ReadAllText(path));
+            return data?.items != null;
+        }
+        catch (Exception) { return false; }
+    }
+
+    private bool PersistActions()
+    {
+        string pendingPath = ActionPath + ".tmp";
+        try
+        {
+            File.WriteAllText(pendingPath, JsonUtility.ToJson(new ActionFile { items = new List<ActionRecord>(records) }));
+            if (File.Exists(ActionPath))
+            {
+                try { File.Replace(pendingPath, ActionPath, ActionPath + ".bak"); }
+                catch (PlatformNotSupportedException)
+                {
+                    File.Copy(ActionPath, ActionPath + ".bak", true);
+                    File.Copy(pendingPath, ActionPath, true);
+                    File.Delete(pendingPath);
+                }
+            }
+            else
+                File.Move(pendingPath, ActionPath);
+            LocalNotificationService.Refresh();
+            return true;
+        }
+        catch (Exception) { return false; }
     }
 
     private void RefreshActions()
@@ -561,13 +636,24 @@ public sealed class DashboardController : MonoBehaviour
         if (date.Length > 0 && !DateTime.TryParseExact(date, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out _)) {
             formErrorText.text = "Use a data no formato AAAA-MM-DD."; return;
         }
-        var item = editingIndex < 0 ? new ActionRecord { id = Guid.NewGuid().ToString("N") } : records[editingIndex];
+        bool creating = editingIndex < 0;
+        ActionRecord original = creating ? null : records[editingIndex];
+        var item = new ActionRecord { id = creating ? Guid.NewGuid().ToString("N") : original.id };
         item.subject = subject.Substring(0, Mathf.Min(120, subject.Length));
-        item.next = nextInput.text.Trim().Substring(0, Mathf.Min(600, nextInput.text.Trim().Length));
+        string next = nextInput.text.Trim();
+        item.next = next.Substring(0, Mathf.Min(600, next.Length));
         item.date = date;
         item.reminder = reminderChoice == 1 ? "day" : reminderChoice == 2 ? "before" : "none";
-        if (editingIndex < 0) { records.Insert(0, item); actionPage = 0; }
-        PersistActions();
+        if (creating) records.Insert(0, item);
+        else records[editingIndex] = item;
+        if (!PersistActions())
+        {
+            if (creating) records.RemoveAt(0);
+            else records[editingIndex] = original;
+            formErrorText.text = "Não foi possível salvar. Tente novamente.";
+            return;
+        }
+        if (creating) actionPage = 0;
         CloseForm();
     }
 
@@ -581,14 +667,12 @@ public sealed class DashboardController : MonoBehaviour
     private void ConfirmDelete()
     {
         if (pendingDeleteIndex >= 0 && pendingDeleteIndex < records.Count) {
+            ActionRecord deleted = records[pendingDeleteIndex];
             records.RemoveAt(pendingDeleteIndex);
-            PersistActions();
+            if (!PersistActions()) records.Insert(pendingDeleteIndex, deleted);
             RefreshActions();
         }
         pendingDeleteIndex = -1;
         deleteConfirmPanel.SetActive(false);
     }
 }
-
-
-

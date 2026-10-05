@@ -112,10 +112,9 @@ public static class MequiHaptics
             int constant = ResolveAndroidConstant(type, sdk);
             decorView.Call<bool>("performHapticFeedback", constant);
         }
-        catch (System.Exception exception)
+        catch (System.Exception)
         {
-            // Haptics must never be able to break a gameplay/UI action.
-            Debug.LogWarning($"MequiHaptics: Android haptic could not be played. {exception.Message}");
+            // Haptics must never break a gameplay/UI action.
         }
     }
 

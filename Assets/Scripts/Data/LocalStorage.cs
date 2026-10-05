@@ -28,14 +28,39 @@ public sealed class LocalStorage : MonoBehaviour
         return anonymousParticipantId;
     }
 
-    public void SaveEvents(List<EventModel> events)
+    public bool SaveEvents(List<EventModel> events)
     {
         if (events == null)
-            return;
+            return false;
 
-        File.WriteAllText(EventsPath, JsonUtility.ToJson(new EventListWrapper { Items = events }));
-        cachedEvents = events;
-        eventsLoaded = true;
+        string pendingPath = EventsPath + ".tmp";
+        try
+        {
+            File.WriteAllText(pendingPath, JsonUtility.ToJson(new EventListWrapper { Items = events }));
+            if (File.Exists(EventsPath))
+            {
+                try
+                {
+                    File.Replace(pendingPath, EventsPath, EventsPath + ".bak");
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    File.Copy(EventsPath, EventsPath + ".bak", true);
+                    File.Copy(pendingPath, EventsPath, true);
+                    File.Delete(pendingPath);
+                }
+            }
+            else
+                File.Move(pendingPath, EventsPath);
+
+            cachedEvents = new List<EventModel>(events);
+            eventsLoaded = true;
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     public List<EventModel> LoadEvents()
@@ -44,17 +69,30 @@ public sealed class LocalStorage : MonoBehaviour
             return cachedEvents;
 
         eventsLoaded = true;
-
-        if (!File.Exists(EventsPath))
-        {
-            cachedEvents = new List<EventModel>();
+        if (TryReadEvents(EventsPath, out cachedEvents)
+            || TryReadEvents(EventsPath + ".bak", out cachedEvents)
+            || TryReadEvents(EventsPath + ".tmp", out cachedEvents))
             return cachedEvents;
-        }
 
-        string json = File.ReadAllText(EventsPath);
-        EventListWrapper wrapper = JsonUtility.FromJson<EventListWrapper>(json);
-        cachedEvents = wrapper?.Items ?? new List<EventModel>();
+        cachedEvents = new List<EventModel>();
         return cachedEvents;
+    }
+
+    private static bool TryReadEvents(string path, out List<EventModel> events)
+    {
+        events = null;
+        if (!File.Exists(path))
+            return false;
+
+        try
+        {
+            events = JsonUtility.FromJson<EventListWrapper>(File.ReadAllText(path))?.Items;
+            return events != null;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     [Serializable]

@@ -40,6 +40,9 @@ public sealed class AppBootstrapper : MonoBehaviour
 
         // O guia é um único componente persistente; ele observa as cenas sem
         // substituir os ouvintes já configurados nos botões.
+        if (GetComponent<FirebaseSessionSync>() == null)
+            gameObject.AddComponent<FirebaseSessionSync>();
+
         if (GetComponent<FirstRunGuideController>() == null)
             gameObject.AddComponent<FirstRunGuideController>();
     }
