@@ -234,6 +234,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 30009}
+  - {fileID: 8100014}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -335,7 +336,6 @@ RectTransform:
   - {fileID: 30011}
   - {fileID: 30015}
   - {fileID: 31273}
-  - {fileID: 8100014}
   m_Father: {fileID: 30004}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1627,7 +1627,6 @@ RectTransform:
   - {fileID: 31251}
   - {fileID: 31255}
   - {fileID: 31259}
-  - {fileID: 31263}
   - {fileID: 8100010}
   m_Father: {fileID: 31223}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1651,7 +1650,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 31228}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
@@ -2458,12 +2457,12 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 31268}
-  m_Father: {fileID: 31229}
+  m_Father: {fileID: 4000002}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 340}
-  m_SizeDelta: {x: 260, y: 76}
+  m_AnchoredPosition: {x: 0, y: -45}
+  m_SizeDelta: {x: 320, y: 88}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &31264
 CanvasRenderer:
@@ -3641,10 +3640,10 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4000006}
-  - {fileID: 4000010}
   - {fileID: 4000018}
   - {fileID: 4000020}
   - {fileID: 4000022}
+  - {fileID: 31263}
   m_Father: {fileID: 30048}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -3857,12 +3856,12 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4000002}
+  m_Father: {fileID: 4000032}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -280, y: -76}
-  m_SizeDelta: {x: 280, y: 40}
+  m_AnchoredPosition: {x: -260, y: -455}
+  m_SizeDelta: {x: 250, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000011
 CanvasRenderer:
@@ -3892,7 +3891,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: LIMPAS 4
+  m_text: LIMPAS 4/4
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -4387,6 +4386,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 4000010}
   - {fileID: 4000044}
   - {fileID: 4000048}
   - {fileID: 4000052}
@@ -4723,8 +4723,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 260, y: -430}
-  m_SizeDelta: {x: 420, y: 40}
+  m_AnchoredPosition: {x: 150, y: -465}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000049
 CanvasRenderer:
@@ -4788,7 +4788,7 @@ MonoBehaviour:
   m_fontSizeMin: 28
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -5223,8 +5223,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 260, y: -443}
-  m_SizeDelta: {x: 410, y: 35}
+  m_AnchoredPosition: {x: 360, y: -465}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000069
 CanvasRenderer:
@@ -5288,7 +5288,7 @@ MonoBehaviour:
   m_fontSizeMin: 21
   m_fontSizeMax: 21
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 4
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -5342,6 +5342,7 @@ MonoBehaviour:
   handoffAnchor: {fileID: 6000002}
   progressFill: {fileID: 4000066}
   highlight: {fileID: 4000042}
+  stationVisual: {fileID: 4000046}
   status: {fileID: 4000070}
   trayOnCounter: {fileID: 4000055}
 --- !u!1 &4000072
@@ -5642,8 +5643,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -260, y: -220}
-  m_SizeDelta: {x: 420, y: 40}
+  m_AnchoredPosition: {x: -360, y: -255}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000088
 CanvasRenderer:
@@ -5707,7 +5708,7 @@ MonoBehaviour:
   m_fontSizeMin: 28
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -6142,8 +6143,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -260, y: -233}
-  m_SizeDelta: {x: 410, y: 35}
+  m_AnchoredPosition: {x: -150, y: -255}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000108
 CanvasRenderer:
@@ -6207,7 +6208,7 @@ MonoBehaviour:
   m_fontSizeMin: 21
   m_fontSizeMax: 21
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 4
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -6261,6 +6262,7 @@ MonoBehaviour:
   handoffAnchor: {fileID: 6000004}
   progressFill: {fileID: 4000105}
   highlight: {fileID: 4000081}
+  stationVisual: {fileID: 4000085}
   status: {fileID: 4000109}
   trayOnCounter: {fileID: 4000094}
 --- !u!1 &4000111
@@ -6561,8 +6563,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 260, y: -10}
-  m_SizeDelta: {x: 420, y: 40}
+  m_AnchoredPosition: {x: 150, y: -45}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000127
 CanvasRenderer:
@@ -6626,7 +6628,7 @@ MonoBehaviour:
   m_fontSizeMin: 28
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -7061,8 +7063,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 260, y: -23}
-  m_SizeDelta: {x: 410, y: 35}
+  m_AnchoredPosition: {x: 360, y: -45}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000147
 CanvasRenderer:
@@ -7126,7 +7128,7 @@ MonoBehaviour:
   m_fontSizeMin: 21
   m_fontSizeMax: 21
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 4
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -7180,6 +7182,7 @@ MonoBehaviour:
   handoffAnchor: {fileID: 6000006}
   progressFill: {fileID: 4000144}
   highlight: {fileID: 4000120}
+  stationVisual: {fileID: 4000124}
   status: {fileID: 4000148}
   trayOnCounter: {fileID: 4000133}
 --- !u!1 &4000150
@@ -7480,8 +7483,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 380}
-  m_SizeDelta: {x: 250, y: 40}
+  m_AnchoredPosition: {x: -300, y: 260}
+  m_SizeDelta: {x: 280, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000166
 CanvasRenderer:
@@ -7545,7 +7548,7 @@ MonoBehaviour:
   m_fontSizeMin: 28
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -7830,7 +7833,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 395}
+  m_AnchoredPosition: {x: 0, y: 310}
   m_SizeDelta: {x: 840, y: 18}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000178
@@ -7980,8 +7983,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 367}
-  m_SizeDelta: {x: 850, y: 35}
+  m_AnchoredPosition: {x: 300, y: 260}
+  m_SizeDelta: {x: 300, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000186
 CanvasRenderer:
@@ -8045,7 +8048,7 @@ MonoBehaviour:
   m_fontSizeMin: 21
   m_fontSizeMax: 21
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 4
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -8099,6 +8102,7 @@ MonoBehaviour:
   handoffAnchor: {fileID: 6000008}
   progressFill: {fileID: 4000183}
   highlight: {fileID: 4000159}
+  stationVisual: {fileID: 4000163}
   status: {fileID: 4000187}
   trayOnCounter: {fileID: 4000172}
 --- !u!1 &4000189
@@ -8399,8 +8403,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -260, y: -385}
-  m_SizeDelta: {x: 420, y: 40}
+  m_AnchoredPosition: {x: -360, y: -675}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000205
 CanvasRenderer:
@@ -8464,7 +8468,7 @@ MonoBehaviour:
   m_fontSizeMin: 28
   m_fontSizeMax: 28
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 1
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -8899,8 +8903,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -260, y: -653}
-  m_SizeDelta: {x: 410, y: 35}
+  m_AnchoredPosition: {x: -150, y: -675}
+  m_SizeDelta: {x: 205, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4000225
 CanvasRenderer:
@@ -8964,7 +8968,7 @@ MonoBehaviour:
   m_fontSizeMin: 21
   m_fontSizeMax: 21
   m_fontStyle: 0
-  m_HorizontalAlignment: 2
+  m_HorizontalAlignment: 4
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -9018,6 +9022,7 @@ MonoBehaviour:
   handoffAnchor: {fileID: 6000010}
   progressFill: {fileID: 4000222}
   highlight: {fileID: 4000198}
+  stationVisual: {fileID: 4000202}
   status: {fileID: 4000226}
   trayOnCounter: {fileID: 4000211}
 --- !u!1 &4000228
@@ -15871,7 +15876,6 @@ MonoBehaviour:
   spawnInterval: 6
   patienceSeconds: 42
   stageSeconds: 4
-  secondOrderSpeed: 0.5
   initialTrays: 4
   washSecondsPerTray: 1.4
   completionPoints: 20
@@ -21161,7 +21165,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &8100010
 RectTransform:
   m_ObjectHideFlags: 0
@@ -21312,12 +21316,12 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8100018}
-  m_Father: {fileID: 30009}
+  m_Father: {fileID: 30004}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1080, y: 1920}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8100015
 CanvasRenderer:

@@ -40,6 +40,7 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     private bool problemShown;
     private const string ProblemPhrase = "Preciso de ajuda!";
     public bool Busy => route != null && route.IsActive();
+    public bool WashingAtSink { get; private set; }
     public bool Dragging => actor != null && actor.GetComponent<ComboCrewWorkerStationDrag>()?.IsDragging == true;
     public float RouteProgress => Busy ? route.ElapsedPercentage(false) : 0f;
     public bool Configured => actor != null && carriedTray != null;
@@ -221,17 +222,20 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         float secondsPerTray, Action collected, Action completed)
     {
         if (!Configured || home == null || counter == null || firstStation == null || Busy || count < 1) return;
+        WashingAtSink = false;
         SetTrayItems(0);
         route = DOTween.Sequence().SetTarget(this)
             .Append(actor.DOMove(counter.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
             .AppendCallback(() => carriedTray.SetActive(true))
             .AppendCallback(() => collected?.Invoke())
             .Append(actor.DOMove(home.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
+            .AppendCallback(() => WashingAtSink = true)
             .AppendInterval(secondsPerTray * count)
+            .AppendCallback(() => WashingAtSink = false)
             .Append(actor.DOMove(firstStation.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
             .AppendCallback(() => carriedTray.SetActive(false))
             .Append(actor.DOMove(home.position, travelSeconds).SetEase(Ease.InOutCubic))
-            .OnComplete(() => { route = null; completed?.Invoke(); });
+            .OnComplete(() => { WashingAtSink = false; route = null; completed?.Invoke(); });
     }
 
     public void SetPaused(bool value)
@@ -243,6 +247,7 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
 
     private void OnDisable()
     {
+        WashingAtSink = false;
         ShowStationProblem(false);
         if (actorGroup != null) SetAbsent(false);
         route?.Kill();

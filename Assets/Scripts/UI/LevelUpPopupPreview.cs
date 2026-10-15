@@ -67,7 +67,6 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
     private Sequence activeSequence;
     private Vector2[] celebrationTargets = Array.Empty<Vector2>();
     private Vector2 popupPanelRestingPosition;
-    private Tween medalIdleTween;
     private bool isOpen;
     private bool initialized;
 
@@ -217,7 +216,6 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
     private void OnDestroy()
     {
         activeSequence?.Kill();
-        medalIdleTween?.Kill();
 
         if (simulateButton != null)
             simulateButton.onClick.RemoveListener(OpenLevelTwoPreview);
@@ -233,7 +231,6 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
         const float panelRevealDuration = 0.3f;
         isOpen = true;
         activeSequence?.Kill();
-        medalIdleTween?.Kill();
 
         List<AvatarCustomizationItem> rewards = GetLevelRewards(2);
         BindRewards(rewards);
@@ -260,19 +257,18 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
 
         float celebrationTime = panelRevealDuration + progressDuration;
         activeSequence.AppendCallback(PlayLevelUpFeedback);
+        // The badge background and outline are one Image. Its RectTransform
+        // pivot is centered, so one smooth scale pulse expands symmetrically;
+        // the number inherits the same motion from its parent.
         activeSequence.Insert(celebrationTime,
-            levelMedal.DOScale(1.12f, 0.16f).SetEase(Ease.OutCubic));
-        activeSequence.InsertCallback(celebrationTime + 0.16f, () =>
+            levelMedal.DOScale(1.18f, 0.36f).SetEase(Ease.OutCubic));
+        activeSequence.InsertCallback(celebrationTime + 0.3f, () =>
         {
             if (levelBadgeText != null)
                 levelBadgeText.text = "2";
         });
-        activeSequence.Insert(celebrationTime + 0.17f,
-            levelMedal.DOScale(1f, 0.24f).SetEase(Ease.OutSine));
-        activeSequence.Insert(celebrationTime + 0.12f,
-            levelBadgeText.transform.DOScale(1.08f, 0.14f).SetEase(Ease.OutCubic));
-        activeSequence.Insert(celebrationTime + 0.26f,
-            levelBadgeText.transform.DOScale(1f, 0.2f).SetEase(Ease.OutQuad));
+        activeSequence.Insert(celebrationTime + 0.36f,
+            levelMedal.DOScale(1f, 0.26f).SetEase(Ease.OutSine));
         AddCelebrationTweens(activeSequence, celebrationTime);
 
         for (int i = 0; i < rewardSlots.Length; i++)
@@ -296,8 +292,6 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
                 popupGroup.interactable = true;
             if (continueButton != null)
                 continueButton.interactable = true;
-            medalIdleTween = levelMedal.DOScale(1.018f, 1.1f)
-                .SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo).SetUpdate(true);
         });
     }
 
@@ -475,7 +469,6 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
 
         isOpen = false;
         activeSequence?.Kill();
-        medalIdleTween?.Kill();
         popupGroup.interactable = false;
         activeSequence = DOTween.Sequence().SetUpdate(true).SetTarget(this);
         activeSequence.Join(popupGroup.DOFade(0f, 0.2f).SetEase(Ease.InQuad));

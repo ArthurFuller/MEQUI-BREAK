@@ -349,6 +349,7 @@ MonoBehaviour:
   completionClip: {fileID: 8300000, guid: 111111111111111111111111111111a4, type: 3}
   energyDragClip: {fileID: 8300000, guid: a98c1de5398b4f0caf7b4fa5944138ce, type: 3}
   loginJingleClip: {fileID: 8300000, guid: f6b2d4a9c1834e54aa96b801c2d7e3f1, type: 3}
+  repairClip: {fileID: 8300000, guid: 4d0bc7b12a764955adf9e1885290a314, type: 3}
   musicVolume: 0.695
   sfxVolume: 0.776
   clickCooldown: 0.04

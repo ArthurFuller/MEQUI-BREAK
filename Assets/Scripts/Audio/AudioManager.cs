@@ -31,6 +31,7 @@ public sealed class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip readyClip;
     [Tooltip("Opcional. Se vazio, usa o clique como fallback.")]
     [SerializeField] private AudioClip incidentClip;
+    [SerializeField] private AudioClip repairClip;
 
     [Header("Volumes")]
     [SerializeField, Range(0f, 1f)] private float musicVolume = 0.9f;
@@ -183,6 +184,7 @@ public sealed class AudioManager : MonoBehaviour
     public void PlayError() => PlayEffect(errorClip != null ? errorClip : uiClickClip);
     public void PlayReady() => PlayEffect(readyClip != null ? readyClip : confirmClip);
     public void PlayIncident() => PlayEffect(incidentClip != null ? incidentClip : uiClickClip);
+    public void PlayRepair() => PlayEffect(repairClip != null ? repairClip : confirmClip);
 
     public void PlayLoginJingle()
     {
