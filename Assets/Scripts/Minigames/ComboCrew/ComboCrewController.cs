@@ -37,6 +37,10 @@ public sealed class ComboCrewController : MonoBehaviour
     [SerializeField] private ComboCrewClipboard clipboard;
     [SerializeField] private TMP_Text preparationHint;
     [SerializeField] private Image clipboardHighlight;
+    [Header("Animação do aviso da prancheta")]
+    [SerializeField] private Color clipboardPulseColor = new Color(1f, .85f, .22f);
+    [SerializeField, Min(.01f)] private float clipboardPulseSeconds = .55f;
+    [SerializeField] private Ease clipboardPulseEase = Ease.OutQuad;
     [SerializeField] private GameObject profilePanel;
     [SerializeField] private TMP_Text profileTitle;
     [SerializeField] private TMP_Text profileDescription;
@@ -127,12 +131,7 @@ public sealed class ComboCrewController : MonoBehaviour
         workers[0].ApplyPlayerAppearance();
         preparing = true;
         if (clipboardHighlight != null)
-        {
             clipboardColor = clipboardHighlight.color;
-            clipboardPulse = clipboardHighlight.DOColor(
-                new Color(1f, .85f, .22f, clipboardColor.a), .55f)
-                .SetLoops(-1, LoopType.Yoyo).SetTarget(this);
-        }
         RefreshHud();
     }
 
@@ -180,12 +179,7 @@ public sealed class ComboCrewController : MonoBehaviour
         if (preparing)
         {
             RefreshHud();
-            if (clipboard.IsOpen && clipboardPulse != null)
-            {
-                clipboardPulse.Kill();
-                clipboardPulse = null;
-                clipboardHighlight.color = clipboardColor;
-            }
+            UpdateClipboardPulse();
             return;
         }
         if (!playing) return;
@@ -226,8 +220,7 @@ public sealed class ComboCrewController : MonoBehaviour
         preparing = false;
         playing = true;
         if (clipboard.IsOpen) clipboard.Toggle();
-        clipboardPulse?.Kill();
-        if (clipboardHighlight != null) clipboardHighlight.color = clipboardColor;
+        SetClipboardPulse(false);
         preparationPanel.SetActive(false);
         matchRemaining = matchSeconds;
         nextSpawn = spawnInterval;
@@ -590,8 +583,8 @@ public sealed class ComboCrewController : MonoBehaviour
             int staffed = 0;
             for (int i = 0; i < MainStationCount; i++) if (stationWorker[i] >= 0) staffed++;
             if (preparationHint != null)
-                preparationHint.SetText("POSICIONE A EQUIPE  {0}/4", staffed);
-            if (startButton != null) startButton.interactable = staffed == MainStationCount;
+                preparationHint.SetText("POSICIONE AO MENOS 1 PERSONAGEM  {0}/4", staffed);
+            if (startButton != null) startButton.interactable = staffed > 0;
         }
         if (cleanTrayLabel != null) cleanTrayLabel.SetText("LIMPAS {0}", cleanTrays);
         if (dirtyTrayLabel != null) dirtyTrayLabel.SetText("SUJAS {0}", dirtyTrays);
@@ -671,8 +664,37 @@ public sealed class ComboCrewController : MonoBehaviour
     private bool ReadyToStart()
     {
         if (stationWorker == null) return false;
-        for (int i = 0; i < MainStationCount; i++) if (stationWorker[i] < 0) return false;
-        return true;
+        for (int i = 0; i < MainStationCount; i++)
+            if (stationWorker[i] >= 0) return true;
+        return false;
+    }
+
+    private void UpdateClipboardPulse()
+    {
+        bool hasAssignedWorker = false;
+        for (int i = 0; i < MainStationCount; i++)
+            if (stationWorker[i] >= 0) { hasAssignedWorker = true; break; }
+
+        SetClipboardPulse(!hasAssignedWorker && !clipboard.IsOpen);
+    }
+
+    private void SetClipboardPulse(bool enabled)
+    {
+        if (clipboardHighlight == null) return;
+        if (enabled && (clipboardPulse == null || !clipboardPulse.IsActive()))
+        {
+            Color pulseColor = clipboardPulseColor;
+            pulseColor.a = clipboardColor.a;
+            clipboardPulse = clipboardHighlight.DOColor(pulseColor, clipboardPulseSeconds)
+                .SetEase(clipboardPulseEase)
+                .SetLoops(-1, LoopType.Yoyo).SetTarget(this);
+        }
+        else if (!enabled && clipboardPulse != null)
+        {
+            clipboardPulse.Kill();
+            clipboardPulse = null;
+            clipboardHighlight.color = clipboardColor;
+        }
     }
 
     public void OpenProfile(int index)

@@ -379,24 +379,28 @@ public sealed class EnergyStationController : MonoBehaviour
         ApplySelectedFace();
     }
 
-    private void ApplySleepingFace()
-    {
-        AvatarCustomizationData customization = PlayerManager.Instance?.Profile?.Avatar;
-        if (avatarView == null || customization == null)
-            return;
-
-        // Garante primeiro que cor e chapéu sejam exatamente os salvos.
-        avatarView.Apply(customization);
-        avatarView.ApplyFace(sleepingFaceIndex);
-    }
+    private void ApplySleepingFace() =>
+        ApplyAvatarFace(PlayerManager.Instance?.Profile?.Avatar, sleepingFaceIndex, restoreCustomization: true);
 
     private void ApplySelectedFace()
     {
         AvatarCustomizationData customization = PlayerManager.Instance?.Profile?.Avatar;
+        ApplyAvatarFace(customization, customization?.FaceIndex ?? -1);
+    }
+
+    private void ApplyAvatarFace(
+        AvatarCustomizationData customization,
+        int faceIndex,
+        bool restoreCustomization = false)
+    {
         if (avatarView == null || customization == null)
             return;
 
-        avatarView.ApplyFace(customization.FaceIndex);
+        // Garante primeiro que cor e chapéu sejam exatamente os salvos ao descansar.
+        if (restoreCustomization)
+            avatarView.Apply(customization);
+
+        avatarView.ApplyFace(faceIndex);
     }
 
     private void SetTrayLocked(bool locked)

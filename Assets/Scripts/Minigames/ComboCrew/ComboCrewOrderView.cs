@@ -15,7 +15,26 @@ public sealed class ComboCrewOrderView : MonoBehaviour
     [SerializeField] private GameObject completedMark;
     [SerializeField] private GameObject failedMark;
     [SerializeField] private Image resultFlash;
+    [Header("Animação do card")]
+    [SerializeField, Range(.5f, 1f)] private float showStartScale = .94f;
+    [SerializeField, Min(.01f)] private float showSeconds = .2f;
+    [SerializeField] private Ease showEase = Ease.OutBack;
+    [SerializeField, Min(0f)] private float itemPunchStrength = .12f;
+    [SerializeField, Min(.01f)] private float itemPunchSeconds = .2f;
+    [SerializeField, Min(0f)] private float itemPunchStartDelay = .07f;
+    [SerializeField, Min(0f)] private float itemPunchStagger = .04f;
+    [SerializeField, Min(1f)] private float patienceSmoothing = 10f;
+    [SerializeField, Min(.01f)] private float queueMoveSeconds = .24f;
+    [SerializeField] private Ease queueMoveEase = Ease.OutCubic;
+    [Header("Feedback ao concluir pedido")]
+    [SerializeField, Min(0f)] private float resolvePunchStrength = .06f;
+    [SerializeField, Min(.01f)] private float resolvePunchSeconds = .18f;
+    [SerializeField, Min(0f)] private float resultFlashAlpha = .9f;
+    [SerializeField, Min(.01f)] private float resultFlashSeconds = .12f;
+    [SerializeField, Min(0f)] private float resolveHoldSeconds = .18f;
+    [SerializeField, Range(.1f, 1f)] private float exitScale = .85f;
     [SerializeField, Min(.05f)] private float exitSeconds = .3f;
+    [SerializeField] private Ease exitEase = Ease.InCubic;
     private Sequence exit;
     private float shown = 1f;
     public bool Configured => card != null && canvasGroup != null && patienceFill != null
@@ -33,7 +52,7 @@ public sealed class ComboCrewOrderView : MonoBehaviour
         gameObject.SetActive(true);
         completedMark.SetActive(false);
         failedMark.SetActive(false);
-        for (int i = 0; i < itemIcons.Length; i++) itemIcons[i].SetActive((items & (1 << i)) != 0);
+        ArrangeItems(items);
         if (resultFlash != null)
         {
             Color color = resultFlash.color;
@@ -44,22 +63,47 @@ public sealed class ComboCrewOrderView : MonoBehaviour
         shown = 1f;
         patienceFill.type = Image.Type.Simple;
         SetBar(1f);
-        card.localScale = Vector3.one * .94f;
-        card.DOScale(1f, .2f).SetEase(Ease.OutBack).SetTarget(this);
+        card.localScale = Vector3.one * showStartScale;
+        card.DOScale(1f, showSeconds).SetEase(showEase).SetTarget(this);
         for (int i = 0; i < itemIcons.Length; i++)
             if (itemIcons[i].activeSelf)
-                itemIcons[i].transform.DOPunchScale(Vector3.one * .12f, .2f, 1)
-                    .SetDelay(.07f + i * .04f).SetTarget(this);
+                itemIcons[i].transform.DOPunchScale(Vector3.one * itemPunchStrength, itemPunchSeconds, 1)
+                    .SetDelay(itemPunchStartDelay + i * itemPunchStagger).SetTarget(this);
+    }
+
+    private void ArrangeItems(int items)
+    {
+        int visibleCount = 0;
+        float totalWidth = 0f;
+        for (int i = 0; i < itemIcons.Length; i++)
+        {
+            bool visible = (items & (1 << i)) != 0;
+            itemIcons[i].SetActive(visible);
+            if (!visible || !(itemIcons[i].transform is RectTransform rect)) continue;
+            totalWidth += rect.rect.width;
+            visibleCount++;
+        }
+
+        const float gap = 2f;
+        totalWidth += Mathf.Max(0, visibleCount - 1) * gap;
+        float left = -totalWidth * .5f;
+        for (int i = 0; i < itemIcons.Length; i++)
+        {
+            if (!itemIcons[i].activeSelf || !(itemIcons[i].transform is RectTransform rect)) continue;
+            float width = rect.rect.width;
+            rect.anchoredPosition = new Vector2(left + width * .5f, rect.anchoredPosition.y);
+            left += width + gap;
+        }
     }
 
     public void Refresh(float remainingFraction, RectTransform anchor)
     {
-        float blend = 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime);
+        float blend = 1f - Mathf.Exp(-patienceSmoothing * Time.unscaledDeltaTime);
         shown = Mathf.Lerp(shown, Mathf.Clamp01(remainingFraction), blend);
         SetBar(shown);
         if (anchor != null && (card.position - anchor.position).sqrMagnitude > .5f
             && !DOTween.IsTweening(card))
-            card.DOMove(anchor.position, .24f).SetEase(Ease.OutCubic).SetTarget(this);
+            card.DOMove(anchor.position, queueMoveSeconds).SetEase(queueMoveEase).SetTarget(this);
     }
 
     private void SetBar(float value)
@@ -89,12 +133,12 @@ public sealed class ComboCrewOrderView : MonoBehaviour
                 ? new Color(.38f, .86f, .55f, 0f) : new Color(1f, .35f, .28f, 0f);
         }
         exit = DOTween.Sequence().SetTarget(this)
-            .Append(card.DOPunchScale(Vector3.one * .06f, .18f, 1));
-        if (resultFlash != null) exit.Join(resultFlash.DOFade(.9f, .12f));
+            .Append(card.DOPunchScale(Vector3.one * resolvePunchStrength, resolvePunchSeconds, 1));
+        if (resultFlash != null) exit.Join(resultFlash.DOFade(resultFlashAlpha, resultFlashSeconds));
         exit
-            .AppendInterval(.18f)
+            .AppendInterval(resolveHoldSeconds)
             .Append(canvasGroup.DOFade(0f, exitSeconds))
-            .Append(card.DOScale(.85f, exitSeconds).SetEase(Ease.InCubic))
+            .Append(card.DOScale(exitScale, exitSeconds).SetEase(exitEase))
             .OnComplete(() => { exit = null; gameObject.SetActive(false); completed?.Invoke(); });
     }
 

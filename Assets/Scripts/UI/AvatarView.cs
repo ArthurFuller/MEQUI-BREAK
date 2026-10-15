@@ -40,6 +40,31 @@ public sealed class AvatarView : MonoBehaviour
     [Header("Reações opcionais")]
     [SerializeField] private Animator animator;
 
+    public AvatarCustomizationCatalog Catalog => catalogoDeAjustes;
+
+    public Sprite GetCustomizationSprite(AvatarCustomizationCategory category, int optionIndex)
+    {
+        Sprite[] options = category == AvatarCustomizationCategory.Hat ? hatOptions
+            : category == AvatarCustomizationCategory.Face ? faceOptions
+            : null;
+
+        return options != null && optionIndex >= 0 && optionIndex < options.Length
+            ? options[optionIndex]
+            : null;
+    }
+
+    public bool TryGetCustomizationColor(int optionIndex, out Color color)
+    {
+        if (colorOptions != null && optionIndex >= 0 && optionIndex < colorOptions.Length)
+        {
+            color = colorOptions[optionIndex];
+            return true;
+        }
+
+        color = Color.white;
+        return false;
+    }
+
 #if UNITY_EDITOR
     private void OnEnable()
     {

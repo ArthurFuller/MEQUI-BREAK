@@ -118,8 +118,8 @@ public static class MequiArtInstaller
     private static void InstallLogin()
     {
         Scene scene = Open("Assets/Scenes/Login/Login.unity");
-        Transform canvas = Find(scene, "Canvas");
-        Transform safe = Find(scene, "Canvas/SafeArea");
+        Transform canvas = EditorSceneUI.Find(scene, "Canvas");
+        Transform safe = EditorSceneUI.Find(scene, "Canvas/SafeArea");
         ConfigureCanvas(canvas);
         ConfigureSafeArea(safe);
 
@@ -131,14 +131,14 @@ public static class MequiArtInstaller
         Disable(scene, "Canvas/SafeArea/StoreFieldLabel");
 
         Image form = CreateImage(safe, "ArtFormSection", S("Assets/Art/UI/TelaLogin/form-section.png"));
-        Center(form.rectTransform, new Vector2(904f, 649f), new Vector2(0f, -90f));
+        EditorSceneUI.Center(form.rectTransform, new Vector2(904f, 649f), new Vector2(0f, -90f));
         form.transform.SetAsFirstSibling();
 
-        TMP_InputField name = Find(scene, "Canvas/SafeArea/NameInput")?.GetComponent<TMP_InputField>()
+        TMP_InputField name = EditorSceneUI.Find(scene, "Canvas/SafeArea/NameInput")?.GetComponent<TMP_InputField>()
             ?? ComponentAt<TMP_InputField>(scene, "Canvas/SafeArea/EmployeeIDInput");
-        TMP_InputField store = Find(scene, "Canvas/SafeArea/StoreInput")?.GetComponent<TMP_InputField>()
+        TMP_InputField store = EditorSceneUI.Find(scene, "Canvas/SafeArea/StoreInput")?.GetComponent<TMP_InputField>()
             ?? ComponentAt<TMP_InputField>(scene, "Canvas/SafeArea/PasswordInput");
-        TMP_InputField shift = Find(scene, "Canvas/SafeArea/ShiftInput")?.GetComponent<TMP_InputField>();
+        TMP_InputField shift = EditorSceneUI.Find(scene, "Canvas/SafeArea/ShiftInput")?.GetComponent<TMP_InputField>();
         if (shift == null)
         {
             GameObject clone = UnityEngine.Object.Instantiate(name.gameObject, safe, false);
@@ -155,18 +155,18 @@ public static class MequiArtInstaller
         store.characterLimit = PlayerManager.StoreIdMaxLength;
         shift.characterLimit = PlayerManager.ShiftMaxLength;
 
-        Transform loginButtonTransform = Find(scene, "Canvas/SafeArea/LogginButton");
+        Transform loginButtonTransform = EditorSceneUI.Find(scene, "Canvas/SafeArea/LogginButton");
         Button loginButton = loginButtonTransform.GetComponent<Button>();
         SetButtonSprite(loginButton, S("Assets/Art/UI/TelaLogin/btn-entrar.png"));
-        Center(loginButtonTransform as RectTransform, new Vector2(846f, 231f), new Vector2(0f, -590f));
+        EditorSceneUI.Center(loginButtonTransform as RectTransform, new Vector2(846f, 231f), new Vector2(0f, -590f));
         DisableDirectText(loginButtonTransform);
 
         TMP_Text error = ComponentAt<TMP_Text>(scene, "Canvas/SafeArea/ErrorMessage");
-        Center(error.rectTransform, new Vector2(900f, 70f), new Vector2(0f, -735f));
+        EditorSceneUI.Center(error.rectTransform, new Vector2(900f, 70f), new Vector2(0f, -735f));
         error.color = new Color(1f, 0.35f, 0.25f, 1f);
         error.fontSize = 30f;
 
-        LoginController controller = Find(scene, "LoginController").GetComponent<LoginController>();
+        LoginController controller = EditorSceneUI.Find(scene, "LoginController").GetComponent<LoginController>();
         SetObject(controller, "nameInput", name);
         SetObject(controller, "storeInput", store);
         SetObject(controller, "shiftInput", shift);
@@ -176,23 +176,23 @@ public static class MequiArtInstaller
         EnsurePersistentListener(loginButton, controller, nameof(LoginController.Login));
 
         GameObject splash = GetOrCreateUI(canvas, "ArtSplash");
-        Stretch(splash.transform as RectTransform);
-        Image splashImage = GetOrAdd<Image>(splash);
+        EditorSceneUI.Stretch(splash.transform as RectTransform);
+        Image splashImage = EditorSceneUI.GetOrAdd<Image>(splash);
         splashImage.sprite = S("Assets/Art/UI/TelaInicial/Tela 1.png");
         splashImage.preserveAspect = false;
         splashImage.raycastTarget = true;
         splash.transform.SetAsLastSibling();
 
         GameObject splashButtonObject = GetOrCreateUI(splash.transform, "EnterButton");
-        Button splashButton = GetOrAdd<Button>(splashButtonObject);
-        Image splashButtonImage = GetOrAdd<Image>(splashButtonObject);
+        Button splashButton = EditorSceneUI.GetOrAdd<Button>(splashButtonObject);
+        Image splashButtonImage = EditorSceneUI.GetOrAdd<Image>(splashButtonObject);
         splashButton.targetGraphic = splashButtonImage;
         splashButtonImage.sprite = S("Assets/Art/UI/TelaInicial/btn-entrar.png");
         splashButtonImage.preserveAspect = true;
         splashButtonImage.raycastTarget = true;
-        Center(splashButtonObject.transform as RectTransform, new Vector2(846f, 231f), new Vector2(0f, -600f));
+        EditorSceneUI.Center(splashButtonObject.transform as RectTransform, new Vector2(846f, 231f), new Vector2(0f, -600f));
 
-        SplashScreenController splashController = GetOrAdd<SplashScreenController>(canvas.gameObject);
+        SplashScreenController splashController = EditorSceneUI.GetOrAdd<SplashScreenController>(canvas.gameObject);
         SetObject(splashController, "splashRoot", splash);
         SetObject(splashController, "enterButton", splashButton);
 
@@ -202,7 +202,7 @@ public static class MequiArtInstaller
     private static void PrepareInput(TMP_InputField input, Vector2 position, Sprite placeholderSprite)
     {
         RectTransform rect = input.transform as RectTransform;
-        Center(rect, new Vector2(850f, 118f), position);
+        EditorSceneUI.Center(rect, new Vector2(850f, 118f), position);
 
         Image rootImage = input.GetComponent<Image>();
         if (rootImage != null)
@@ -225,7 +225,7 @@ public static class MequiArtInstaller
         Image placeholder = CreateImage(parent, "ArtPlaceholder", placeholderSprite);
         placeholder.raycastTarget = false;
         placeholder.preserveAspect = true;
-        Stretch(placeholder.rectTransform, new Vector2(30f, 18f), new Vector2(-30f, -18f));
+        EditorSceneUI.Stretch(placeholder.rectTransform, new Vector2(30f, 18f), new Vector2(-30f, -18f));
         input.placeholder = placeholder;
         input.lineType = TMP_InputField.LineType.SingleLine;
         input.contentType = TMP_InputField.ContentType.Standard;
@@ -238,18 +238,18 @@ public static class MequiArtInstaller
     private static void InstallHub()
     {
         Scene scene = Open("Assets/Scenes/Hub/HUB.unity");
-        Transform canvas = Find(scene, "Canvas");
-        Transform safe = Find(scene, "Canvas/SafeArea");
+        Transform canvas = EditorSceneUI.Find(scene, "Canvas");
+        Transform safe = EditorSceneUI.Find(scene, "Canvas/SafeArea");
         ConfigureCanvas(canvas);
         ConfigureSafeArea(safe);
 
         SetFullScreen(ImageAt(scene, "Canvas/Background"), S("Assets/Art/UI/Home/lobby-mequi-break.png"), false);
 
-        Transform playerCard = Find(scene, "Canvas/SafeArea/PlayerCard");
+        Transform playerCard = EditorSceneUI.Find(scene, "Canvas/SafeArea/PlayerCard");
         Image playerCardImage = playerCard.GetComponent<Image>();
         if (playerCardImage != null)
             playerCardImage.color = Color.clear;
-        Transform nameLabel = Find(scene, "Canvas/SafeArea/PlayerCard/NameLabel");
+        Transform nameLabel = EditorSceneUI.Find(scene, "Canvas/SafeArea/PlayerCard/NameLabel");
         if (nameLabel != null)
             nameLabel.gameObject.SetActive(true);
         Disable(scene, "Canvas/SafeArea/PlayerCard/RoleLabel");
@@ -258,9 +258,9 @@ public static class MequiArtInstaller
         Image avatar = ImageAt(scene, "Canvas/SafeArea/PlayerCard/Avatar");
         avatar.sprite = S("Assets/Art/UI/Home/cute-mascot.png");
         avatar.preserveAspect = true;
-        Center(avatar.rectTransform, new Vector2(410f, 410f), new Vector2(0f, 245f));
+        EditorSceneUI.Center(avatar.rectTransform, new Vector2(410f, 410f), new Vector2(0f, 245f));
 
-        Transform header = Find(scene, "Canvas/SafeArea/Header");
+        Transform header = EditorSceneUI.Find(scene, "Canvas/SafeArea/Header");
         Disable(scene, "Canvas/SafeArea/Header/Logo(TROCAR PARA IMAGEM)");
 
         Button settings = ComponentAt<Button>(scene, "Canvas/SafeArea/Header/SettingsButton");
@@ -268,10 +268,10 @@ public static class MequiArtInstaller
         AnchorTop(settings.transform as RectTransform, new Vector2(194f, 186f), new Vector2(-112f, -105f), false);
         DisableDirectText(settings.transform);
 
-        Transform quick = Find(scene, "Canvas/SafeArea/QuickAction");
+        Transform quick = EditorSceneUI.Find(scene, "Canvas/SafeArea/QuickAction");
         Button customize = ComponentAt<Button>(scene, "Canvas/SafeArea/QuickAction/CustomizationButton");
         SetButtonSprite(customize, S("Assets/Art/UI/Home/edit-badge.png"));
-        Center(customize.transform as RectTransform, new Vector2(104f, 104f), new Vector2(155f, 390f));
+        EditorSceneUI.Center(customize.transform as RectTransform, new Vector2(104f, 104f), new Vector2(155f, 390f));
         DisableDirectText(customize.transform);
         Disable(scene, "Canvas/SafeArea/QuickAction/GamesButton");
 
@@ -282,7 +282,7 @@ public static class MequiArtInstaller
         Image pbCounter = CreateImage(safe, "BreakPointsCounter", S("Assets/Art/UI/Home/Rectangle 1.png"));
         AnchorTop(pbCounter.rectTransform, new Vector2(748f, 157f), new Vector2(0f, -300f), true);
         points.transform.SetParent(pbCounter.transform, false);
-        Stretch(points.rectTransform, new Vector2(80f, 25f), new Vector2(-80f, -25f));
+        EditorSceneUI.Stretch(points.rectTransform, new Vector2(80f, 25f), new Vector2(-80f, -25f));
         points.alignment = TextAlignmentOptions.Center;
         points.color = new Color(0.1f, 0.1f, 0.1f, 1f);
         points.fontSize = 46f;
@@ -291,23 +291,23 @@ public static class MequiArtInstaller
         Image energy = ImageAt(scene, "Canvas/SafeArea/CollectiveProgress");
         energy.sprite = S("Assets/Art/UI/Home/energy-status-container.png");
         energy.preserveAspect = true;
-        Center(energy.rectTransform, new Vector2(600f, 30f), new Vector2(0f, -25f));
+        EditorSceneUI.Center(energy.rectTransform, new Vector2(600f, 30f), new Vector2(0f, -25f));
         Disable(scene, "Canvas/SafeArea/CollectiveProgress/ProgressLabel");
 
-        Transform card = Find(scene, "Canvas/SafeArea/ActivityCard");
+        Transform card = EditorSceneUI.Find(scene, "Canvas/SafeArea/ActivityCard");
         Image cardImage = card.GetComponent<Image>();
         cardImage.sprite = S("Assets/Art/UI/Home/action-card-1.png");
         cardImage.preserveAspect = true;
-        Center(card as RectTransform, new Vector2(500f, 350f), new Vector2(-262f, -515f));
+        EditorSceneUI.Center(card as RectTransform, new Vector2(500f, 350f), new Vector2(-262f, -515f));
         Disable(scene, "Canvas/SafeArea/ActivityCard/ActivityTitle");
         Disable(scene, "Canvas/SafeArea/ActivityCard/ActivityDescription");
         Button play = ComponentAt<Button>(scene, "Canvas/SafeArea/ActivityCard/PlayButton");
-        Stretch(play.transform as RectTransform);
+        EditorSceneUI.Stretch(play.transform as RectTransform);
         MakeButtonTransparent(play);
         DisableDirectText(play.transform);
 
         Image secondCard = CreateImage(safe, "ComingSoonCard", S("Assets/Art/UI/Home/action-card-2.png"));
-        Center(secondCard.rectTransform, new Vector2(500f, 350f), new Vector2(262f, -515f));
+        EditorSceneUI.Center(secondCard.rectTransform, new Vector2(500f, 350f), new Vector2(262f, -515f));
 
         Save(scene);
     }
@@ -319,8 +319,8 @@ public static class MequiArtInstaller
     private static void InstallCustomization()
     {
         Scene scene = Open("Assets/Scenes/Customization/Customization.unity");
-        Transform canvas = Find(scene, "Canvas");
-        Transform safe = Find(scene, "Canvas/SafeArea");
+        Transform canvas = EditorSceneUI.Find(scene, "Canvas");
+        Transform safe = EditorSceneUI.Find(scene, "Canvas/SafeArea");
         ConfigureCanvas(canvas);
         ConfigureSafeArea(safe);
         SetFullScreen(ImageAt(scene, "Canvas/Background"), S(DarkBackgroundPath), false);
@@ -331,22 +331,22 @@ public static class MequiArtInstaller
         DisableDirectText(back.transform);
         Disable(scene, "Canvas/SafeArea/Header/Title");
 
-        Transform preview = Find(scene, "Canvas/SafeArea/AvatarPreview");
+        Transform preview = EditorSceneUI.Find(scene, "Canvas/SafeArea/AvatarPreview");
         AnchorTop(preview as RectTransform, new Vector2(1080f, 690f), new Vector2(0f, -410f), true);
-        AvatarView avatarView = Find(scene, "Canvas/SafeArea/AvatarPreview/AvatarRoot").GetComponent<AvatarView>();
+        AvatarView avatarView = EditorSceneUI.Find(scene, "Canvas/SafeArea/AvatarPreview/AvatarRoot").GetComponent<AvatarView>();
         BuildArtAvatar(avatarView, true);
 
         Image points = CreateImage(safe, "CustomizationPoints", S("Assets/Art/UI/PersonalizarPersonagem1/points.png"));
         AnchorTop(points.rectTransform, new Vector2(250f, 84f), new Vector2(-160f, -95f), false);
         TMP_Text pointsValue = CreateText(points.transform, "Value", "0", 34f, Color.white);
-        Stretch(pointsValue.rectTransform, new Vector2(75f, 8f), new Vector2(-20f, -8f));
+        EditorSceneUI.Stretch(pointsValue.rectTransform, new Vector2(75f, 8f), new Vector2(-20f, -8f));
         pointsValue.alignment = TextAlignmentOptions.Center;
-        BreakPointsTextBinder pointsBinder = GetOrAdd<BreakPointsTextBinder>(points.gameObject);
+        BreakPointsTextBinder pointsBinder = EditorSceneUI.GetOrAdd<BreakPointsTextBinder>(points.gameObject);
         SetObject(pointsBinder, "target", pointsValue);
 
-        Transform tabs = Find(scene, "Canvas/SafeArea/TabsBar");
+        Transform tabs = EditorSceneUI.Find(scene, "Canvas/SafeArea/TabsBar");
         AnchorBottom(tabs as RectTransform, new Vector2(880f, 115f), new Vector2(0f, 680f), true);
-        HorizontalLayoutGroup tabLayout = GetOrAdd<HorizontalLayoutGroup>(tabs.gameObject);
+        HorizontalLayoutGroup tabLayout = EditorSceneUI.GetOrAdd<HorizontalLayoutGroup>(tabs.gameObject);
         tabLayout.spacing = 22f;
         tabLayout.childAlignment = TextAnchor.MiddleCenter;
         tabLayout.childControlWidth = false;
@@ -360,14 +360,14 @@ public static class MequiArtInstaller
         SetButtonSprite(hat, S("Assets/Art/UI/PersonalizarPersonagem1/tab-bone.png"));
         SetButtonSprite(face, S("Assets/Art/UI/PersonalizarPersonagem1/tab-cara.png"));
         SetButtonSprite(color, S("Assets/Art/UI/PersonalizarPersonagem1/tab-cor.png"));
-        Center(hat.transform as RectTransform, new Vector2(270f, 100f), Vector2.zero);
-        Center(face.transform as RectTransform, new Vector2(230f, 100f), Vector2.zero);
-        Center(color.transform as RectTransform, new Vector2(190f, 100f), Vector2.zero);
+        EditorSceneUI.Center(hat.transform as RectTransform, new Vector2(270f, 100f), Vector2.zero);
+        EditorSceneUI.Center(face.transform as RectTransform, new Vector2(230f, 100f), Vector2.zero);
+        EditorSceneUI.Center(color.transform as RectTransform, new Vector2(190f, 100f), Vector2.zero);
         DisableDirectText(hat.transform);
         DisableDirectText(face.transform);
         DisableDirectText(color.transform);
 
-        CustomizationTabArtController tabArt = GetOrAdd<CustomizationTabArtController>(tabs.gameObject);
+        CustomizationTabArtController tabArt = EditorSceneUI.GetOrAdd<CustomizationTabArtController>(tabs.gameObject);
         SetObject(tabArt, "hatButton", hat);
         SetObject(tabArt, "faceButton", face);
         SetObject(tabArt, "colorButton", color);
@@ -378,9 +378,9 @@ public static class MequiArtInstaller
         SetObject(tabArt, "colorActive", S("Assets/Art/UI/PersonalizarPersonagem2/tab-bone (1).png"));
         SetObject(tabArt, "colorInactive", S("Assets/Art/UI/PersonalizarPersonagem1/tab-cor.png"));
 
-        Transform scroll = Find(scene, "Canvas/SafeArea/OptionsScrollView");
+        Transform scroll = EditorSceneUI.Find(scene, "Canvas/SafeArea/OptionsScrollView");
         AnchorBottom(scroll as RectTransform, new Vector2(980f, 520f), new Vector2(0f, 350f), true);
-        Transform content = Find(scene, "Canvas/SafeArea/OptionsScrollView/Viewport/Content");
+        Transform content = EditorSceneUI.Find(scene, "Canvas/SafeArea/OptionsScrollView/Viewport/Content");
         GridLayoutGroup grid = content.GetComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(210f, 192f);
         grid.spacing = new Vector2(28f, 26f);
@@ -401,6 +401,7 @@ public static class MequiArtInstaller
         };
         Sprite[] eyes = FaceEyes();
         Sprite[] colors = FaceColors();
+        Sprite[] mouths = FaceMouths();
 
         GameObject[] hairOptions = FindOptions(content, "Hair", hatSprites.Length);
         for (int i = 0; i < hairOptions.Length; i++)
@@ -410,7 +411,7 @@ public static class MequiArtInstaller
         for (int i = 0; i < faceOptions.Length; i++)
         {
             Sprite cardArt = i == 0 ? selectedCard : i == 3 ? costCard : i == 4 ? level6 : i == 5 ? level8 : i == 6 ? level12 : null;
-            ConfigureOption(faceOptions[i], eyes[i], cardArt, FaceMouths()[i]);
+            ConfigureOption(faceOptions[i], eyes[i], cardArt, mouths[i]);
         }
 
         GameObject[] colorOptions = FindOptions(content, "Accessory", colors.Length);
@@ -420,7 +421,7 @@ public static class MequiArtInstaller
             ConfigureOption(colorOptions[i], colors[i], cardArt, null);
         }
 
-        CustomizationController controller = Find(scene, "CustomizationController").GetComponent<CustomizationController>();
+        CustomizationController controller = EditorSceneUI.Find(scene, "CustomizationController").GetComponent<CustomizationController>();
         SetObjectArray(controller, "hairOptions", hairOptions);
         SetObjectArray(controller, "outfitOptions", faceOptions);
         SetObjectArray(controller, "accessoryOptions", colorOptions);
@@ -428,7 +429,7 @@ public static class MequiArtInstaller
         SetObject(controller, "outfitButton", face);
         SetObject(controller, "accessoryButton", color);
 
-        Transform confirm = Find(scene, "Canvas/SafeArea/Header/ConfirmButton");
+        Transform confirm = EditorSceneUI.Find(scene, "Canvas/SafeArea/Header/ConfirmButton");
         AnchorBottom(confirm as RectTransform, new Vector2(350f, 105f), new Vector2(0f, 65f), true);
 
         Save(scene);
@@ -436,31 +437,34 @@ public static class MequiArtInstaller
 
     private static void BuildArtAvatar(AvatarView avatarView, bool large)
     {
+        Sprite[] faceColors = FaceColors();
+        Sprite[] faceEyes = FaceEyes();
+        Sprite[] faceMouths = FaceMouths();
         Transform root = avatarView.transform;
         SetChildrenActive(root, new[] { "Body", "HeadAnchor", "TorsoAnchor" }, false);
 
         GameObject artRoot = GetOrCreateUI(root, "ArtAvatarRoot");
-        Center(artRoot.transform as RectTransform, large ? new Vector2(560f, 560f) : new Vector2(500f, 500f), Vector2.zero);
+        EditorSceneUI.Center(artRoot.transform as RectTransform, large ? new Vector2(560f, 560f) : new Vector2(500f, 500f), Vector2.zero);
 
         Image baseImage = CreateImage(artRoot.transform, "Base", S("Assets/Art/UI/PersonalizarPersonagem1/avatar-circle.png"));
-        Center(baseImage.rectTransform, new Vector2(500f, 500f), Vector2.zero);
+        EditorSceneUI.Center(baseImage.rectTransform, new Vector2(500f, 500f), Vector2.zero);
 
-        Image faceColor = CreateImage(artRoot.transform, "FaceColor", FaceColors()[0]);
-        Center(faceColor.rectTransform, new Vector2(250f, 236f), new Vector2(0f, -35f));
+        Image faceColor = CreateImage(artRoot.transform, "FaceColor", faceColors[0]);
+        EditorSceneUI.Center(faceColor.rectTransform, new Vector2(250f, 236f), new Vector2(0f, -35f));
 
         Image hat = CreateImage(artRoot.transform, "Hat", S("Assets/Art/UI/PersonalizarPersonagem1/hat-icon.png"));
-        Center(hat.rectTransform, new Vector2(310f, 150f), new Vector2(0f, 120f));
+        EditorSceneUI.Center(hat.rectTransform, new Vector2(310f, 150f), new Vector2(0f, 120f));
 
-        Image eyes = CreateImage(artRoot.transform, "Eyes", FaceEyes()[0]);
-        Center(eyes.rectTransform, new Vector2(120f, 80f), new Vector2(0f, -5f));
+        Image eyes = CreateImage(artRoot.transform, "Eyes", faceEyes[0]);
+        EditorSceneUI.Center(eyes.rectTransform, new Vector2(120f, 80f), new Vector2(0f, -5f));
 
-        Image mouth = CreateImage(artRoot.transform, "Mouth", FaceMouths()[0]);
-        Center(mouth.rectTransform, new Vector2(125f, 72f), new Vector2(0f, -72f));
+        Image mouth = CreateImage(artRoot.transform, "Mouth", faceMouths[0]);
+        EditorSceneUI.Center(mouth.rectTransform, new Vector2(125f, 72f), new Vector2(0f, -72f));
 
         Image browLeft = CreateImage(artRoot.transform, "BrowLeft", S("Assets/Art/UI/PersonalizarPersonagem3/Rectangle 7.png"));
-        Center(browLeft.rectTransform, new Vector2(70f, 58f), new Vector2(-62f, 45f));
+        EditorSceneUI.Center(browLeft.rectTransform, new Vector2(70f, 58f), new Vector2(-62f, 45f));
         Image browRight = CreateImage(artRoot.transform, "BrowRight", S("Assets/Art/UI/PersonalizarPersonagem3/Rectangle 8.png"));
-        Center(browRight.rectTransform, new Vector2(70f, 58f), new Vector2(62f, 45f));
+        EditorSceneUI.Center(browRight.rectTransform, new Vector2(70f, 58f), new Vector2(62f, 45f));
         browRight.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
 
         SetObject(avatarView, "artAvatarBaseImage", baseImage);
@@ -470,15 +474,15 @@ public static class MequiArtInstaller
         SetObject(avatarView, "artMouthImage", mouth);
         SetObject(avatarView, "artBrowLeftImage", browLeft);
         SetObject(avatarView, "artBrowRightImage", browRight);
-        SetSpriteArray(avatarView, "artFaceColorOptions", FaceColors());
+        SetSpriteArray(avatarView, "artFaceColorOptions", faceColors);
         SetSpriteArray(avatarView, "artHatOptions", new[]
         {
             S("Assets/Art/UI/PersonalizarPersonagem1/hat-icon.png"),
             S("Assets/Art/UI/PersonalizarPersonagem1/hat-icon-green.png"),
             S("Assets/Art/UI/PersonalizarPersonagem1/hat-top-red.png")
         });
-        SetSpriteArray(avatarView, "artEyesOptions", FaceEyes());
-        SetSpriteArray(avatarView, "artMouthOptions", FaceMouths());
+        SetSpriteArray(avatarView, "artEyesOptions", faceEyes);
+        SetSpriteArray(avatarView, "artMouthOptions", faceMouths);
         SetObject(avatarView, "artBrowLeftSprite", S("Assets/Art/UI/PersonalizarPersonagem3/Rectangle 7.png"));
         SetObject(avatarView, "artBrowRightSprite", S("Assets/Art/UI/PersonalizarPersonagem3/Rectangle 8.png"));
         EditorUtility.SetDirty(avatarView);
@@ -521,20 +525,20 @@ public static class MequiArtInstaller
         if (option == null)
             return;
 
-        Image rootImage = GetOrAdd<Image>(option);
+        Image rootImage = EditorSceneUI.GetOrAdd<Image>(option);
         rootImage.sprite = cardSprite;
         rootImage.preserveAspect = cardSprite != null;
         rootImage.color = cardSprite != null ? Color.white : new Color(0.17f, 0.17f, 0.17f, 1f);
         rootImage.raycastTarget = true;
 
         Image thumbnail = CreateImage(option.transform, "ArtThumbnail", thumbnailSprite);
-        Center(thumbnail.rectTransform, new Vector2(125f, 105f), secondarySprite == null ? Vector2.zero : new Vector2(0f, 24f));
+        EditorSceneUI.Center(thumbnail.rectTransform, new Vector2(125f, 105f), secondarySprite == null ? Vector2.zero : new Vector2(0f, 24f));
         thumbnail.raycastTarget = false;
 
         if (secondarySprite != null)
         {
             Image secondary = CreateImage(option.transform, "ArtSecondary", secondarySprite);
-            Center(secondary.rectTransform, new Vector2(100f, 58f), new Vector2(0f, -48f));
+            EditorSceneUI.Center(secondary.rectTransform, new Vector2(100f, 58f), new Vector2(0f, -48f));
             secondary.raycastTarget = false;
         }
 
@@ -571,13 +575,13 @@ public static class MequiArtInstaller
     private static void InstallEnergyStation()
     {
         Scene scene = Open("Assets/Scenes/EnergyStation/EnergyStation.unity");
-        Transform canvas = Find(scene, "Canvas");
-        Transform safe = Find(scene, "Canvas/SafeArea");
+        Transform canvas = EditorSceneUI.Find(scene, "Canvas");
+        Transform safe = EditorSceneUI.Find(scene, "Canvas/SafeArea");
         ConfigureCanvas(canvas);
         ConfigureSafeArea(safe);
         SetFullScreen(ImageAt(scene, "Canvas/Background"), S(DarkBackgroundPath), false);
 
-        Transform header = Find(scene, "Canvas/SafeArea/Header");
+        Transform header = EditorSceneUI.Find(scene, "Canvas/SafeArea/Header");
         Disable(scene, "Canvas/SafeArea/Header/EnergyStationTitle");
         Image headerArt = CreateImage(header, "ArtHeader", S("Assets/Art/UI/EnergyBreak/header.png"));
         AnchorTop(headerArt.rectTransform, new Vector2(520f, 70f), new Vector2(0f, -95f), true);
@@ -589,8 +593,8 @@ public static class MequiArtInstaller
         Image avatar = ImageAt(scene, "Canvas/SafeArea/AvatarArea/Avatar");
         avatar.sprite = S("Assets/Art/UI/EnergyBreak/monster-character.png");
         avatar.preserveAspect = true;
-        Center(avatar.rectTransform, new Vector2(520f, 520f), new Vector2(0f, 215f));
-        MequiEnergyArtFeedback feedback = GetOrAdd<MequiEnergyArtFeedback>(avatar.gameObject);
+        EditorSceneUI.Center(avatar.rectTransform, new Vector2(520f, 520f), new Vector2(0f, 215f));
+        MequiEnergyArtFeedback feedback = EditorSceneUI.GetOrAdd<MequiEnergyArtFeedback>(avatar.gameObject);
         SetObject(feedback, "targetImage", avatar);
         SetObject(feedback, "normalSprite", S("Assets/Art/UI/EnergyBreak/monster-character.png"));
         SetObject(feedback, "successSprite", S("Assets/Art/UI/EnergyBreak/monster-character (1).png"));
@@ -600,16 +604,16 @@ public static class MequiArtInstaller
         dropZone.preserveAspect = true;
         dropZone.color = Color.white;
         dropZone.raycastTarget = true;
-        Center(dropZone.rectTransform, new Vector2(620f, 620f), Vector2.zero);
+        EditorSceneUI.Center(dropZone.rectTransform, new Vector2(620f, 620f), Vector2.zero);
 
-        Transform interactionArea = Find(scene, "Canvas/SafeArea/InteractionArea");
+        Transform interactionArea = EditorSceneUI.Find(scene, "Canvas/SafeArea/InteractionArea");
         AnchorBottom(interactionArea as RectTransform, new Vector2(970f, 340f), new Vector2(0f, 310f), true);
         Image tray = CreateImage(interactionArea, "ArtItemsTray", S("Assets/Art/UI/EnergyBreak/items-tray.png"));
-        Center(tray.rectTransform, new Vector2(930f, 222f), Vector2.zero);
+        EditorSceneUI.Center(tray.rectTransform, new Vector2(930f, 222f), Vector2.zero);
         tray.transform.SetAsFirstSibling();
 
-        Transform interactions = Find(scene, "Canvas/SafeArea/InteractionArea/InteractionObjects");
-        Center(interactions as RectTransform, new Vector2(900f, 235f), Vector2.zero);
+        Transform interactions = EditorSceneUI.Find(scene, "Canvas/SafeArea/InteractionArea/InteractionObjects");
+        EditorSceneUI.Center(interactions as RectTransform, new Vector2(900f, 235f), Vector2.zero);
         Transform oldWater = interactions.Find("WaterBottle");
         if (oldWater != null)
             UnityEngine.Object.DestroyImmediate(oldWater.gameObject);
@@ -641,9 +645,9 @@ public static class MequiArtInstaller
             S("Assets/Art/UI/EnergyBreak/Intervalo.png"),
             "break", "Intervalo concluído!", null);
 
-        Transform progress = Find(scene, "Canvas/SafeArea/ProgressBar");
+        Transform progress = EditorSceneUI.Find(scene, "Canvas/SafeArea/ProgressBar");
         AnchorBottom(progress as RectTransform, new Vector2(680f, 84f), new Vector2(0f, 560f), true);
-        Transform complete = Find(scene, "Canvas/SafeArea/CompleteButton");
+        Transform complete = EditorSceneUI.Find(scene, "Canvas/SafeArea/CompleteButton");
         AnchorBottom(complete as RectTransform, new Vector2(390f, 108f), new Vector2(0f, 85f), true);
 
         Save(scene);
@@ -662,33 +666,33 @@ public static class MequiArtInstaller
         Sprite compatibilitySprite)
     {
         GameObject slot = GetOrCreateUI(parent, name + "Slot");
-        Image slotImage = GetOrAdd<Image>(slot);
+        Image slotImage = EditorSceneUI.GetOrAdd<Image>(slot);
         slotImage.sprite = S("Assets/Art/UI/EnergyBreak/item-placeholder.png");
         slotImage.preserveAspect = true;
         slotImage.raycastTarget = false;
-        Center(slot.transform as RectTransform, new Vector2(205f, 205f), new Vector2(x, 0f));
+        EditorSceneUI.Center(slot.transform as RectTransform, new Vector2(205f, 205f), new Vector2(x, 0f));
 
         GameObject draggableObject = GetOrCreateUI(slot.transform, name);
-        Image card = GetOrAdd<Image>(draggableObject);
+        Image card = EditorSceneUI.GetOrAdd<Image>(draggableObject);
         card.sprite = cardSprite;
         card.preserveAspect = true;
         card.raycastTarget = true;
-        Center(draggableObject.transform as RectTransform, new Vector2(178f, 170f), new Vector2(0f, 10f));
-        GetOrAdd<CanvasGroup>(draggableObject);
+        EditorSceneUI.Center(draggableObject.transform as RectTransform, new Vector2(178f, 170f), new Vector2(0f, 10f));
+        EditorSceneUI.GetOrAdd<CanvasGroup>(draggableObject);
 
         Image icon = CreateImage(draggableObject.transform, "Icon", normalIcon);
-        Center(icon.rectTransform, new Vector2(102f, 102f), new Vector2(0f, 21f));
+        EditorSceneUI.Center(icon.rectTransform, new Vector2(102f, 102f), new Vector2(0f, 21f));
         icon.raycastTarget = false;
         Image label = CreateImage(draggableObject.transform, "Label", labelSprite);
-        Center(label.rectTransform, new Vector2(135f, 35f), new Vector2(0f, -55f));
+        EditorSceneUI.Center(label.rectTransform, new Vector2(135f, 35f), new Vector2(0f, -55f));
         label.raycastTarget = false;
 
-        DraggableInteraction interaction = GetOrAdd<DraggableInteraction>(draggableObject);
+        DraggableInteraction interaction = EditorSceneUI.GetOrAdd<DraggableInteraction>(draggableObject);
         SetString(interaction, "interactionId", interactionId);
         SetString(interaction, "reactionTrigger", "Happy");
         SetString(interaction, "feedbackMessage", feedbackMessage);
 
-        MequiDraggableArtState artState = GetOrAdd<MequiDraggableArtState>(draggableObject);
+        MequiDraggableArtState artState = EditorSceneUI.GetOrAdd<MequiDraggableArtState>(draggableObject);
         SetObject(artState, "iconImage", icon);
         SetObject(artState, "normalSprite", normalIcon);
         SetObject(artState, "highlightedSprite", highlightedIcon);
@@ -755,25 +759,9 @@ public static class MequiArtInstaller
 
     private static Sprite S(string path) => AssetDatabase.LoadAssetAtPath<Sprite>(path);
 
-    private static Transform Find(Scene scene, string path)
-    {
-        string[] parts = path.Split('/');
-        foreach (GameObject root in scene.GetRootGameObjects())
-        {
-            if (root.name != parts[0])
-                continue;
-
-            Transform current = root.transform;
-            for (int i = 1; i < parts.Length && current != null; i++)
-                current = current.Find(parts[i]);
-            return current;
-        }
-        return null;
-    }
-
     private static T ComponentAt<T>(Scene scene, string path) where T : Component
     {
-        Transform found = Find(scene, path);
+        Transform found = EditorSceneUI.Find(scene, path);
         if (found == null)
             throw new InvalidOperationException($"Required object was not found: {path}");
         T component = found.GetComponent<T>();
@@ -807,8 +795,8 @@ public static class MequiArtInstaller
             if (component != null && component.GetType().FullName == "Crystal.SafeArea")
                 UnityEngine.Object.DestroyImmediate(component);
         }
-        GetOrAdd<SafeAreaFitter>(safe.gameObject);
-        Stretch(safe as RectTransform);
+        EditorSceneUI.GetOrAdd<SafeAreaFitter>(safe.gameObject);
+        EditorSceneUI.Stretch(safe as RectTransform);
     }
 
     private static void SetFullScreen(Image image, Sprite sprite, bool preserveAspect)
@@ -817,7 +805,7 @@ public static class MequiArtInstaller
         image.color = Color.white;
         image.preserveAspect = preserveAspect;
         image.raycastTarget = false;
-        Stretch(image.rectTransform);
+        EditorSceneUI.Stretch(image.rectTransform);
         image.transform.SetAsFirstSibling();
     }
 
@@ -834,7 +822,7 @@ public static class MequiArtInstaller
     private static Image CreateImage(Transform parent, string name, Sprite sprite)
     {
         GameObject gameObject = GetOrCreateUI(parent, name);
-        Image image = GetOrAdd<Image>(gameObject);
+        Image image = EditorSceneUI.GetOrAdd<Image>(gameObject);
         image.sprite = sprite;
         image.color = Color.white;
         image.preserveAspect = true;
@@ -845,18 +833,12 @@ public static class MequiArtInstaller
     private static TMP_Text CreateText(Transform parent, string name, string value, float fontSize, Color color)
     {
         GameObject gameObject = GetOrCreateUI(parent, name);
-        TextMeshProUGUI text = GetOrAdd<TextMeshProUGUI>(gameObject);
+        TextMeshProUGUI text = EditorSceneUI.GetOrAdd<TextMeshProUGUI>(gameObject);
         text.text = value;
         text.fontSize = fontSize;
         text.color = color;
         text.raycastTarget = false;
         return text;
-    }
-
-    private static T GetOrAdd<T>(GameObject gameObject) where T : Component
-    {
-        T component = gameObject.GetComponent<T>();
-        return component != null ? component : gameObject.AddComponent<T>();
     }
 
     private static void SetButtonSprite(Button button, Sprite sprite)
@@ -897,7 +879,7 @@ public static class MequiArtInstaller
 
     private static void Disable(Scene scene, string path)
     {
-        Transform found = Find(scene, path);
+        Transform found = EditorSceneUI.Find(scene, path);
         if (found != null)
             found.gameObject.SetActive(false);
     }
@@ -919,28 +901,6 @@ public static class MequiArtInstaller
             if (child != null)
                 child.gameObject.SetActive(active);
         }
-    }
-
-    private static void Stretch(RectTransform rect)
-        => Stretch(rect, Vector2.zero, Vector2.zero);
-
-    private static void Stretch(RectTransform rect, Vector2 offsetMin, Vector2 offsetMax)
-    {
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.offsetMin = offsetMin;
-        rect.offsetMax = offsetMax;
-        rect.localScale = Vector3.one;
-    }
-
-    private static void Center(RectTransform rect, Vector2 size, Vector2 position)
-    {
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = size;
-        rect.anchoredPosition = position;
-        rect.localScale = Vector3.one;
     }
 
     private static void AnchorTop(RectTransform rect, Vector2 size, Vector2 position, bool fromLeft)

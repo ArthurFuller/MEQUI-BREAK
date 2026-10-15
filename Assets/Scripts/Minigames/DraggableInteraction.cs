@@ -121,10 +121,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         accepted = true;
         dragInProgress = false;
 
-        if (originParent != null)
-            transform.SetParent(originParent, false);
-
-        ApplyOriginTransform();
+        RestoreOrigin();
         CacheVisualReferences();
         if (slotVisual != null)
             slotVisual.SetActive(true);
@@ -148,9 +145,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         dragInProgress = false;
         sessionLocked = true;
 
-        if (originParent != null)
-            transform.SetParent(originParent, false);
-        ApplyOriginTransform();
+        RestoreOrigin();
 
         if (slotVisual != null)
             slotVisual.SetActive(true);
@@ -182,10 +177,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         if (!gameObject.activeSelf)
             gameObject.SetActive(true);
 
-        if (originParent != null)
-            transform.SetParent(originParent, false);
-
-        ApplyOriginTransform();
+        RestoreOrigin();
         canvasGroup.alpha = 1f;
         canvasGroup.interactable = true;
         canvasGroup.blocksRaycasts = true;
@@ -285,8 +277,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
         if (originParent != null)
         {
-            transform.SetParent(originParent, false);
-            ApplyOriginTransform();
+            RestoreOrigin();
         }
         else
         {
@@ -299,8 +290,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
     private void StopReturnRoutine(bool completeReturn)
     {
-        bool wasReturning = returnRoutine != null;
-        if (wasReturning)
+        if (returnRoutine != null)
         {
             StopCoroutine(returnRoutine);
             returnRoutine = null;
@@ -309,7 +299,13 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         if (!completeReturn || originParent == null)
             return;
 
-        transform.SetParent(originParent, false);
+        RestoreOrigin();
+    }
+
+    private void RestoreOrigin()
+    {
+        if (originParent != null)
+            transform.SetParent(originParent, false);
         ApplyOriginTransform();
     }
 

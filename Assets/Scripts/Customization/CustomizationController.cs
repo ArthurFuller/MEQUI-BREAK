@@ -9,7 +9,7 @@ using UnityEngine.UI;
 /// Controla a edição temporária do avatar, as regras de desbloqueio, a compra
 /// de itens e a persistência da seleção após a confirmação do jogador.
 /// </summary>
-public sealed class CustomizationController : MonoBehaviour
+public sealed partial class CustomizationController : MonoBehaviour
 {
     [Header("Cena")]
     [SerializeField] private SceneLoader sceneLoader;
@@ -52,11 +52,15 @@ public sealed class CustomizationController : MonoBehaviour
     [SerializeField] private Button purchaseConfirmNoButton;
 
     [Header("Animação em onda da grade")]
-    [Tooltip("Reproduz uma onda de baixo para cima quando uma categoria fica visível.")]
+    [Tooltip("Reproduz uma onda de entrada quando uma categoria fica visível.")]
     [SerializeField] private bool animateOptionWave = true;
+    [Tooltip("Quando ativo, a onda começa na primeira linha da grade.")]
+    [SerializeField] private bool optionWaveTopToBottom = true;
 
     [Tooltip("Duração do movimento de entrada de cada opção.")]
     [SerializeField, Min(0.05f)] private float optionWaveDuration = 0.32f;
+    [Tooltip("Proporção da duração usada pelo fade de entrada.")]
+    [SerializeField, Range(.1f, 1f)] private float optionWaveFadeDuration = .75f;
 
     [Tooltip("Intervalo entre opções da mesma linha.")]
     [SerializeField, Min(0f)] private float optionWaveItemDelay = 0.045f;
@@ -601,103 +605,6 @@ public sealed class CustomizationController : MonoBehaviour
         AnimatePurchasePanelEnter();
     }
 
-    /// <summary>
-    /// Anima a entrada do painel de compra com escala e transparência.
-    /// </summary>
-    private void AnimatePurchasePanelEnter()
-    {
-        if (purchaseConfirmPanel == null) return;
-
-        purchaseConfirmPanel.SetActive(true);
-
-        if (!EnsurePurchasePanelReferences())
-            return;
-
-        KillPurchasePanelTween();
-        _purchasePanelCanvasGroup.DOKill();
-        _purchasePanelRect?.DOKill();
-
-        _purchasePanelCanvasGroup.alpha = 0f;
-        _purchasePanelRect.localScale = Vector3.one * purchasePanelEnterScale;
-
-        _purchasePanelSequence = DOTween.Sequence();
-        _purchasePanelSequence.SetUpdate(UpdateType.Late);
-
-        _purchasePanelSequence.Join(_purchasePanelCanvasGroup.DOFade(1f, purchasePanelEnterDuration)
-            .SetEase(Ease.OutQuad)
-            .SetUpdate(UpdateType.Late));
-
-        _purchasePanelSequence.Join(_purchasePanelRect.DOScale(Vector3.one, purchasePanelEnterDuration)
-            .SetEase(Ease.OutBack)
-            .SetUpdate(UpdateType.Late));
-
-        _purchasePanelSequence.OnComplete(() => _purchasePanelSequence = null);
-        _purchasePanelSequence.Play();
-    }
-
-    /// <summary>
-    /// Anima a saída do painel de compra com escala e transparência.
-    /// </summary>
-    private void AnimatePurchasePanelExit(System.Action onComplete = null)
-    {
-        if (purchaseConfirmPanel == null)
-        {
-            onComplete?.Invoke();
-            return;
-        }
-
-        if (!EnsurePurchasePanelReferences())
-        {
-            purchaseConfirmPanel.SetActive(false);
-            onComplete?.Invoke();
-            return;
-        }
-
-        KillPurchasePanelTween();
-        _purchasePanelCanvasGroup.DOKill();
-        _purchasePanelRect.DOKill();
-
-        _purchasePanelSequence = DOTween.Sequence();
-        _purchasePanelSequence.SetUpdate(UpdateType.Late);
-
-        _purchasePanelSequence.Join(_purchasePanelCanvasGroup.DOFade(0f, purchasePanelExitDuration)
-            .SetEase(Ease.InQuad)
-            .SetUpdate(UpdateType.Late));
-
-        _purchasePanelSequence.Join(_purchasePanelRect.DOScale(Vector3.one * 0.95f, purchasePanelExitDuration)
-            .SetEase(Ease.InQuad)
-            .SetUpdate(UpdateType.Late));
-
-        _purchasePanelSequence.OnComplete(() =>
-        {
-            _purchasePanelSequence = null;
-            purchaseConfirmPanel.SetActive(false);
-            _purchasePanelRect.localScale = Vector3.one;
-            onComplete?.Invoke();
-        });
-
-        _purchasePanelSequence.Play();
-    }
-
-    private void KillPurchasePanelTween()
-    {
-        if (_purchasePanelSequence != null && _purchasePanelSequence.IsActive())
-            _purchasePanelSequence.Kill(false);
-
-        _purchasePanelSequence = null;
-    }
-
-    private bool EnsurePurchasePanelReferences()
-    {
-        if (purchaseConfirmPanel == null)
-            return false;
-
-        _purchasePanelRect ??= purchaseConfirmPanel.transform as RectTransform;
-        _purchasePanelCanvasGroup ??= purchasePanelCanvasGroup;
-
-        return _purchasePanelRect != null && _purchasePanelCanvasGroup != null;
-    }
-
     private static string DisplayNameOrFallback(AvatarCustomizationItem item)
     {
         return string.IsNullOrWhiteSpace(item.DisplayName) ? item.Id : item.DisplayName;
@@ -792,8 +699,11 @@ public sealed class CustomizationController : MonoBehaviour
         _activeOptionWaveTargets.Clear();
         _activeOptionWaveTargets.AddRange(_optionWaveSortBuffer);
 
-        // Ordena de baixo para cima e, em cada linha, da esquerda para a direita.
-        _optionWaveSortBuffer.Sort(CompareWaveTargets);
+        // Chapéus, rostos e roupas usam a mesma onda; a direção fica ajustável no Inspector.
+        if (optionWaveTopToBottom)
+            _optionWaveSortBuffer.Sort(CompareWaveTargetsTopToBottom);
+        else
+            _optionWaveSortBuffer.Sort(CompareWaveTargetsBottomToTop);
 
         _optionWaveSequence = DOTween.Sequence();
         _optionWaveSequence.SetUpdate(UpdateType.Late);
@@ -827,7 +737,7 @@ public sealed class CustomizationController : MonoBehaviour
                 .SetUpdate(UpdateType.Late);
 
             Tween fadeTween = target.CanvasGroup
-                .DOFade(1f, optionWaveDuration * 0.75f)
+                .DOFade(1f, optionWaveDuration * optionWaveFadeDuration)
                 .SetEase(Ease.OutQuad)
                 .SetUpdate(UpdateType.Late);
 
@@ -853,7 +763,14 @@ public sealed class CustomizationController : MonoBehaviour
         _optionWaveSequence.Play();
     }
 
-    private static int CompareWaveTargets(OptionWaveTarget a, OptionWaveTarget b)
+
+    private static int CompareWaveTargetsTopToBottom(OptionWaveTarget a, OptionWaveTarget b)
+    {
+        int yCompare = b.Y.CompareTo(a.Y);
+        return yCompare != 0 ? yCompare : a.X.CompareTo(b.X);
+    }
+
+    private static int CompareWaveTargetsBottomToTop(OptionWaveTarget a, OptionWaveTarget b)
     {
         int yCompare = a.Y.CompareTo(b.Y);
         return yCompare != 0 ? yCompare : a.X.CompareTo(b.X);

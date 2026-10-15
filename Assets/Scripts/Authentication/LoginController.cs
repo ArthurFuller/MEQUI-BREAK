@@ -128,6 +128,7 @@ public sealed class LoginController : MonoBehaviour
         input.contentType = TMP_InputField.ContentType.Standard;
         input.inputType = TMP_InputField.InputType.Standard;
         input.lineType = TMP_InputField.LineType.SingleLine;
+        input.shouldHideMobileInput = true;
         input.characterLimit = characterLimit;
 
         if (input.placeholder is TMP_Text placeholderText)
@@ -272,7 +273,7 @@ public sealed class LoginController : MonoBehaviour
         if (optionGroup == null)
             return;
 
-        optionGroup.alpha = 0f;
+        optionGroup.alpha = 1f;
         optionGroup.transform.localScale = Vector3.one * shiftOptionStartScale;
     }
 
@@ -281,7 +282,6 @@ public sealed class LoginController : MonoBehaviour
         if (optionGroup == null)
             return;
 
-        sequence.InsertCallback(atPosition, () => optionGroup.alpha = 1f);
         sequence.Insert(atPosition,
             optionGroup.transform.DOScale(Vector3.one, shiftOptionDuration).SetEase(shiftOptionEase));
     }

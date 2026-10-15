@@ -50,6 +50,8 @@ public sealed class SettingsController : MonoBehaviour
             endOfShiftReminderToggle?.SetIsOnWithoutNotify(settings.EndOfShiftReminderEnabled);
         }
 
+        if (storeInput != null) storeInput.shouldHideMobileInput = true;
+
         PlayerManager player = PlayerManager.Instance;
         if (player != null)
         {
@@ -253,6 +255,7 @@ public sealed class SettingsController : MonoBehaviour
 
     private void UpdateWorkData(string store, string shift)
     {
+
         PlayerManager player = PlayerManager.Instance;
         if (player == null)
             return;

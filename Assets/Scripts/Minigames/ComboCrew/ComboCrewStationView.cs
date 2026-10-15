@@ -15,15 +15,37 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     [SerializeField] private Image highlight;
     [SerializeField] private TMP_Text status;
     [SerializeField] private GameObject trayOnCounter;
+
+    [Header("Animação e feedback da estação")]
+    [SerializeField, Min(1f)] private float barSmoothing = 10f;
+    [SerializeField, Min(.01f)] private float completionFlashSeconds = .16f;
+    [SerializeField] private Color completionFlashColor = new Color(1f, .87f, .43f);
+    [SerializeField, Min(.01f)] private float brokenHighlightPulseSeconds = .32f;
+    [SerializeField, Range(0f, 1f)] private float brokenHighlightMinAlpha = .34f;
+    [SerializeField, Min(.01f)] private float brokenStatusPulseSeconds = .38f;
+    [SerializeField, Range(1f, 1.2f)] private float brokenStatusScale = 1.08f;
+    [SerializeField] private Ease brokenStatusPulseEase = Ease.InOutSine;
+    [SerializeField] private Color warningStatusColor = new Color(1f, .78f, .25f);
+    [SerializeField] private Color brokenStatusColor = new Color(1f, .36f, .24f);
+    [SerializeField] private Color repairingStatusColor = new Color(.45f, .86f, 1f);
+    [SerializeField] private Color repairingProgressColor = new Color(.35f, .82f, 1f);
+    [SerializeField] private Color brokenHighlightColor = new Color(1f, .24f, .16f, .8f);
+    [SerializeField] private Color repairingHighlightColor = new Color(.28f, .8f, 1f, .68f);
+    [SerializeField] private Color warningHighlightColor = new Color(1f, .72f, .18f, .55f);
+
     private ComboCrewController owner;
     private int index;
     private float shown;
     private RectTransform bar;
     private Color highlightColor;
     private Color progressColor;
+    private Color statusColor;
+    private Vector3 statusScale;
     private bool completionPlayed;
     private bool dragHighlight;
     private Alert alert;
+    private Tween brokenPulse;
+    private Tween statusPulse;
     public RectTransform WorkAnchor => workAnchor;
     public RectTransform HandoffAnchor => handoffAnchor;
     public bool Configured => workAnchor != null && progressFill != null && highlight != null
@@ -37,6 +59,12 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         bar = progressFill.rectTransform;
         highlightColor = highlight.color;
         progressColor = progressFill.color;
+        statusColor = status.color;
+        statusScale = status.rectTransform.localScale;
+        alert = Alert.None;
+        progressFill.color = progressColor;
+        status.color = statusColor;
+        status.rectTransform.localScale = statusScale;
         completionPlayed = false;
         progressFill.type = Image.Type.Simple;
         SetBar(0f);
@@ -46,7 +74,7 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
 
     public void Refresh(float progress, string message, bool hasTray)
     {
-        float blend = 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime);
+        float blend = 1f - Mathf.Exp(-barSmoothing * Time.unscaledDeltaTime);
         shown = Mathf.Lerp(shown, Mathf.Clamp01(progress), blend);
         SetBar(shown);
         if (progress < .9f) completionPlayed = false;
@@ -55,7 +83,7 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
             completionPlayed = true;
             progressFill.DOKill();
             progressFill.color = progressColor;
-            progressFill.DOColor(new Color(1f, .87f, .43f), .16f)
+            progressFill.DOColor(completionFlashColor, completionFlashSeconds)
                 .SetLoops(2, LoopType.Yoyo).SetTarget(this);
         }
         status.text = message;
@@ -72,7 +100,7 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     public void ResetProgress()
     {
         progressFill.DOKill();
-        progressFill.color = progressColor;
+        progressFill.color = alert == Alert.Repairing ? repairingProgressColor : progressColor;
         completionPlayed = false;
         shown = 0f;
         SetBar(0f);
@@ -81,16 +109,35 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
 
     public void SetAlert(Alert level)
     {
+        brokenPulse?.Kill();
+        statusPulse?.Kill();
+        brokenPulse = null;
+        statusPulse = null;
         alert = level;
+        progressFill.color = level == Alert.Repairing ? repairingProgressColor : progressColor;
+        status.color = level switch
+        {
+            Alert.Warning => warningStatusColor,
+            Alert.Broken => brokenStatusColor,
+            Alert.Repairing => repairingStatusColor,
+            _ => statusColor
+        };
+        status.rectTransform.localScale = statusScale;
         RefreshHighlight();
+        if (level == Alert.Broken)
+        {
+            brokenPulse = highlight.DOFade(brokenHighlightMinAlpha, brokenHighlightPulseSeconds).SetLoops(-1, LoopType.Yoyo).SetTarget(this);
+            statusPulse = status.rectTransform.DOScale(statusScale * brokenStatusScale, brokenStatusPulseSeconds)
+                .SetEase(brokenStatusPulseEase).SetLoops(-1, LoopType.Yoyo).SetTarget(this);
+        }
     }
 
     private void RefreshHighlight()
     {
         if (highlight == null) return;
-        highlight.color = alert == Alert.Broken ? new Color(1f, .24f, .16f, .8f)
-            : alert == Alert.Repairing ? new Color(.28f, .8f, 1f, .68f)
-            : alert == Alert.Warning ? new Color(1f, .72f, .18f, .55f)
+        highlight.color = alert == Alert.Broken ? brokenHighlightColor
+            : alert == Alert.Repairing ? repairingHighlightColor
+            : alert == Alert.Warning ? warningHighlightColor
             : new Color(highlightColor.r, highlightColor.g, highlightColor.b, .5f);
         highlight.gameObject.SetActive(dragHighlight || alert != Alert.None);
     }
@@ -117,6 +164,22 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
             && owner.AssignWorker(worker.WorkerIndex, index)) worker.AcceptCurrentDrop();
     }
 
-    private void OnDisable() { if (progressFill != null) progressFill.DOKill(); }
+    private void OnDisable()
+    {
+        if (progressFill != null)
+        {
+            progressFill.DOKill();
+            progressFill.color = progressColor;
+        }
+        brokenPulse?.Kill();
+        statusPulse?.Kill();
+        brokenPulse = null;
+        statusPulse = null;
+        if (status != null)
+        {
+            status.color = statusColor;
+            status.rectTransform.localScale = statusScale;
+        }
+    }
 
 }

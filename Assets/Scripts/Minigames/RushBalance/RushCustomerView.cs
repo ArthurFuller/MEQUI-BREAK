@@ -28,14 +28,32 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     [SerializeField] private GameObject[] itemIcons;
     [Tooltip("Ordem: feliz, sério e frustrado.")]
     [SerializeField] private GameObject[] faces;
+    [Header("Movimento e paciência do cliente")]
     [SerializeField, Min(.01f)] private float movementSeconds = .32f;
+    [SerializeField] private Ease enterEase = Ease.OutCubic;
+    [SerializeField] private Ease exitEase = Ease.InCubic;
     [SerializeField, Min(1f)] private float barSmoothing = 12f;
+    [Header("Interação com o balão")]
     [SerializeField, Min(1f)] private float balloonHoverScale = 1.04f;
     [SerializeField, Min(.01f)] private float balloonHoverSeconds = .1f;
+    [SerializeField] private Ease balloonHoverEase = Ease.OutQuad;
     [SerializeField, Range(.85f, 1f)] private float balloonPressScale = .94f;
     [SerializeField, Min(.01f)] private float balloonPressSeconds = .06f;
+    [SerializeField] private Ease balloonPressEase = Ease.OutQuad;
     [SerializeField, Min(.01f)] private float balloonReleaseSeconds = .12f;
+    [SerializeField] private Ease balloonReleaseEase = Ease.OutBack;
     [SerializeField, Min(0f)] private float balloonClickPunch = .07f;
+    [SerializeField, Min(0f)] private float initialBalloonPopStrength = .055f;
+    [Header("Reações do cliente")]
+    [SerializeField, Min(.01f)] private float balloonPopSeconds = .2f;
+    [SerializeField, Min(0f)] private float moodPulseStrength = .05f;
+    [SerializeField, Min(.01f)] private float moodPulseSeconds = .18f;
+    [SerializeField, Min(0f)] private float deliveryReactionStrength = .075f;
+    [SerializeField, Min(.01f)] private float deliveryReactionSeconds = .2f;
+    [SerializeField, Min(0f)] private float failedDeliveryPause = .08f;
+    [SerializeField, Min(0f)] private float punchElasticity = .35f;
+    [SerializeField, Min(1)] private int punchVibrato = 2;
+    [Header("Mensagens")]
     [SerializeField] private string happyMessage = "Oi, tudo bem?";
     [SerializeField] private string seriousMessage = "Vai demorar muito?";
     [SerializeField] private string angryMessage = "Pode me atender?";
@@ -208,7 +226,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         character.position = instant ? target.position : entrance.position;
         for (int i = 0; i < itemIcons.Length; i++) itemIcons[i].SetActive(i < order.Items);
         Refresh(order);
-        PlayBalloonPop(.055f);
+        PlayBalloonPop(initialBalloonPopStrength);
         MoveTo(target, instant);
     }
 
@@ -217,7 +235,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         if (!gameObject.activeSelf || target == null || departing) return;
         movement?.Kill();
         if (instant) character.position = target.position;
-        else movement = character.DOMove(target.position, Seconds(movementSeconds)).SetEase(Ease.OutCubic);
+        else movement = character.DOMove(target.position, Seconds(movementSeconds)).SetEase(enterEase);
     }
 
     public void Refresh(RushRound.Order order)
@@ -251,7 +269,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         if (!animate) return;
         moodFeedback?.Kill();
         character.localScale = characterBaseScale;
-        moodFeedback = character.DOPunchScale(Vector3.one * .05f, Seconds(.18f), 2, .35f)
+        moodFeedback = character.DOPunchScale(Vector3.one * moodPulseStrength, Seconds(moodPulseSeconds), punchVibrato, punchElasticity)
             .OnComplete(() => character.localScale = characterBaseScale);
     }
 
@@ -270,15 +288,15 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         if (delivered)
         {
             SetMood(0, false);
-            sequence.Append(character.DOPunchScale(Vector3.one * .075f, Seconds(.2f), 2, .35f));
+            sequence.Append(character.DOPunchScale(Vector3.one * deliveryReactionStrength, Seconds(deliveryReactionSeconds), punchVibrato, punchElasticity));
         }
         else
         {
             SetMood(2, false);
-            sequence.AppendInterval(Seconds(.08f));
+            sequence.AppendInterval(Seconds(failedDeliveryPause));
         }
 
-        sequence.Append(character.DOMove(exit.position, Seconds(movementSeconds)).SetEase(Ease.InCubic))
+        sequence.Append(character.DOMove(exit.position, Seconds(movementSeconds)).SetEase(exitEase))
             .OnComplete(() =>
             {
                 character.localScale = characterBaseScale;
@@ -318,7 +336,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         balloonFeedback?.Kill();
         balloonFeedback = balloonRect
             .DOScale(balloonBaseScale * balloonHoverScale, Seconds(balloonHoverSeconds))
-            .SetEase(Ease.OutQuad);
+            .SetEase(balloonHoverEase);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -329,7 +347,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         balloonFeedback?.Kill();
         balloonFeedback = balloonRect
             .DOScale(balloonBaseScale, Seconds(balloonHoverSeconds))
-            .SetEase(Ease.OutQuad);
+            .SetEase(balloonHoverEase);
     }
 
     public void OnPointerDown(PointerEventData eventData)
@@ -339,7 +357,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         balloonFeedback?.Kill();
         balloonFeedback = balloonRect
             .DOScale(balloonBaseScale * balloonPressScale, Seconds(balloonPressSeconds))
-            .SetEase(Ease.OutQuad);
+            .SetEase(balloonPressEase);
     }
 
     public void OnPointerUp(PointerEventData eventData)
@@ -351,7 +369,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
             ? balloonHoverScale : 1f);
         balloonFeedback = balloonRect
             .DOScale(target, Seconds(balloonReleaseSeconds))
-            .SetEase(Ease.OutBack);
+            .SetEase(balloonReleaseEase);
     }
 
     private void PlayBalloonPop(float strength)

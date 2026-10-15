@@ -35,7 +35,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
 
     private DashboardController legacy;
     private Transform layout, summaryPage, tabs, periodOptions, shiftOptions;
-    private Text periodText, shiftText, storeText, summaryCounts, conversationText;
+    private Text periodText, shiftText, storeText, conversationText;
     private Button periodButton, shiftButton;
     private readonly Button[] nav = new Button[5];
     private readonly View[] views = new View[3];
@@ -80,7 +80,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
         periodButton = Find(layout, "PeriodDropdownButton").GetComponent<Button>();
         periodText = Find(layout, "PeriodDropdownButton/Label").GetComponent<Text>();
         storeText = Find(layout, "StoreLabel").GetComponent<Text>();
-        summaryCounts = Find(summaryPage, "SummaryCounts").GetComponent<Text>();
+        Find(summaryPage, "SummaryCounts").gameObject.SetActive(false);
         BuildNavigation();
         BuildPeriodMenu();
         BuildPages();
@@ -194,7 +194,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
         ConfigureGameView(views[1], "Rush Balance", "Atendidos", "Perdidos");
         ConfigureGameView(views[2], "Combo Crew", "Atendidos", "Perdidos");
         tabSections[0] = CreateTabSection("OverviewSection", overview, conversationPanel);
-        tabSections[1] = CreateTabSection("EnergySection", summaryCounts.gameObject, views[0].Root);
+        tabSections[1] = CreateTabSection("EnergySection", views[0].Root);
         tabSections[2] = CreateTabSection("RushSection", views[1].Root);
         tabSections[3] = CreateTabSection("ComboSection", views[2].Root);
     }
@@ -270,7 +270,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
         GameObject viewportObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
         viewportObject.transform.SetParent(summaryPage, false);
         RectTransform viewport = (RectTransform)viewportObject.transform;
-        Place(viewport, 20, energy ? -340 : -310, 350, energy ? 488 : 518);
+        Place(viewport, 20, -310, 350, 518);
         Image hitArea = viewportObject.GetComponent<Image>();
         hitArea.color = new Color(0, 0, 0, 0);
         hitArea.raycastTarget = true;
@@ -321,11 +321,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
         for (int i = 0; i < 2; i++)
         {
             int category = i;
-            Find(view.Card.transform, "Category" + i).GetComponent<Button>().onClick.AddListener(() =>
-            {
-                selectedCategory = selectedCategory == category ? -1 : category;
-                Refresh();
-            });
+            Find(view.Card.transform, "Category" + i).GetComponent<Button>().onClick.AddListener(() => ToggleCategory(category));
         }
         Find(view.Comparison.transform, "ShiftsTitle").GetComponent<Text>().text = "Comparar turnos";
         foreach (int turn in new[] { 0, 1, 2 })
@@ -360,7 +356,6 @@ public sealed class DashboardExperimentController : MonoBehaviour
         Text template = Find(card, "EnergyTitle").GetComponent<Text>();
         AddFilterLabel(template, "PeriodFilterLabel", "Período", 20);
         AddFilterLabel(template, "ShiftFilterLabel", "Turno", 200);
-        Place(summaryCounts.rectTransform, 20, -307, 350, 25);
         legacy.SyncExternalDropdownPositions();
     }
 
@@ -425,11 +420,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
         for (int i = 0; i < 4; i++)
         {
             int category = i;
-            Find(card, "Category" + i).GetComponent<Button>().onClick.AddListener(() =>
-            {
-                selectedCategory = selectedCategory == category ? -1 : category;
-                Refresh();
-            });
+            Find(card, "Category" + i).GetComponent<Button>().onClick.AddListener(() => ToggleCategory(category));
             int turn = i;
             Find(shiftOptions, "ShiftOption" + i).GetComponent<Button>().onClick.AddListener(() =>
             {
@@ -443,6 +434,12 @@ public sealed class DashboardExperimentController : MonoBehaviour
             int turn = i + 1;
             Find(views[0].Comparison.transform, "TurnCard" + i).GetComponent<Button>().onClick.AddListener(() => SelectShift(turn));
         }
+    }
+
+    private void ToggleCategory(int category)
+    {
+        selectedCategory = selectedCategory == category ? -1 : category;
+        Refresh();
     }
 
     private void SelectShift(int shift)
@@ -532,7 +529,6 @@ public sealed class DashboardExperimentController : MonoBehaviour
         DashboardSessionData.Snapshot rushBefore = GetSnapshot(sessions, "rush_balance", month.AddMonths(-1), selectedShift);
         DashboardSessionData.Snapshot comboBefore = GetSnapshot(sessions, "combo_crew", month.AddMonths(-1), selectedShift);
         RefreshOverview(energy, rush, combo);
-        summaryCounts.text = energy.Completed + " sessões concluídas · " + energy.TotalChoices + " escolhas " + (demonstration ? "na demonstração" : cloud?.IsReady == true ? "na unidade" : "neste aparelho");
         RefreshEnergy(energy, energyBefore, sessions, month);
         RefreshOutcome(views[1], rush, rushBefore, sessions, month, "pedidos");
         RefreshOutcome(views[2], combo, comboBefore, sessions, month, "pedidos");

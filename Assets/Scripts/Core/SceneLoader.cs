@@ -421,7 +421,13 @@ public sealed class SceneLoader : MonoBehaviour
         return root;
     }
 
-    private static void PrepareIncomingRoots(List<RectTransform> roots, float side)
+    private static void PrepareIncomingRoots(List<RectTransform> roots, float side) =>
+        SetRootsPosition(roots, side);
+
+    private static void ResetRoots(List<RectTransform> roots) =>
+        SetRootsPosition(roots, 0f);
+
+    private static void SetRootsPosition(List<RectTransform> roots, float side)
     {
         foreach (RectTransform root in roots)
         {
@@ -431,19 +437,6 @@ public sealed class SceneLoader : MonoBehaviour
             root.DOKill();
             root.localScale = Vector3.one;
             root.anchoredPosition = new Vector2(side * GetRootWidth(root), 0f);
-        }
-    }
-
-    private static void ResetRoots(List<RectTransform> roots)
-    {
-        foreach (RectTransform root in roots)
-        {
-            if (root == null)
-                continue;
-
-            root.DOKill();
-            root.anchoredPosition = Vector2.zero;
-            root.localScale = Vector3.one;
         }
     }
 
@@ -462,38 +455,27 @@ public sealed class SceneLoader : MonoBehaviour
         return Mathf.Max(width, 1f);
     }
 
-    private static void SetEventSystemsEnabled(Scene scene, bool enabled)
+    private static void SetEventSystemsEnabled(Scene scene, bool enabled) =>
+        SetComponentsEnabled(scene, enabled, eventSystemBuffer);
+
+    private static void SetAudioListenersEnabled(Scene scene, bool enabled) =>
+        SetComponentsEnabled(scene, enabled, audioListenerBuffer);
+
+    private static void SetComponentsEnabled<T>(Scene scene, bool enabled, List<T> components)
+        where T : Behaviour
     {
         rootObjectBuffer.Clear();
         scene.GetRootGameObjects(rootObjectBuffer);
 
         foreach (GameObject rootObject in rootObjectBuffer)
         {
-            eventSystemBuffer.Clear();
-            rootObject.GetComponentsInChildren(true, eventSystemBuffer);
+            components.Clear();
+            rootObject.GetComponentsInChildren(true, components);
 
-            foreach (EventSystem eventSystem in eventSystemBuffer)
+            foreach (T component in components)
             {
-                if (eventSystem != null)
-                    eventSystem.enabled = enabled;
-            }
-        }
-    }
-
-    private static void SetAudioListenersEnabled(Scene scene, bool enabled)
-    {
-        rootObjectBuffer.Clear();
-        scene.GetRootGameObjects(rootObjectBuffer);
-
-        foreach (GameObject rootObject in rootObjectBuffer)
-        {
-            audioListenerBuffer.Clear();
-            rootObject.GetComponentsInChildren(true, audioListenerBuffer);
-
-            foreach (AudioListener listener in audioListenerBuffer)
-            {
-                if (listener != null)
-                    listener.enabled = enabled;
+                if (component != null)
+                    component.enabled = enabled;
             }
         }
     }

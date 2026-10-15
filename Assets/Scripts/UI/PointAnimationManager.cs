@@ -247,8 +247,7 @@ public sealed class PointAnimationManager : MonoBehaviour
         Transform labelTransform = pointsLabel.transform;
 
         _counterPulseSequence?.Kill();
-        labelTransform.DOKill();
-        labelTransform.localScale = _pointsLabelBaseScale;
+        ResetCounterScale();
 
         Vector3 enlargedScale = _pointsLabelBaseScale * counterPulseScale;
 

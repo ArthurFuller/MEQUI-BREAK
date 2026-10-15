@@ -130,12 +130,20 @@ public sealed class DashboardController : MonoBehaviour
     private bool externalDataMode;
     private readonly float[] renderedShares = new float[4];
     private bool donutInitialized;
+    private RectTransform keyboardAvoidanceRoot;
+    private Vector2 keyboardAvoidanceBasePosition;
+    private Vector2 keyboardShiftVelocity;
     private readonly Dictionary<GameObject, Sequence> dropdownTweens = new Dictionary<GameObject, Sequence>();
     private readonly Dictionary<GameObject, Vector2> dropdownPositions = new Dictionary<GameObject, Vector2>();
     private readonly Dictionary<GameObject, bool> dropdownOpen = new Dictionary<GameObject, bool>();
 
     private void Awake()
     {
+        keyboardAvoidanceRoot = dashboardLayout;
+        if (keyboardAvoidanceRoot != null) keyboardAvoidanceBasePosition = keyboardAvoidanceRoot.anchoredPosition;
+        if (subjectInput != null) subjectInput.shouldHideMobileInput = true;
+        if (nextInput != null) nextInput.shouldHideMobileInput = true;
+        if (dateInput != null) dateInput.shouldHideMobileInput = true;
         GameObject[] pages = { summaryPage, shiftsPage, actionsPage };
         for (int i = 0; i < pages.Length; i++)
             pageBasePositions[i] = ((RectTransform)pages[i].transform).anchoredPosition;
@@ -194,6 +202,36 @@ public sealed class DashboardController : MonoBehaviour
         }
     }
 
+    private void LateUpdate()
+    {
+        RectTransform focusedInput = nextInput != null && nextInput.isFocused ? nextInput.transform as RectTransform
+            : dateInput != null && dateInput.isFocused ? dateInput.transform as RectTransform
+            : null;
+        MobileKeyboardInputAssist.MoveRootForInput(
+            keyboardAvoidanceRoot, focusedInput, keyboardAvoidanceBasePosition, ref keyboardShiftVelocity);
+        HandleReminderOutsidePress();
+    }
+
+    private void HandleReminderOutsidePress()
+    {
+        if (!IsDropdownOpen(reminderOptions) || Pointer.current == null ||
+            !Pointer.current.press.wasPressedThisFrame) return;
+
+        Vector2 pointerPosition = Pointer.current.position.ReadValue();
+        if (ContainsScreenPoint(reminderOptions.transform as RectTransform, pointerPosition) ||
+            ContainsScreenPoint(reminderDropdownButton.transform as RectTransform, pointerPosition)) return;
+
+        SetDropdown(reminderOptions, false);
+    }
+
+    private bool ContainsScreenPoint(RectTransform rect, Vector2 screenPoint)
+    {
+        if (rect == null) return false;
+        Canvas canvas = rect.GetComponentInParent<Canvas>();
+        Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? canvas.worldCamera : null;
+        return RectTransformUtility.RectangleContainsScreenPoint(rect, screenPoint, camera);
+    }
     private void Start()
     {
         Canvas.ForceUpdateCanvases();
@@ -202,7 +240,10 @@ public sealed class DashboardController : MonoBehaviour
         InitializeDropdown(shiftOptions);
         InitializeDropdown(reminderOptions);
         deleteConfirmPanel.SetActive(false);
-        if (greetingText != null) greetingText.text = "Olá, Mariana";
+        string displayName = PlayerManager.Instance?.DisplayName;
+        if (greetingText != null)
+            greetingText.text = string.IsNullOrWhiteSpace(displayName) ? "Olá" : $"Olá, {displayName}";
+        if (summaryText != null) summaryText.gameObject.SetActive(false);
         RefreshDashboard();
         ShowPage(0);
     }
@@ -468,8 +509,6 @@ public sealed class DashboardController : MonoBehaviour
         int[] current = Values(selectedPeriod, selectedTurn);
         int[] previous = Values(selectedPeriod + 1, selectedTurn);
         int total = Total(current);
-        int storeTotal = Total(Values(selectedPeriod, 0));
-        summaryText.text = $"<b>{storeTotal / 2}</b> sessões concluídas · <b>{storeTotal}</b> escolhas na loja";
         UpdateDonut(current, total);
         if (selectedCategory < 0) {
             centerLarge.text = total.ToString();
@@ -601,6 +640,8 @@ public sealed class DashboardController : MonoBehaviour
 
     private void OpenForm(int index)
     {
+        if (keyboardAvoidanceRoot != null) keyboardAvoidanceRoot.anchoredPosition = keyboardAvoidanceBasePosition;
+        keyboardShiftVelocity = Vector2.zero;
         editingIndex = index >= 0 && index < records.Count ? index : -1;
         var item = editingIndex < 0 ? null : records[editingIndex];
         subjectInput.text = item?.subject ?? "";

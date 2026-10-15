@@ -88,7 +88,7 @@ public static class FirstRunGuideHierarchyInstaller
     private static void InstallScene(SceneSetup setup)
     {
         Scene scene = EditorSceneManager.OpenScene(setup.Path, OpenSceneMode.Single);
-        Transform canvasTransform = Find(scene, "Canvas");
+        Transform canvasTransform = EditorSceneUI.Find(scene, "Canvas");
         if (canvasTransform == null)
             throw new InvalidOperationException($"Canvas não encontrado em {setup.Path}");
 
@@ -100,7 +100,7 @@ public static class FirstRunGuideHierarchyInstaller
 
         GameObject tutorialObject = CreateUI(canvasTransform, "TutorialRoot");
         RectTransform tutorialRoot = tutorialObject.GetComponent<RectTransform>();
-        Stretch(tutorialRoot);
+        EditorSceneUI.Stretch(tutorialRoot);
         tutorialObject.transform.SetAsLastSibling();
 
         Canvas guideCanvas = tutorialObject.AddComponent<Canvas>();
@@ -123,7 +123,7 @@ public static class FirstRunGuideHierarchyInstaller
         panelImage.color = new Color(0.075f, 0.075f, 0.085f, 0.97f);
         panelImage.raycastTarget = false;
         RectTransform panel = panelObject.GetComponent<RectTransform>();
-        Center(panel, new Vector2(880f, 270f), setup.MessagePosition);
+        EditorSceneUI.Center(panel, new Vector2(880f, 270f), setup.MessagePosition);
         CanvasGroup panelGroup = panelObject.AddComponent<CanvasGroup>();
 
         TMP_Text progress = CreateText(
@@ -133,7 +133,7 @@ public static class FirstRunGuideHierarchyInstaller
             25f,
             new Color(1f, 0.78f, 0f, 1f),
             TextAlignmentOptions.Left);
-        Center(progress.rectTransform, new Vector2(740f, 42f), new Vector2(0f, 82f));
+        EditorSceneUI.Center(progress.rectTransform, new Vector2(740f, 42f), new Vector2(0f, 82f));
         progress.fontStyle = FontStyles.Bold;
 
         TMP_Text message = CreateText(
@@ -143,7 +143,7 @@ public static class FirstRunGuideHierarchyInstaller
             36f,
             Color.white,
             TextAlignmentOptions.MidlineLeft);
-        Center(message.rectTransform, new Vector2(740f, 130f), new Vector2(0f, -18f));
+        EditorSceneUI.Center(message.rectTransform, new Vector2(740f, 130f), new Vector2(0f, -18f));
         message.textWrappingMode = TextWrappingModes.Normal;
 
         GameObject skipObject = CreateUI(tutorialRoot, "Pular");
@@ -157,7 +157,7 @@ public static class FirstRunGuideHierarchyInstaller
         Button skipButton = skipObject.AddComponent<Button>();
         skipButton.targetGraphic = skipImage;
         RectTransform skipRect = skipObject.GetComponent<RectTransform>();
-        Center(skipRect, new Vector2(250f, 78f), new Vector2(0f, -820f));
+        EditorSceneUI.Center(skipRect, new Vector2(250f, 78f), new Vector2(0f, -820f));
         CanvasGroup skipGroup = skipObject.AddComponent<CanvasGroup>();
 
         TMP_Text skipText = CreateText(
@@ -167,7 +167,7 @@ public static class FirstRunGuideHierarchyInstaller
             27f,
             Color.white,
             TextAlignmentOptions.Center);
-        Stretch(skipText.rectTransform, new Vector2(18f, 8f));
+        EditorSceneUI.Stretch(skipText.rectTransform, new Vector2(18f, 8f));
         skipText.fontStyle = FontStyles.Bold;
 
         Button targetButton = null;
@@ -177,7 +177,7 @@ public static class FirstRunGuideHierarchyInstaller
         MinigameCardView minigameCard = null;
         if (setup.Step == 0)
         {
-            Transform targetTransform = Find(scene, "Canvas/SafeArea/QuickAction/GamesButton");
+            Transform targetTransform = EditorSceneUI.Find(scene, "Canvas/SafeArea/QuickAction/GamesButton");
             targetButton = targetTransform != null ? targetTransform.GetComponent<Button>() : null;
             if (targetButton == null)
                 throw new InvalidOperationException("GamesButton não encontrado na HUB.");
@@ -190,7 +190,7 @@ public static class FirstRunGuideHierarchyInstaller
         }
         else if (setup.Step == 1)
         {
-            Transform minigameList = Find(scene, "Canvas/Safe Area/MinigameList");
+            Transform minigameList = EditorSceneUI.Find(scene, "Canvas/Safe Area/MinigameList");
             if (minigameList == null)
                 throw new InvalidOperationException("MinigameList não encontrado.");
 
@@ -210,11 +210,11 @@ public static class FirstRunGuideHierarchyInstaller
             if (station == null)
                 throw new InvalidOperationException("EnergyStationController não encontrado.");
 
-            Transform interactionArea = Find(scene, "Canvas/SafeArea/InteractionArea");
-            Transform interactionObjects = Find(
+            Transform interactionArea = EditorSceneUI.Find(scene, "Canvas/SafeArea/InteractionArea");
+            Transform interactionObjects = EditorSceneUI.Find(
                 scene,
                 "Canvas/SafeArea/InteractionArea/InteractionObjects");
-            Transform avatarArea = Find(scene, "Canvas/SafeArea/AvatarArea");
+            Transform avatarArea = EditorSceneUI.Find(scene, "Canvas/SafeArea/AvatarArea");
             if (interactionArea == null || interactionObjects == null || avatarArea == null)
                 throw new InvalidOperationException("Áreas interativas da Energy Station não encontradas.");
 
@@ -385,13 +385,13 @@ public static class FirstRunGuideHierarchyInstaller
         highlight.type = Image.Type.Sliced;
         highlight.color = new Color(1f, 0.78f, 0f, 0.38f);
         highlight.raycastTarget = false;
-        Center(highlight.rectTransform, size, position);
+        EditorSceneUI.Center(highlight.rectTransform, size, position);
         return highlight;
     }
 
     private static void ConfigureStandaloneHighlightLayer(GameObject highlightObject)
     {
-        Canvas highlightCanvas = GetOrAdd<Canvas>(highlightObject);
+        Canvas highlightCanvas = EditorSceneUI.GetOrAdd<Canvas>(highlightObject);
         highlightCanvas.overrideSorting = true;
         highlightCanvas.sortingOrder = GuideSortingOrder + 1;
     }
@@ -424,24 +424,6 @@ public static class FirstRunGuideHierarchyInstaller
         };
     }
 
-    private static Transform Find(Scene scene, string path)
-    {
-        string[] parts = path.Split('/');
-        GameObject[] roots = scene.GetRootGameObjects();
-        for (int i = 0; i < roots.Length; i++)
-        {
-            if (roots[i].name != parts[0])
-                continue;
-
-            Transform current = roots[i].transform;
-            for (int part = 1; part < parts.Length && current != null; part++)
-                current = current.Find(parts[part]);
-            return current;
-        }
-
-        return null;
-    }
-
     private static T FindSceneComponent<T>(Scene scene) where T : Component
     {
         GameObject[] roots = scene.GetRootGameObjects();
@@ -461,43 +443,12 @@ public static class FirstRunGuideHierarchyInstaller
         return created;
     }
 
-    private static T GetOrAdd<T>(GameObject gameObject) where T : Component
-    {
-        T component = gameObject.GetComponent<T>();
-        return component != null ? component : gameObject.AddComponent<T>();
-    }
-
     private static void ConfigureTargetLayer(Transform target)
     {
-        Canvas targetCanvas = GetOrAdd<Canvas>(target.gameObject);
+        Canvas targetCanvas = EditorSceneUI.GetOrAdd<Canvas>(target.gameObject);
         targetCanvas.overrideSorting = true;
         targetCanvas.sortingOrder = GuideSortingOrder + 2;
-        GetOrAdd<GraphicRaycaster>(target.gameObject);
-    }
-
-    private static void Center(RectTransform rect, Vector2 size, Vector2 position)
-    {
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = size;
-        rect.anchoredPosition = position;
-        rect.localScale = Vector3.one;
-    }
-
-    private static void Stretch(RectTransform rect)
-    {
-        Stretch(rect, Vector2.zero);
-    }
-
-    private static void Stretch(RectTransform rect, Vector2 inset)
-    {
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.offsetMin = inset;
-        rect.offsetMax = -inset;
-        rect.localScale = Vector3.one;
+        EditorSceneUI.GetOrAdd<GraphicRaycaster>(target.gameObject);
     }
 
     private readonly struct SceneSetup

@@ -10,10 +10,14 @@ public sealed class HubController : MonoBehaviour
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text pointsText;
     [SerializeField] private AvatarView avatarView;
+    [Header("Prévia de level up")]
+    [SerializeField] private LevelUpPopupPreview levelUpPopupPreview;
 
     private void Start()
     {
         Refresh();
+
+        levelUpPopupPreview?.Initialize(avatarView);
     }
 
     public void Refresh()

@@ -14,39 +14,46 @@ public sealed class AndroidNativeLibraryPackagingPostprocessor : IPostGenerateGr
 
     public void OnPostGenerateGradleAndroidProject(string path)
     {
-        string[] modules = { "launcher", "unityLibrary" };
-        int patchedModules = 0;
+        // Unity passes the unityLibrary module directory, not the Gradle root.
+        string unityLibraryGradle = Path.Combine(path, "build.gradle");
+        string gradleRoot = Directory.GetParent(path)?.FullName;
+        string launcherGradle = gradleRoot == null
+            ? null
+            : Path.Combine(gradleRoot, "launcher", "build.gradle");
 
-        foreach (string module in modules)
-        {
-            string gradleFile = Path.Combine(path, module, "build.gradle");
-            if (!File.Exists(gradleFile))
-                continue;
-
-            string original = File.ReadAllText(gradleFile);
-            string updated = Regex.Replace(
-                original,
-                @"(?m)^(\s*useLegacyPackaging\s+)true(\s*)$",
-                "$1false$2");
-
-            if (updated == original)
-                continue;
-
-            File.WriteAllText(gradleFile, updated);
-            patchedModules++;
-        }
+        int patchedModules = PatchGradleFile(unityLibraryGradle);
+        if (launcherGradle != null)
+            patchedModules += PatchGradleFile(launcherGradle);
 
         if (patchedModules == 0)
         {
             Debug.LogWarning(
                 "Android native library packaging was not changed. " +
-                "The generated Gradle files no longer contain useLegacyPackaging true.");
+                "The expected Gradle modules or useLegacyPackaging setting were not found.");
             return;
         }
 
         Debug.Log(
             "Android native library packaging set to uncompressed in " +
             patchedModules + " Gradle module(s).");
+    }
+
+    private static int PatchGradleFile(string gradleFile)
+    {
+        if (string.IsNullOrEmpty(gradleFile) || !File.Exists(gradleFile))
+            return 0;
+
+        string original = File.ReadAllText(gradleFile);
+        string updated = Regex.Replace(
+            original,
+            @"(?m)^(\s*useLegacyPackaging\s+)true(\s*)$",
+            "$1false$2");
+
+        if (updated == original)
+            return 0;
+
+        File.WriteAllText(gradleFile, updated);
+        return 1;
     }
 }
 #endif

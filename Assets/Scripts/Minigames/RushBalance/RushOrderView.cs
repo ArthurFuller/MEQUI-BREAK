@@ -23,6 +23,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField, Min(0f)] private float itemStagger = .1f;
     [SerializeField, Min(0f)] private float deliveryArcHeight = 90f;
     [SerializeField, Min(.05f)] private float appearanceSeconds = .2f;
+    [Header("Tamanho dos cards")][SerializeField, Range(1f, 1.25f)] private float cardSlotScale = 1.1f;
     [SerializeField, Min(1f)] private float barSmoothing = 12f;
 
     [Header("Feedback no estilo da Customization")]
@@ -37,6 +38,15 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField] private Color readyCardTint = new Color(.4f, 1f, .48f, 1f);
     [SerializeField, Min(0f)] private float invalidDropShake = 7f;
     [SerializeField, Min(.01f)] private float invalidDropSeconds = .18f;
+    [Header("Feedback ao falhar um pedido")]
+    [SerializeField, Min(.01f)] private float failureShakeSeconds = .28f;
+    [SerializeField, Min(0f)] private float failureShakeStrength = 6f;
+    [SerializeField, Min(0f)] private float failureFadeDelay = .12f;
+    [SerializeField, Min(.01f)] private float failureFadeSeconds = .2f;
+    [SerializeField, Min(1)] private int failureShakeVibrato = 10;
+    [Header("Animação de entrega dos itens")]
+    [SerializeField] private Ease deliveryPathEase = Ease.InOutCubic;
+    [SerializeField] private Ease deliveredItemShrinkEase = Ease.InQuad;
     [SerializeField, Min(0f)] private float deliveryRotation = 180f;
 
     private RectTransform previousAnchor;
@@ -45,6 +55,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     private Tween cardPulse;
     private Tween priorityTween;
     private Tween invalidDropTween;
+    private Vector3 orderSlotBaseScale;
     private Vector3 cardBaseScale;
     private Vector3 cardBasePosition;
     private Vector3 deliveryBaseScale;
@@ -69,6 +80,15 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     public RushBalanceController Owner { get; private set; }
     public int OrderId { get; private set; } = -1;
+    public bool IsDelivering => delivering;
+    public bool IsFailing => failing;
+    public float FailureQueueDelay => Owner != null
+        ? Owner.AnimationSeconds(failureShakeSeconds + failureFadeDelay + failureFadeSeconds) + .05f
+        : failureShakeSeconds + failureFadeDelay + failureFadeSeconds + .05f;
+    public float DeliveryQueueDelay => Owner != null
+        ? Owner.AnimationSeconds(deliverySeconds + itemStagger * Mathf.Max(0, visibleItemCount - 1))
+            + Owner.DeliveryQueuePause
+        : deliverySeconds + itemStagger * Mathf.Max(0, visibleItemCount - 1) + .4f;
     public string ConfigurationError =>
         DragConfigurationError != null ? DragConfigurationError :
         cardVisual == null ? "cardVisual" :
@@ -103,12 +123,19 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             SetVisualState(1);
         }
         else if (!delivering && !failing)
+        {
             SetVisualState(wasReady ? 3 : 0);
+            if (gameObject.activeInHierarchy && Owner != null && Owner.Rank(OrderId) >= 0)
+                Owner.RestoreQueueSiblingOrder(OrderId);
+        }
     }
 
     protected override void Awake()
     {
         base.Awake();
+        orderSlotBaseScale = transform.localScale;
+        transform.localScale = orderSlotBaseScale * cardSlotScale;
+        UpdateDragVisualScaleBaseline();
         CacheDefaults();
     }
 
@@ -261,6 +288,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         }
 
         bool wasVisible = gameObject.activeSelf;
+        // A resolução segura cards novos; os que já estavam na fila podem avançar.
         if (Owner.HoldQueuePositions && !wasVisible) return;
         gameObject.SetActive(true);
         cardVisual.SetActive(true);
@@ -278,7 +306,9 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         SetPriorityColor(nextPriorityColor, wasVisible);
         if (!IsDragging) SetVisualState(ready ? 3 : 0);
 
-        if (wasVisible && previousRank >= 0 && rank != previousRank && rank < 2)
+        int oldRank = previousRank;
+        bool queuePositionChanged = wasVisible && oldRank >= 0 && rank != oldRank;
+        if (queuePositionChanged && rank < 2)
             PlaySinglePulse();
         previousRank = rank;
 
@@ -291,10 +321,15 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         wasReady = ready;
 
         RectTransform anchor = Owner.Anchor(OrderId);
-        if (!Owner.HoldQueuePositions && (anchor != previousAnchor || !wasVisible))
+        // Após tirar o pedido concluído do modelo, os cards visíveis começam a avançar já durante a entrega.
+        if (anchor != previousAnchor || !wasVisible)
         {
             previousAnchor = anchor;
-            MoveHome(!wasVisible);
+            if (!wasVisible) MoveHome(Owner.QueueCardMoveSeconds, Owner.QueueCardMoveEase);
+            else if (queuePositionChanged)
+                MoveHome(Owner.QueueCardMoveSeconds, Owner.QueueCardMoveEase,
+                    Owner.QueueReflowDelay + Owner.QueueCardStaggerSeconds(rank));
+            else MoveHome(false);
         }
         if (!wasVisible) PlayAppearance();
     }
@@ -339,9 +374,11 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         DragCanvasGroup.blocksRaycasts = false;
         SetVisualState(2);
         invalidDropTween = DOTween.Sequence().SetTarget(this)
-            .Append(cardVisual.transform.DOShakePosition(Seconds(.28f), 6f, 10, 0f, false, true))
-            .AppendInterval(Seconds(.12f))
-            .Append(DragCanvasGroup.DOFade(0f, Seconds(.2f)))
+            .Append(cardVisual.transform.DOShakePosition(Seconds(failureShakeSeconds), failureShakeStrength, failureShakeVibrato, 0f, false, true))
+            .AppendInterval(Seconds(failureFadeDelay))
+            .Append(DragCanvasGroup.DOFade(0f, Seconds(failureFadeSeconds)))
+            .Join(cardVisual.transform.DOScale(cardBaseScale * .78f, Seconds(failureFadeSeconds))
+                .SetEase(Ease.InCubic))
             .OnComplete(() =>
             {
                 Clear();
@@ -412,8 +449,8 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
                 () => 0f,
                 value => icon.position = EvaluateBezier(start, control, end, value),
                 1f,
-                Seconds(deliverySeconds)).SetEase(Ease.InOutCubic));
-            sequence.Insert(delay, icon.DOScale(itemBaseScales[i] * .7f, Seconds(deliverySeconds)).SetEase(Ease.InQuad));
+                Seconds(deliverySeconds)).SetEase(deliveryPathEase));
+            sequence.Insert(delay, icon.DOScale(itemBaseScales[i] * .7f, Seconds(deliverySeconds)).SetEase(deliveredItemShrinkEase));
             sequence.Insert(delay, icon.DORotate(new Vector3(0f, 0f, deliveryRotation), Seconds(deliverySeconds), RotateMode.FastBeyond360));
         }
         deliveryTween = sequence

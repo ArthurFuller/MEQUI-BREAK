@@ -130,6 +130,15 @@ public sealed class RushBalanceController : MonoBehaviour
     [Tooltip("Multiplica a velocidade das animações do Rush. 0,5 = lento; 2 = rápido.")]
     [SerializeField, Range(.25f, 3f)] private float animationSpeed = 1f;
 
+    [Header("Animação da fila de cards")]
+    [Tooltip("Tempo adicional após os ícones chegarem ao cliente, antes dos cards avançarem.")]
+    [SerializeField, Min(0f)] private float deliveryQueuePause = .4f;
+    [Tooltip("Duração do movimento dos cards para a próxima posição.")]
+    [SerializeField, Min(.01f)] private float queueCardMoveSeconds = .32f;
+    [Tooltip("Pausa entre o movimento de cada card, criando o avanço em sequência.")]
+    [SerializeField, Min(0f)] private float queueCardStaggerSeconds = .32f;
+    [SerializeField] private Ease queueCardMoveEase = Ease.OutCubic;
+
     private readonly List<int> customerLine = new List<int>(4);
     private readonly int[] pendingIds = new int[4];
     private readonly bool[] pendingDelivered = new bool[4];
@@ -146,6 +155,26 @@ public sealed class RushBalanceController : MonoBehaviour
     private bool processingResolution;
     private int visualResolutionsPending;
     public bool HoldQueuePositions => visualResolutionsPending > 0;
+    public float QueueReflowDelay
+    {
+        get
+        {
+            if (orderViews == null) return 0f;
+            foreach (RushOrderView view in orderViews)
+            {
+                if (view == null) continue;
+                if (view.IsDelivering) return view.DeliveryQueueDelay;
+                if (view.IsFailing) return view.FailureQueueDelay;
+            }
+            return 0f;
+        }
+    }
+    public float DeliveryQueuePause => AnimationSeconds(deliveryQueuePause);
+    public float QueueCardMoveSeconds => AnimationSeconds(queueCardMoveSeconds);
+    public float QueueCardStaggerSeconds(int rank) =>
+        AnimationSeconds(queueCardStaggerSeconds * Mathf.Max(0, rank));
+    public Ease QueueCardMoveEase => queueCardMoveEase;
+
     private bool finalCycle;
     private bool configured;
     private bool ending;
@@ -409,6 +438,54 @@ public sealed class RushBalanceController : MonoBehaviour
     }
 
     public int Rank(int id) => round != null ? round.Rank(id) : -1;
+
+    public void RestoreQueueSiblingOrder(int preferredTopOrderId)
+    {
+        if (round == null || orderViews == null || orderViews.Length == 0) return;
+        Transform parent = null;
+        int firstSibling = int.MaxValue;
+        foreach (RushOrderView view in orderViews)
+        {
+            if (view == null) continue;
+            if (parent == null) parent = view.transform.parent;
+            if (view.transform.parent == parent)
+                firstSibling = Mathf.Min(firstSibling, view.transform.GetSiblingIndex());
+        }
+        if (parent == null || firstSibling == int.MaxValue) return;
+
+        bool keepReadyCardOnTop = IsReady(preferredTopOrderId);
+        int nextSibling = firstSibling;
+        for (int readyPass = 0; readyPass < 2; readyPass++)
+        {
+            for (int rank = 0; rank < round.QueueCount; rank++)
+            {
+                foreach (RushOrderView view in orderViews)
+                {
+                    if (view == null || view.transform.parent != parent || Rank(view.OrderId) != rank)
+                        continue;
+                    if (keepReadyCardOnTop && view.OrderId == preferredTopOrderId)
+                        continue;
+                    if (IsReady(view.OrderId) != (readyPass == 1))
+                        continue;
+
+                    view.transform.SetSiblingIndex(nextSibling++);
+                    break;
+                }
+            }
+        }
+
+        if (keepReadyCardOnTop)
+        {
+            foreach (RushOrderView view in orderViews)
+            {
+                if (view != null && view.OrderId == preferredTopOrderId && view.transform.parent == parent)
+                {
+                    view.transform.SetSiblingIndex(nextSibling);
+                    break;
+                }
+            }
+        }
+    }
 
     public bool IsReady(int id)
     {

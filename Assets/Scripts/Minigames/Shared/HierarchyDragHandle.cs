@@ -17,6 +17,7 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
     private bool scaleCached;
     private int pointerId;
     private bool dropAccepted;
+    private bool suppressClickUntilPointerEnd;
     public bool IsDragging { get; private set; }
     public float LastDragEndTime { get; private set; } = -10f;
     protected CanvasGroup DragCanvasGroup => canvasGroup;
@@ -51,6 +52,13 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
         scaleCached = true;
     }
 
+    protected void UpdateDragVisualScaleBaseline()
+    {
+        if (visual == null) return;
+        originalScale = visual.localScale;
+        scaleCached = true;
+    }
+
     public void OnBeginDrag(PointerEventData data)
     {
         if (IsDragging || data.button != PointerEventData.InputButton.Left
@@ -62,6 +70,7 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
         pointerOffset = visual.position - point;
         IsDragging = true;
         dropAccepted = false;
+        suppressClickUntilPointerEnd = false;
         pointerId = data.pointerId;
         DragStateChanged(true);
         canvasGroup.blocksRaycasts = false;
@@ -83,16 +92,31 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
 
     public void OnEndDrag(PointerEventData data)
     {
-        if (!OwnsPointer(data)) return;
+        if (!OwnsPointer(data))
+        {
+            if (suppressClickUntilPointerEnd && data.pointerId == pointerId)
+            {
+                suppressClickUntilPointerEnd = false;
+                LastDragEndTime = Time.unscaledTime;
+            }
+            return;
+        }
+
         LastDragEndTime = Time.unscaledTime;
         bool accepted = dropAccepted;
         CancelDrag(false);
+        suppressClickUntilPointerEnd = false;
         DragFinished(accepted);
     }
 
     public void CancelDrag(bool instant)
     {
         CacheScale();
+        if (IsDragging)
+        {
+            LastDragEndTime = Time.unscaledTime;
+            suppressClickUntilPointerEnd = true;
+        }
         IsDragging = false;
         dropAccepted = false;
         DragStateChanged(false);
@@ -115,6 +139,15 @@ public abstract class HierarchyDragHandle : MonoBehaviour, IBeginDragHandler, ID
         movement?.Kill();
         if (instant) visual.position = target;
         else movement = visual.DOMove(target, returnSeconds).SetEase(Ease.OutCubic);
+    }
+
+    protected void MoveHome(float duration, Ease ease, float delay = 0f)
+    {
+        if (!DragConfigured || IsDragging) return;
+        Vector3 target = RestPosition;
+        if ((visual.position - target).sqrMagnitude < .01f) return;
+        movement?.Kill();
+        movement = visual.DOMove(target, duration).SetEase(ease).SetDelay(Mathf.Max(0f, delay));
     }
 
     private bool Point(PointerEventData data, out Vector3 position)
