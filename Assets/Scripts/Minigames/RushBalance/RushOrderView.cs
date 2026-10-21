@@ -3,6 +3,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using TMPro;
 
 public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerClickHandler
 {
@@ -18,6 +19,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [Tooltip("Mesma proporção usada pelo NPC; o card deve ser apenas uma miniatura.")]
     [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private Image progressFill;
+    [SerializeField] private RectTransform progressTrack;
     [SerializeField] private Image priorityIndicator;
     [SerializeField, Min(.05f)] private float deliverySeconds = .36f;
     [SerializeField, Min(0f)] private float itemStagger = .1f;
@@ -48,6 +50,35 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField] private Ease deliveryPathEase = Ease.InOutCubic;
     [SerializeField] private Ease deliveredItemShrinkEase = Ease.InQuad;
     [SerializeField, Min(0f)] private float deliveryRotation = 180f;
+
+    [Header("Fila suspensa - opcionais, montados na cena")]
+    [SerializeField] private RectTransform hangingRoot;
+    [SerializeField] private RectTransform selectionRoot;
+    [SerializeField] private Image[] highlightBorders;
+    [SerializeField] private GameObject completedStamp;
+    [SerializeField] private GameObject cancelledStamp;
+    [SerializeField] private TMP_Text remainingLabel;
+    [SerializeField] private Color readyOutlineColor = new Color(1f, .8f, .12f);
+    [SerializeField, Range(1f, 1.1f)] private float selectedScale = 1.04f;
+    [SerializeField, Range(0f, 8f)] private float swingDegrees = 3f;
+    [SerializeField, Min(.05f)] private float swingSeconds = .42f;
+    [SerializeField, Min(0f)] private float entryOffset = 65f;
+    [SerializeField, Min(0f)] private float stampHoldSeconds = .22f;
+    [SerializeField, Min(.01f)] private float stampLandSeconds = .14f;
+    [SerializeField, Min(.01f)] private float stampPulseSeconds = .23f;
+    [SerializeField, Range(0f, .1f)] private float stampPulseStrength = .035f;
+    private Vector3 completedStampScale, cancelledStampScale;
+    [Header("Saida do card pela parte inferior da tela")]
+    [SerializeField, Min(.05f)] private float exitSeconds = .35f;
+    [SerializeField, Min(0f)] private float exitMargin = 24f;
+    [SerializeField] private Ease exitEase = Ease.InCubic;
+    private readonly Vector3[] exitCorners = new Vector3[4];
+    private Tween swingTween, selectionTween;
+    private Vector2 hangingPosition;
+    private Vector3 selectionScale;
+    private Quaternion hangingRotation;
+    private Color paperColor;
+    private bool selected;
 
     private RectTransform previousAnchor;
     private Tween deliveryTween;
@@ -111,6 +142,13 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         // dos demais sem trocar de pai ou criar qualquer objeto em runtime.
         if (dragging)
         {
+            if (hangingRoot != null)
+            {
+                appearanceTween?.Kill();
+                hangingRoot.anchoredPosition = hangingPosition;
+                StopSwing();
+                Owner.SelectQueueCard(OrderId);
+            }
             transform.SetAsLastSibling();
             SetVisualState(1);
         }
@@ -135,12 +173,21 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     {
         if (defaultsCached || deliveryIconsRoot == null) return;
         deliveryBox = deliveryIconsRoot.GetComponent<Image>();
-        progressFill.type = Image.Type.Filled;
+        progressFill.type = progressTrack != null ? Image.Type.Sliced : Image.Type.Filled;
         progressFill.fillMethod = Image.FillMethod.Horizontal;
         progressFill.fillOrigin = (int)Image.OriginHorizontal.Left;
-        progressFill.fillAmount = 0f;
+        SetProgress(0f);
         cardBaseScale = cardVisual.transform.localScale;
+        if (completedStamp != null) completedStampScale = completedStamp.transform.localScale;
+        if (cancelledStamp != null) cancelledStampScale = cancelledStamp.transform.localScale;
         cardBasePosition = cardVisual.transform.localPosition;
+        paperColor = cardBackground.color;
+        if (hangingRoot != null)
+        {
+            hangingPosition = hangingRoot.anchoredPosition;
+            hangingRotation = hangingRoot.localRotation;
+        }
+        if (selectionRoot != null) selectionScale = selectionRoot.localScale;
         deliveryBaseScale = deliveryIconsRoot.localScale;
         deliveryBasePosition = deliveryIconsRoot.anchoredPosition;
         for (int i = 0; i < itemIcons.Length; i++)
@@ -155,8 +202,26 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     private void Update()
     {
         float blend = 1f - Mathf.Exp(-barSmoothing * Time.unscaledDeltaTime);
-        progressDisplayed = Mathf.Lerp(progressDisplayed, progressTarget, blend);
-        progressFill.fillAmount = progressDisplayed;
+        progressDisplayed = progressTarget >= 1f ? 1f : Mathf.Lerp(progressDisplayed, progressTarget, blend);
+        SetProgress(progressDisplayed);
+    }
+
+    private void SetProgress(float value)
+    {
+        if (progressTrack == null)
+        {
+            progressFill.fillAmount = value;
+            return;
+        }
+        RectTransform bar = progressFill.rectTransform;
+        const float inset = 1f;
+        float width = Mathf.Max(0f, progressTrack.rect.width - inset * 2f) * Mathf.Clamp01(value);
+        bar.anchorMin = bar.anchorMax = new Vector2(.5f, .5f);
+        bar.pivot = new Vector2(0f, .5f);
+        bar.anchoredPosition = new Vector2(-progressTrack.rect.width * .5f + inset, 0f);
+        bar.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(0f, progressTrack.rect.height - inset * 2f));
+        bar.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+        progressFill.enabled = width > .5f;
     }
 
     public void Bind(
@@ -167,6 +232,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         Sprite faceSprite)
     {
         CacheDefaults();
+        ResetQueueFeedback();
         Owner = controller;
         OrderId = id;
         previousAnchor = null;
@@ -202,7 +268,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         DragCanvasGroup.blocksRaycasts = true;
         progressTarget = 0f;
         progressDisplayed = 0f;
-        progressFill.fillAmount = 0f;
+        SetProgress(0f);
         for (int i = 0; i < itemIcons.Length; i++)
         {
             itemIcons[i].transform.localPosition = itemBasePositions[i];
@@ -225,6 +291,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     public void Clear()
     {
+        ResetQueueFeedback();
         deliveryTween?.Kill();
         appearanceTween?.Kill();
         cardPulse?.Kill();
@@ -258,7 +325,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         }
         if (deliveryBox != null) deliveryBox.enabled = true;
         progressTarget = 0f;
-        if (progressFill != null) progressFill.fillAmount = 0f;
+        if (progressFill != null) SetProgress(0f);
         progressDisplayed = 0f;
         gameObject.SetActive(false);
     }
@@ -283,6 +350,8 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         customerFace.sprite = faceSprite;
         customerFace.enabled = faceSprite != null;
         progressTarget = Mathf.Clamp01(order.Work / order.Duration);
+        if (remainingLabel != null)
+            remainingLabel.SetText("{0:0}s", Mathf.Ceil(order.Remaining));
 
         int rank = Owner.Rank(OrderId);
         bool ready = order.State == RushRound.Status.Ready;
@@ -308,7 +377,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
         int oldRank = previousRank;
         bool queuePositionChanged = wasVisible && oldRank >= 0 && rank != oldRank;
-        if (queuePositionChanged && rank < 2)
+        if (queuePositionChanged && (hangingRoot != null || rank < 2))
             PlaySinglePulse();
         previousRank = rank;
 
@@ -336,6 +405,14 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     {
         appearanceTween?.Kill();
         DragCanvasGroup.alpha = 0f;
+        if (hangingRoot != null)
+        {
+            hangingRoot.anchoredPosition = hangingPosition + Vector2.down * entryOffset;
+            appearanceTween = DOTween.Sequence().SetTarget(this)
+                .Join(DragCanvasGroup.DOFade(1f, Seconds(appearanceSeconds)))
+                .Join(hangingRoot.DOAnchorPos(hangingPosition, Seconds(appearanceSeconds)).SetEase(Ease.OutCubic));
+            return;
+        }
         cardVisual.transform.localScale = cardBaseScale * .92f;
         appearanceTween = DOTween.Sequence()
             .SetTarget(this)
@@ -347,6 +424,12 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     {
         if (visualState == nextState) return;
         visualState = nextState;
+        if (hangingRoot != null)
+        {
+            cardBackground.color = paperColor;
+            UpdateOutline();
+            return;
+        }
         cardBackground.sprite = cardStateSprites[nextState];
         cardBackground.color = nextState == 3 ? readyCardTint : Color.white;
     }
@@ -363,6 +446,9 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         CancelDrag(true);
         failing = true;
         appearanceTween?.Kill();
+        StopSwing();
+        SetSelected(false);
+        if (hangingRoot != null) hangingRoot.anchoredPosition = hangingPosition;
         cardPulse?.Kill();
         invalidDropTween?.Kill();
         cardVisual.SetActive(true);
@@ -371,13 +457,20 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         DragCanvasGroup.alpha = 1f;
         DragCanvasGroup.blocksRaycasts = false;
         SetVisualState(2);
-        invalidDropTween = DOTween.Sequence().SetTarget(this)
-            .Append(cardVisual.transform.DOShakePosition(Seconds(failureShakeSeconds), failureShakeStrength, failureShakeVibrato, 0f, false, true))
-            .AppendInterval(Seconds(failureFadeDelay))
-            .Append(DragCanvasGroup.DOFade(0f, Seconds(failureFadeSeconds)))
-            .Join(cardVisual.transform.DOScale(cardBaseScale * .78f, Seconds(failureFadeSeconds))
-                .SetEase(Ease.InCubic))
-            .OnComplete(() =>
+        Sequence sequence = DOTween.Sequence().SetTarget(this);
+        if (cancelledStamp != null)
+            sequence.Append(CreateStampFeedback(cancelledStamp, false))
+                .AppendInterval(Seconds(Mathf.Max(0f, stampHoldSeconds - stampLandSeconds - stampPulseSeconds)));
+        else
+        {
+            Owner?.PlayStampSound(false);
+            sequence.Append(cardVisual.transform.DOShakePosition(Seconds(failureShakeSeconds), failureShakeStrength, failureShakeVibrato, 0f, false, true));
+        }
+        sequence.AppendInterval(Seconds(failureFadeDelay));
+        if (hangingRoot != null) sequence.Append(CreateExitTween());
+        else sequence.Append(DragCanvasGroup.DOFade(0f, Seconds(failureFadeSeconds)))
+            .Join(cardVisual.transform.DOScale(cardBaseScale * .78f, Seconds(failureFadeSeconds)).SetEase(Ease.InCubic));
+        invalidDropTween = sequence.OnComplete(() =>
             {
                 Clear();
                 completed?.Invoke();
@@ -387,6 +480,13 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     private void PlaySinglePulse()
     {
         if (cardVisual == null || delivering || IsDragging) return;
+        if (hangingRoot != null)
+        {
+            StopSwing();
+            swingTween = hangingRoot.DOPunchRotation(Vector3.forward * swingDegrees,
+                Seconds(swingSeconds), 3, .35f).SetTarget(this);
+            return;
+        }
 
         cardPulse?.Kill();
         cardVisual.transform.localScale = cardBaseScale;
@@ -432,18 +532,30 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         cardPulse?.Kill();
         DragCanvasGroup.alpha = 1f;
         DragCanvasGroup.blocksRaycasts = false;
-        cardVisual.SetActive(false);
+        StopSwing();
+        if (hangingRoot != null) hangingRoot.anchoredPosition = hangingPosition;
+        SetSelected(false);
+        cardVisual.SetActive(hangingRoot != null);
+        cardVisual.transform.localScale = cardBaseScale;
+        cardVisual.transform.localPosition = cardBasePosition;
         if (deliveryBox != null) deliveryBox.enabled = false;
         deliveryIconsRoot.gameObject.SetActive(true);
         deliveryTween?.Kill();
         Sequence sequence = DOTween.Sequence().SetTarget(this);
+        float stampDelay = hangingRoot != null ? Seconds(stampHoldSeconds) : 0f;
+        if (completedStamp != null)
+        {
+            sequence.Append(CreateStampFeedback(completedStamp, true));
+            stampDelay = Mathf.Max(stampDelay, sequence.Duration());
+        }
+        else Owner?.PlayStampSound(true);
         for (int i = 0; i < visibleItemCount; i++)
         {
             Transform icon = itemIcons[i].transform;
             Vector3 start = icon.position;
             Vector3 end = target.position;
             Vector3 control = (start + end) * .5f + Vector3.up * deliveryArcHeight;
-            float delay = i * Seconds(itemStagger);
+            float delay = stampDelay + i * Seconds(itemStagger);
             sequence.Insert(delay, DOTween.To(
                 () => 0f,
                 value => icon.position = EvaluateBezier(start, control, end, value),
@@ -451,6 +563,15 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
                 Seconds(deliverySeconds)).SetEase(deliveryPathEase));
             sequence.Insert(delay, icon.DOScale(itemBaseScales[i] * .7f, Seconds(deliverySeconds)).SetEase(deliveredItemShrinkEase));
             sequence.Insert(delay, icon.DORotate(new Vector3(0f, 0f, deliveryRotation), Seconds(deliverySeconds), RotateMode.FastBeyond360));
+        }
+        if (hangingRoot != null)
+        {
+            sequence.AppendCallback(() =>
+            {
+                // Os itens ja chegaram ao cliente; nao devem descer junto com o papel.
+                foreach (GameObject icon in itemIcons) icon.SetActive(false);
+            });
+            sequence.Append(CreateExitTween());
         }
         deliveryTween = sequence
             .OnComplete(() =>
@@ -468,6 +589,36 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
                 gameObject.SetActive(false);
                 completed?.Invoke();
             });
+    }
+
+    private Sequence CreateStampFeedback(GameObject stamp, bool delivered)
+    {
+        Vector3 stampScale = delivered ? completedStampScale : cancelledStampScale;
+        stamp.SetActive(true);
+        stamp.transform.localScale = stampScale * 1.22f;
+        cardVisual.transform.localScale = cardBaseScale;
+        return DOTween.Sequence().SetTarget(this)
+            .Append(stamp.transform.DOScale(stampScale, Seconds(stampLandSeconds)).SetEase(Ease.OutCubic))
+            .AppendCallback(() => Owner?.PlayStampSound(delivered))
+            .Append(cardVisual.transform.DOScale(cardBaseScale * (1f - stampPulseStrength),
+                Seconds(stampPulseSeconds * .3f)).SetEase(Ease.OutQuad))
+            .Append(cardVisual.transform.DOScale(cardBaseScale,
+                Seconds(stampPulseSeconds * .7f)).SetEase(Ease.InOutSine));
+    }
+
+    private Tween CreateExitTween()
+    {
+        // Usa os limites do Canvas para retirar todo o papel da tela em qualquer proporcao.
+        Canvas canvas = hangingRoot.GetComponentInParent<Canvas>();
+        RectTransform screen = (RectTransform)canvas.rootCanvas.transform;
+        screen.GetWorldCorners(exitCorners);
+        float bottom = Mathf.Min(exitCorners[0].y, exitCorners[3].y);
+        hangingRoot.GetWorldCorners(exitCorners);
+        float top = Mathf.Max(exitCorners[1].y, exitCorners[2].y);
+        float margin = screen.TransformVector(Vector3.up * exitMargin).magnitude;
+        float distance = Mathf.Max(0f, top - bottom) + margin;
+        return hangingRoot.DOMoveY(hangingRoot.position.y - distance, Seconds(exitSeconds))
+            .SetEase(exitEase).SetTarget(this);
     }
 
     public void HoldForResolution()
@@ -493,7 +644,13 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (Owner == null || delivering || failing || IsDragging || Time.unscaledTime - LastDragEndTime < .15f) return;
+        if (eventData.button != PointerEventData.InputButton.Left || Owner == null || delivering || failing
+            || waitingForResolution || IsDragging || Time.unscaledTime - LastDragEndTime < .15f) return;
+        if (Owner.QueueControlsEnabled && !Owner.IsReady(OrderId))
+        {
+            Owner.SelectQueueCard(OrderId);
+            return;
+        }
         if (!Owner.IsReady(OrderId)) PlaySinglePulse();
         Owner.Deliver(OrderId);
     }
@@ -503,6 +660,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         if (accepted && Owner != null)
         {
             MoveHome(Owner.QueueCardMoveSeconds, Owner.QueueCardMoveEase);
+            PlaySinglePulse();
             return;
         }
         if (accepted || cardVisual == null || invalidDropShake <= 0f) return;
@@ -537,6 +695,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     protected override void OnDisable()
     {
+        ResetQueueFeedback();
         base.OnDisable();
         appearanceTween?.Kill();
         cardPulse?.Kill();
@@ -549,5 +708,58 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             cardVisual.transform.localPosition = cardBasePosition;
         }
         if (DragCanvasGroup != null) DragCanvasGroup.alpha = 1f;
+    }
+
+    public void SetSelected(bool value)
+    {
+        if (selectionRoot == null || selected == value) return;
+        selected = value;
+        selectionTween?.Kill();
+        Vector3 target = selectionScale * (value ? selectedScale : 1f);
+        if (!gameObject.activeInHierarchy) selectionRoot.localScale = target;
+        else selectionTween = selectionRoot.DOScale(target, Seconds(.12f)).SetEase(Ease.OutQuad).SetTarget(this);
+        UpdateOutline();
+    }
+
+    private void UpdateOutline()
+    {
+        if (highlightBorders == null) return;
+        foreach (Image edge in highlightBorders)
+        {
+            if (edge == null) continue;
+            edge.enabled = visualState == 3 || selected;
+            edge.color = visualState == 3 ? readyOutlineColor : Color.white;
+        }
+    }
+
+    private void StopSwing()
+    {
+        swingTween?.Kill();
+        if (hangingRoot != null && defaultsCached) hangingRoot.localRotation = hangingRotation;
+    }
+
+    private void ResetQueueFeedback()
+    {
+        StopSwing();
+        selectionTween?.Kill();
+        selected = false;
+        if (defaultsCached && hangingRoot != null)
+        {
+            hangingRoot.anchoredPosition = hangingPosition;
+        }
+        if (defaultsCached && selectionRoot != null) selectionRoot.localScale = selectionScale;
+        if (completedStamp != null)
+        {
+            completedStamp.SetActive(false);
+            if (defaultsCached) completedStamp.transform.localScale = completedStampScale;
+        }
+        if (cancelledStamp != null)
+        {
+            cancelledStamp.SetActive(false);
+            if (defaultsCached) cancelledStamp.transform.localScale = cancelledStampScale;
+        }
+        if (highlightBorders != null)
+            foreach (Image edge in highlightBorders)
+                if (edge != null) edge.enabled = false;
     }
 }

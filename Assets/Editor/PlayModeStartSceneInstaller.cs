@@ -8,7 +8,13 @@ public static class PlayModeStartSceneInstaller
 {
     private const string BootScenePath = "Assets/Scenes/Boot/Boot.unity";
 
-    static PlayModeStartSceneInstaller() => EditorApplication.delayCall += Configure;
+    static PlayModeStartSceneInstaller()
+    {
+        if (AssetDatabase.IsAssetImportWorkerProcess() || UnityEngine.Application.isBatchMode)
+            return;
+
+        EditorApplication.delayCall += Configure;
+    }
 
     private static void Configure()
     {

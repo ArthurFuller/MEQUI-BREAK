@@ -162,7 +162,7 @@ public sealed class AudioManager : MonoBehaviour
         }
     }
 
-    private void PlayEffect(AudioClip clip, float volume = 1f)
+    public void PlayEffect(AudioClip clip, float volume = 1f)
     {
         if (!sfxEnabled || sfxSource == null || clip == null)
             return;

@@ -20,9 +20,14 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     [SerializeField] private Vector2 fullBodyHatOffset = new Vector2(0f, -.17f);
     [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private GameObject balloon;
+    [SerializeField] private CanvasGroup balloonGroup;
+    [SerializeField, Min(0f)] private float orderIconSpacing = 56f;
     [SerializeField] private Button orderButton;
     [SerializeField] private GameObject patienceTrack;
     [SerializeField] private Image patienceFill;
+    [SerializeField] private bool circularPatience;
+    private Tween patiencePulse;
+    private Vector3 patienceBaseScale = Vector3.one;
     [SerializeField] private TMP_Text speech;
     [Tooltip("Três ícones já configurados na Hierarchy.")]
     [SerializeField] private GameObject[] itemIcons;
@@ -31,6 +36,9 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     [Header("Movimento e paciência do cliente")]
     [SerializeField, Min(.01f)] private float movementSeconds = .32f;
     [SerializeField] private Ease enterEase = Ease.OutCubic;
+    [Tooltip("Duracao da chegada. Zero usa o tempo de movimento padrao.")]
+    [SerializeField, Min(0f)] private float arrivalMovementSeconds;
+    [SerializeField] private Ease arrivalEase = Ease.InOutSine;
     [SerializeField] private Ease exitEase = Ease.InCubic;
     [SerializeField, Min(1f)] private float barSmoothing = 12f;
     [Header("Interação com o balão")]
@@ -61,8 +69,13 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     private readonly Sprite[] faceSprites = new Sprite[3];
     private RushBalanceController owner;
     private Tween movement;
+    private Action arrivalCompleted;
     private Tween moodFeedback;
     private Tween balloonFeedback;
+    private Tween bubbleTween;
+    private Tween speechTimeout;
+    private bool showingOrder;
+    private bool BubbleAnimating => bubbleTween != null && bubbleTween.IsActive();
     private Vector3 characterBaseScale;
     private Vector3 balloonBaseScale;
     private float patienceDisplayed = 1f;
@@ -117,8 +130,10 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         balloonRect = balloon.transform as RectTransform;
         balloonBaseScale = balloonRect != null ? balloonRect.localScale : Vector3.one;
         patienceFill.type = Image.Type.Filled;
-        patienceFill.fillMethod = Image.FillMethod.Horizontal;
-        patienceFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        patienceBaseScale = patienceTrack.transform.localScale;
+        patienceFill.fillMethod = circularPatience ? Image.FillMethod.Radial360 : Image.FillMethod.Horizontal;
+        patienceFill.fillOrigin = circularPatience ? (int)Image.Origin360.Top : (int)Image.OriginHorizontal.Left;
+        patienceFill.fillClockwise = true;
         patienceFill.fillAmount = 1f;
 
         for (int i = 0; i < faces.Length; i++)
@@ -136,13 +151,24 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         float blend = 1f - Mathf.Exp(-barSmoothing * Time.unscaledDeltaTime);
         patienceDisplayed = Mathf.Lerp(patienceDisplayed, patienceTarget, blend);
         patienceFill.fillAmount = patienceDisplayed;
+        bool warn = circularPatience && patienceTarget > 0f && patienceTarget <= .2f
+            && patienceTrack.activeInHierarchy;
+        if (warn && (patiencePulse == null || !patiencePulse.IsActive()))
+            patiencePulse = patienceTrack.transform.DOScale(patienceBaseScale * 1.06f, .45f)
+                .SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo).SetTarget(this);
+        else if (!warn) StopPatiencePulse();
     }
 
     public void Clear()
     {
+        arrivalCompleted = null;
+        StopPatiencePulse();
         movement?.Kill();
         moodFeedback?.Kill();
         balloonFeedback?.Kill();
+        bubbleTween?.Kill();
+        speechTimeout?.Kill();
+        showingOrder = false;
         OrderId = -1;
         HasAppearance = false;
         HatIndex = -1;
@@ -201,11 +227,16 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         PatienceProfile profile,
         RectTransform entrance,
         RectTransform target,
-        bool instant)
+        bool instant,
+        Action onArrived = null)
     {
         movement?.Kill();
+        arrivalCompleted = onArrived;
         moodFeedback?.Kill();
         balloonFeedback?.Kill();
+        bubbleTween?.Kill();
+        speechTimeout?.Kill();
+        showingOrder = true;
         OrderId = orderId;
         Profile = profile;
         mood = -1;
@@ -224,9 +255,16 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         patienceFill.fillAmount = 1f;
         patienceTarget = 1f;
         character.position = instant ? target.position : entrance.position;
-        for (int i = 0; i < itemIcons.Length; i++) itemIcons[i].SetActive(i < order.Items);
+        for (int i = 0; i < itemIcons.Length; i++)
+        {
+            itemIcons[i].SetActive(i < order.Items);
+            if (balloonGroup != null)
+                ((RectTransform)itemIcons[i].transform).anchoredPosition =
+                    new Vector2((i - (order.Items - 1) * .5f) * orderIconSpacing, 0f);
+        }
         Refresh(order);
-        PlayBalloonPop(initialBalloonPopStrength);
+        if (balloonGroup != null) ShowBubble();
+        else PlayBalloonPop(initialBalloonPopStrength);
         MoveTo(target, instant);
     }
 
@@ -234,8 +272,26 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     {
         if (!gameObject.activeSelf || target == null || departing) return;
         movement?.Kill();
-        if (instant) character.position = target.position;
-        else movement = character.DOMove(target.position, Seconds(movementSeconds)).SetEase(enterEase);
+        if (instant)
+        {
+            character.position = target.position;
+            CompleteArrival();
+        }
+        else
+        {
+            bool entering = arrivalCompleted != null && arrivalMovementSeconds > 0f;
+            movement = character.DOMove(target.position,
+                    Seconds(entering ? arrivalMovementSeconds : movementSeconds))
+                .SetEase(entering ? arrivalEase : enterEase)
+                .OnComplete(CompleteArrival);
+        }
+    }
+
+    private void CompleteArrival()
+    {
+        Action callback = arrivalCompleted;
+        arrivalCompleted = null;
+        callback?.Invoke();
     }
 
     public void Refresh(RushRound.Order order)
@@ -249,11 +305,35 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
             : ratio > .3f ? new Color(1f, .72f, .12f) : new Color(.9f, .25f, .18f);
 
         int nextMood = ratio > .65f ? 0 : ratio > .3f ? 1 : 2;
-        if (mood != nextMood) SetMood(nextMood, mood >= 0);
+        bool moodChanged = mood != nextMood;
+        if (moodChanged) SetMood(nextMood, mood >= 0);
 
         bool waiting = order.State == RushRound.Status.Waiting;
+        if (balloonGroup != null)
+        {
+            orderButton.interactable = waiting && !order.Arriving;
+            if (waiting)
+            {
+                speech.gameObject.SetActive(false);
+                speech.enabled = false;
+                for (int i = 0; i < itemIcons.Length; i++) itemIcons[i].SetActive(i < order.Items);
+            }
+            else if (showingOrder)
+            {
+                showingOrder = false;
+                HideBubble();
+            }
+            else if (moodChanged && (order.State == RushRound.Status.Queued || order.State == RushRound.Status.Ready))
+            {
+                foreach (GameObject icon in itemIcons) icon.SetActive(false);
+                speech.gameObject.SetActive(true);
+                speech.enabled = true;
+                ShowBubble();
+            }
+            return;
+        }
         bool speechWasVisible = speech.gameObject.activeSelf;
-        orderButton.interactable = waiting;
+        orderButton.interactable = waiting && !order.Arriving;
         speech.gameObject.SetActive(!waiting);
         speech.enabled = !waiting;
         for (int i = 0; i < itemIcons.Length; i++)
@@ -276,7 +356,11 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     public void Depart(RectTransform exit, bool delivered, Action completed)
     {
         if (departing) return;
+        arrivalCompleted = null;
         departing = true;
+        StopPatiencePulse();
+        bubbleTween?.Kill();
+        speechTimeout?.Kill();
         balloon.SetActive(false);
         patienceTrack.SetActive(false);
         patienceFill.gameObject.SetActive(false);
@@ -330,7 +414,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!orderButton.interactable || balloonRect == null) return;
+        if (!orderButton.interactable || BubbleAnimating || balloonRect == null) return;
         balloonHovered = true;
         if (balloonPressed) return;
         balloonFeedback?.Kill();
@@ -341,7 +425,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        if (balloonRect == null) return;
+        if (!orderButton.interactable || BubbleAnimating || balloonRect == null) return;
         balloonHovered = false;
         if (balloonPressed) return;
         balloonFeedback?.Kill();
@@ -352,7 +436,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        if (!orderButton.interactable || balloonRect == null) return;
+        if (!orderButton.interactable || BubbleAnimating || balloonRect == null) return;
         balloonPressed = true;
         balloonFeedback?.Kill();
         balloonFeedback = balloonRect
@@ -372,6 +456,38 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
             .SetEase(balloonReleaseEase);
     }
 
+    private void ShowBubble()
+    {
+        bubbleTween?.Kill();
+        speechTimeout?.Kill();
+        balloonFeedback?.Kill();
+        balloonHovered = balloonPressed = false;
+        balloon.SetActive(true);
+        balloonRect.localScale = Vector3.Scale(balloonBaseScale, new Vector3(.15f, .85f, 1f));
+        balloonGroup.alpha = 0f;
+        balloonGroup.blocksRaycasts = false;
+        bubbleTween = DOTween.Sequence().SetTarget(this).SetUpdate(true)
+            .Join(balloonRect.DOScale(balloonBaseScale, .23f).SetEase(Ease.OutBack))
+            .Join(balloonGroup.DOFade(1f, .16f))
+            .OnComplete(() => balloonGroup.blocksRaycasts = showingOrder);
+        // Inclui os .13s do fechamento no limite total de cinco segundos.
+        if (!showingOrder)
+            speechTimeout = DOVirtual.DelayedCall(4.87f, HideBubble).SetTarget(this);
+    }
+
+    private void HideBubble()
+    {
+        bubbleTween?.Kill();
+        speechTimeout?.Kill();
+        balloonFeedback?.Kill();
+        balloonHovered = balloonPressed = false;
+        balloonGroup.blocksRaycasts = false;
+        bubbleTween = DOTween.Sequence().SetTarget(this).SetUpdate(true)
+            .Join(balloonRect.DOScale(Vector3.Scale(balloonBaseScale, new Vector3(.2f, .85f, 1f)), .13f).SetEase(Ease.InCubic))
+            .Join(balloonGroup.DOFade(0f, .13f))
+            .OnComplete(() => balloon.SetActive(false));
+    }
+
     private void PlayBalloonPop(float strength)
     {
         if (balloonRect == null) return;
@@ -389,11 +505,24 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         return owner != null ? owner.AnimationSeconds(duration) : duration;
     }
 
+    private void StopPatiencePulse()
+    {
+        if (patiencePulse == null) return;
+        patiencePulse.Kill();
+        patiencePulse = null;
+        if (patienceTrack != null) patienceTrack.transform.localScale = patienceBaseScale;
+    }
+
     private void OnDisable()
     {
+        arrivalCompleted = null;
+        StopPatiencePulse();
         movement?.Kill();
         moodFeedback?.Kill();
         balloonFeedback?.Kill();
+        bubbleTween?.Kill();
+        speechTimeout?.Kill();
+        if (balloonGroup != null) balloonGroup.alpha = 1f;
         if (character != null) character.localScale = characterBaseScale;
         if (balloonRect != null) balloonRect.localScale = balloonBaseScale;
     }

@@ -40,6 +40,9 @@ public static class FirstRunGuideHierarchyInstaller
 
     static FirstRunGuideHierarchyInstaller()
     {
+        if (AssetDatabase.IsAssetImportWorkerProcess() || Application.isBatchMode)
+            return;
+
         EditorApplication.delayCall += TryAutoInstall;
     }
 
@@ -79,9 +82,9 @@ public static class FirstRunGuideHierarchyInstaller
             if (!string.IsNullOrEmpty(previousScene) && File.Exists(previousScene))
                 EditorSceneManager.OpenScene(previousScene, OpenSceneMode.Single);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
-            return;
+            Debug.LogException(exception);
         }
     }
 

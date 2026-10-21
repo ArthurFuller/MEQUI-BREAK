@@ -2,6 +2,11 @@ using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 [DisallowMultipleComponent]
 public sealed class RushBalanceController : MonoBehaviour
@@ -99,6 +104,22 @@ public sealed class RushBalanceController : MonoBehaviour
     [SerializeField] private Vector3 patienceTimes = new Vector3(35f, 30f, 25f);
     [SerializeField, Range(0f, 1f)] private float secondarySpeed = .5f;
 
+    [Header("Chegadas e sorteio justo")]
+    [SerializeField] private bool staggerInitialCustomers;
+    [Tooltip("Instantes das quatro chegadas, em segundos desde o inicio da partida.")]
+    [SerializeField] private Vector4 initialArrivalSeconds = new Vector4(1f, 2f, 3.5f, 6f);
+    [SerializeField] private bool fairRandomOrders;
+    [Tooltip("Margem para selecionar o novo pedido, em segundos de simulacao.")]
+    [SerializeField, Min(0f)] private float orderSafetySeconds = 3f;
+    [Tooltip("Tempo estimado de reacao para cada entrega, em segundos de simulacao.")]
+    [SerializeField, Min(0f)] private float deliveryReactionSeconds = .5f;
+    [Header("Sons dos carimbos")]
+    [SerializeField] private AudioClip deliveredStampSound;
+    [SerializeField] private AudioClip cancelledStampSound;
+    [SerializeField, Range(0f, 1f)] private float stampSoundVolume = .75f;
+    private float initialArrivalClock;
+    private int nextInitialCustomer;
+
     [Header("Aparência randômica dos NPCs")]
     [SerializeField] private AppearanceMode appearanceMode = AppearanceMode.BorderedClothes;
     [SerializeField] private FullBodyOption[] fullBodyOptions;
@@ -134,6 +155,20 @@ public sealed class RushBalanceController : MonoBehaviour
     [Tooltip("Duração do movimento dos cards para a próxima posição.")]
     [SerializeField, Min(.01f)] private float queueCardMoveSeconds = .32f;
     [SerializeField] private Ease queueCardMoveEase = Ease.OutCubic;
+
+    [Header("Selecao da fila - referencias opcionais da cena")]
+    [SerializeField] private Button queueLeft;
+    [SerializeField] private Button queueRight;
+    [SerializeField] private CanvasGroup queueButtons;
+    [SerializeField, Min(1f)] private float idleHintSeconds = 7f;
+    private int selectedOrder = -1;
+    private float lastQueueInteraction;
+    private Tween arrowHint;
+    private Vector3 arrowBaseScale;
+    private PointerEventData queuePointer;
+    private EventSystem queueEventSystem;
+    private readonly List<RaycastResult> queueHits = new List<RaycastResult>(16);
+    public bool QueueControlsEnabled => queueLeft != null && queueRight != null && queueButtons != null;
 
     private readonly List<int> customerLine = new List<int>(4);
     private readonly int[] pendingIds = new int[4];
@@ -176,6 +211,14 @@ public sealed class RushBalanceController : MonoBehaviour
         finalNoticeBasePosition = finalCyclePanel.anchoredPosition;
         finalCycleBanner.SetActive(false);
         if (hatSafeAreaGuide != null) hatSafeAreaGuide.SetActive(false);
+        if (QueueControlsEnabled)
+        {
+            queueLeft.onClick.AddListener(MoveQueueLeft);
+            queueRight.onClick.AddListener(MoveQueueRight);
+            arrowBaseScale = queueButtons.transform.localScale;
+            TouchQueueControls();
+            RefreshQueueControls();
+        }
     }
 
     private void OnEnable()
@@ -187,6 +230,9 @@ public sealed class RushBalanceController : MonoBehaviour
 
     private void OnDisable()
     {
+        SelectQueueCard(-1);
+        arrowHint?.Kill();
+        if (QueueControlsEnabled) queueButtons.transform.localScale = arrowBaseScale;
         replacementSequence?.Kill();
         finalNoticeSequence?.Kill();
         replacementSequence = null;
@@ -218,13 +264,17 @@ public sealed class RushBalanceController : MonoBehaviour
         finalCycleGroup.alpha = 0f;
         finalCycleBanner.SetActive(false);
         round.Reset();
+        SelectQueueCard(-1);
+        TouchQueueControls();
         customerLine.Clear();
         bufferCustomer = 4;
+        initialArrivalClock = 0f;
+        nextInitialCustomer = 0;
 
         for (int i = 0; i < customers.Length; i++) customers[i].Clear();
         for (int i = 0; i < orderViews.Length; i++) orderViews[i].Clear();
 
-        for (int id = 0; id < 4; id++)
+        for (int id = 0; !staggerInitialCustomers && id < 4; id++)
         {
             customerLine.Add(id);
             ActivateOrder(id, id, customerAnchors[id], true);
@@ -235,8 +285,22 @@ public sealed class RushBalanceController : MonoBehaviour
 
     private void Update()
     {
+        if (QueueControlsEnabled) UpdateQueueInput();
         if (!configured || !session.IsPlaying || ending) return;
         round.Tick(Time.deltaTime * simulationSpeed, secondarySpeed);
+        if (staggerInitialCustomers && !finalCycle)
+        {
+            initialArrivalClock += Time.deltaTime;
+            while (nextInitialCustomer < 4
+                && initialArrivalClock >= initialArrivalSeconds[nextInitialCustomer])
+            {
+                int id = nextInitialCustomer++;
+                customerLine.Insert(0, id);
+                ActivateOrder(id, id, CustomerLineAnchor(0), false);
+                for (int i = 1; i < customerLine.Count; i++)
+                    customers[customerLine[i]].MoveTo(CustomerLineAnchor(i));
+            }
+        }
         Refresh();
 
         if (feedback != null && feedbackClock > 0f && (feedbackClock -= Time.deltaTime) <= 0f)
@@ -248,18 +312,17 @@ public sealed class RushBalanceController : MonoBehaviour
         int items = Random.Range(1, 4);
         RushCustomerView.PatienceProfile profile =
             (RushCustomerView.PatienceProfile)Random.Range(0, 3);
-        float patience = profile == RushCustomerView.PatienceProfile.Patient
-            ? patienceTimes.x
-            : profile == RushCustomerView.PatienceProfile.Normal ? patienceTimes.y : patienceTimes.z;
-        float duration = items == 1
-            ? preparationTimes.x
-            : items == 2 ? preparationTimes.y : preparationTimes.z;
+        if (fairRandomOrders) PickFairOrder(out items, out profile);
+        float patience = patienceTimes[(int)profile];
+        float duration = preparationTimes[items - 1];
 
-        if (!round.Activate(id, customerIndex, items, patience, duration)) return;
+        bool arriving = staggerInitialCustomers && !instant;
+        if (!round.Activate(id, customerIndex, items, patience, duration, arriving)) return;
         telemetryOrderIds[id] = ++nextTelemetryOrderId;
         EventLogger.Instance?.RecordActivityEvent("rush_order_created:" + telemetryOrderIds[id] + ":" + items + ":" + profile.ToString().ToLowerInvariant());
         RushRound.Order order = round.Orders[id];
-        customers[customerIndex].Enter(id, order, profile, customerEntrance, target, instant);
+        customers[customerIndex].Enter(id, order, profile, customerEntrance, target, instant,
+            arriving ? (System.Action)(() => round.FinishArrival(id)) : null);
         NpcAppearance appearance = CreateAppearance(customerIndex);
         customers[customerIndex].ApplyAppearance(appearance);
         Sprite[] foodSprites = CreateFoodSprites(items);
@@ -273,6 +336,42 @@ public sealed class RushBalanceController : MonoBehaviour
         orderViews[id].SetFoodSprites(foodSprites);
         EventLogger.Instance?.RecordActivityEvent(
             $"rush_request_{items}_items_{profile.ToString().ToLowerInvariant()}");
+    }
+
+    private RectTransform CustomerLineAnchor(int position)
+    {
+        // A partial line fills from the right: existing customers keep their
+        // places while each new arrival occupies the next space to the left.
+        return customerAnchors[customerAnchors.Length - customerLine.Count + position];
+    }
+
+    private void PickFairOrder(out int items, out RushCustomerView.PatienceProfile profile)
+    {
+        // Reservoir sampling keeps all eligible combinations equally likely,
+        // without unbounded retries or allocations. Existing delays caused by
+        // player choices are not undone and existing patience is never extended.
+        int eligible = 0;
+        int selectedSize = 0;
+        int selectedProfile = 0;
+        for (int i = 1; i < 3; i++)
+        {
+            if (preparationTimes[i] < preparationTimes[selectedSize]) selectedSize = i;
+            if (patienceTimes[i] > patienceTimes[selectedProfile]) selectedProfile = i;
+        }
+        for (int size = 0; size < 3; size++)
+        {
+            float estimate = round.EstimateNewOrderSeconds(
+                preparationTimes[size], secondarySpeed, deliveryReactionSeconds) + orderSafetySeconds;
+            for (int patience = 0; patience < 3; patience++)
+            {
+                if (patienceTimes[patience] < estimate) continue;
+                if (Random.Range(0, ++eligible) != 0) continue;
+                selectedSize = size;
+                selectedProfile = patience;
+            }
+        }
+        items = selectedSize + 1;
+        profile = (RushCustomerView.PatienceProfile)selectedProfile;
     }
 
     private Sprite[] CreateFoodSprites(int count)
@@ -371,6 +470,7 @@ public sealed class RushBalanceController : MonoBehaviour
     public void Queue(int id)
     {
         if (!session.IsPlaying || ending || !round.Enqueue(id)) return;
+        TouchQueueControls();
         EventLogger.Instance?.RecordUserAction("rush_select_request");
         AudioManager.Instance?.PlayConfirm();
         MequiHaptics.Selection();
@@ -380,6 +480,7 @@ public sealed class RushBalanceController : MonoBehaviour
     public void Reorder(int id, int rank)
     {
         if (!session.IsPlaying || ending || !round.Move(id, rank)) return;
+        TouchQueueControls();
         session.RecordReorder();
         EventLogger.Instance?.RecordActivityEvent("rush_order_reordered:" + telemetryOrderIds[id] + ":" + rank);
         AudioManager.Instance?.PlayConfirm();
@@ -477,6 +578,16 @@ public sealed class RushBalanceController : MonoBehaviour
         return Mathf.Max(.001f, baseSeconds / Mathf.Max(.25f, animationSpeed));
     }
 
+    public void PlayStampSound(bool delivered)
+    {
+        AudioManager audio = AudioManager.Instance;
+        if (audio == null) return;
+        AudioClip clip = delivered ? deliveredStampSound : cancelledStampSound;
+        if (clip != null) audio.PlayEffect(clip, stampSoundVolume);
+        else if (delivered) audio.PlayConfirm();
+        else audio.PlayError();
+    }
+
     public RectTransform Anchor(int id)
     {
         int rank = Rank(id);
@@ -497,14 +608,126 @@ public sealed class RushBalanceController : MonoBehaviour
         for (int id = 0; id < round.Orders.Length; id++)
         {
             RushRound.Order order = round.Orders[id];
-            if (order.Customer < 0 || order.Customer >= customers.Length) continue;
+            if (order.State == RushRound.Status.Hidden
+                || order.Customer < 0 || order.Customer >= customers.Length) continue;
             RushCustomerView customer = customers[order.Customer];
+            if (customer.OrderId != id) continue;
             customer.Refresh(order);
             orderViews[id].Refresh(order, customer.BodyColor, customer.CurrentFaceSprite);
         }
 
         foreach (RushOrderView view in orderViews)
             if (view.IsDragging) Highlight(view.OrderId, true);
+        RefreshQueueControls();
+    }
+
+    public void SelectQueueCard(int id)
+    {
+        if (!QueueControlsEnabled) return;
+        if (id >= 0 && !CanDrag(id)) return;
+        TouchQueueControls();
+        selectedOrder = id;
+        foreach (RushOrderView view in orderViews)
+            if (view != null) view.SetSelected(view.OrderId == selectedOrder && selectedOrder >= 0);
+        RefreshQueueControls();
+    }
+
+    private void MoveQueueLeft() => MoveSelected(-1);
+    private void MoveQueueRight() => MoveSelected(1);
+
+    private void MoveSelected(int offset)
+    {
+        if (!QueueControlsEnabled || selectedOrder < 0 || HoldQueuePositions || !CanDrag(selectedOrder)) return;
+        foreach (RushOrderView view in orderViews)
+            if (view.IsDragging) return;
+        Reorder(selectedOrder, Rank(selectedOrder) + offset);
+    }
+
+    private void TouchQueueControls()
+    {
+        lastQueueInteraction = Time.unscaledTime;
+        arrowHint?.Kill();
+        if (QueueControlsEnabled) queueButtons.transform.localScale = arrowBaseScale;
+    }
+
+    private void RefreshQueueControls()
+    {
+        if (!QueueControlsEnabled) return;
+        if (selectedOrder >= 0 && !CanDrag(selectedOrder))
+        {
+            selectedOrder = -1;
+            foreach (RushOrderView view in orderViews) view.SetSelected(false);
+        }
+        bool selected = selectedOrder >= 0;
+        bool canMove = selected && !HoldQueuePositions;
+        foreach (RushOrderView view in orderViews)
+            if (view.IsDragging) canMove = false;
+        queueButtons.alpha = selected ? 1f : .3f;
+        queueLeft.interactable = canMove && Rank(selectedOrder) > 0;
+        queueRight.interactable = canMove && Rank(selectedOrder) < round.QueueCount - 1;
+    }
+
+    private void UpdateQueueInput()
+    {
+        if (!configured || !session.IsPlaying || ending)
+        {
+            if (selectedOrder >= 0) SelectQueueCard(-1);
+            TouchQueueControls();
+            return;
+        }
+        bool pressed = false;
+        Vector2 position = default;
+#if ENABLE_INPUT_SYSTEM
+        if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+        {
+            pressed = true;
+            position = Touchscreen.current.primaryTouch.position.ReadValue();
+        }
+        else if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            pressed = true;
+            position = Mouse.current.position.ReadValue();
+        }
+#elif ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+        {
+            pressed = true;
+            position = Input.GetTouch(0).position;
+        }
+        else if (Input.GetMouseButtonDown(0))
+        {
+            pressed = true;
+            position = Input.mousePosition;
+        }
+#endif
+        if (pressed)
+        {
+            TouchQueueControls();
+            if (selectedOrder >= 0 && EventSystem.current != null)
+            {
+                if (queuePointer == null || queueEventSystem != EventSystem.current)
+                {
+                    queueEventSystem = EventSystem.current;
+                    queuePointer = new PointerEventData(EventSystem.current);
+                }
+                queuePointer.position = position;
+                queueHits.Clear();
+                EventSystem.current.RaycastAll(queuePointer, queueHits);
+                Transform hit = queueHits.Count > 0 ? queueHits[0].gameObject.transform : null;
+                bool keep = hit != null && (hit.IsChildOf(queueLeft.transform) || hit.IsChildOf(queueRight.transform));
+                foreach (RushOrderView view in orderViews)
+                    if (hit != null && view.OrderId == selectedOrder && hit.IsChildOf(view.transform)) keep = true;
+                if (!keep) SelectQueueCard(-1);
+            }
+        }
+        foreach (RushOrderView view in orderViews)
+            if (view.IsDragging) { TouchQueueControls(); return; }
+        if (selectedOrder < 0 && round.QueueCount > 0 && !HoldQueuePositions
+            && Time.unscaledTime - lastQueueInteraction >= idleHintSeconds)
+        {
+            TouchQueueControls();
+            arrowHint = queueButtons.transform.DOPunchScale(Vector3.one * .045f, .5f, 2, .25f).SetTarget(this);
+        }
     }
 
     private void Resolved(int id, bool delivered)
@@ -557,7 +780,6 @@ public sealed class RushBalanceController : MonoBehaviour
         if (delivered)
         {
             Message("Pedido entregue!");
-            AudioManager.Instance?.PlayConfirm();
             MequiHaptics.Confirm();
             orderViews[id].PlayDelivery(
                 customers[customerIndex].DeliveryTarget,
@@ -570,7 +792,6 @@ public sealed class RushBalanceController : MonoBehaviour
         else
         {
             Message("A paciência acabou.");
-            AudioManager.Instance?.PlayError();
             MequiHaptics.Reject();
             orderViews[id].PlayFailure(() =>
             {
@@ -637,9 +858,9 @@ public sealed class RushBalanceController : MonoBehaviour
                     customerLine.RemoveAt(currentPosition);
                     customerLine.Insert(0, incomingCustomer);
 
-                    ActivateOrder(id, incomingCustomer, customerAnchors[0], false);
+                    ActivateOrder(id, incomingCustomer, CustomerLineAnchor(0), false);
                     for (int i = 1; i < customerLine.Count; i++)
-                        customers[customerLine[i]].MoveTo(customerAnchors[i]);
+                        customers[customerLine[i]].MoveTo(CustomerLineAnchor(i));
                 })
                 .AppendInterval(AnimationSeconds(replacementSettleSeconds))
                 .OnComplete(() =>
@@ -721,6 +942,12 @@ public sealed class RushBalanceController : MonoBehaviour
             return false;
         if (customerEntrance == null || customerExit == null) return false;
         if (replacementPause < 0f || replacementSettleSeconds <= 0f)
+            return false;
+        if (orderSafetySeconds < 0f || deliveryReactionSeconds < 0f
+            || (staggerInitialCustomers && (initialArrivalSeconds.x < 0f
+                || initialArrivalSeconds.y < initialArrivalSeconds.x
+                || initialArrivalSeconds.z < initialArrivalSeconds.y
+                || initialArrivalSeconds.w < initialArrivalSeconds.z)))
             return false;
         if (finalNoticeEnterSeconds <= 0f || finalNoticeHoldSeconds < 0f || finalNoticeExitSeconds <= 0f)
             return false;
