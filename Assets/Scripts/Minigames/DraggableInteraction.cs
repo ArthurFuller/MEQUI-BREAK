@@ -1,4 +1,5 @@
 using System.Collections;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -36,11 +37,16 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     private Coroutine returnRoutine;
     private Graphic[] cardGraphics;
     private Color[] originalGraphicColors;
+    private Tween idleHop;
+    private RectTransform idleHopVisual;
+    private Vector2 idleHopHome;
 
     public string InteractionId => interactionId;
     public string ReactionTrigger => reactionTrigger;
     public string FeedbackMessage => feedbackMessage;
     public bool IsAvailable => !accepted && !sessionLocked && gameObject.activeInHierarchy;
+    public bool IsDragging => dragInProgress;
+    public RectTransform DragRect => rectTransform;
 
     public event System.Action<DraggableInteraction> DragStarted;
     public event System.Action<DraggableInteraction> ReturnedToOrigin;
@@ -58,6 +64,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
             return;
 
         StopReturnRoutine(completeReturn: false);
+        StopIdleHop();
         dragInProgress = true;
 
         // Atualiza o slot somente quando o card já está sob o pai de origem.
@@ -117,6 +124,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     /// </summary>
     public void AcceptDrop()
     {
+        StopIdleHop();
         StopReturnRoutine(completeReturn: false);
         accepted = true;
         dragInProgress = false;
@@ -139,6 +147,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     /// </summary>
     public void LockForSessionEnd()
     {
+        StopIdleHop();
         CacheComponents();
         CacheVisualReferences();
         StopReturnRoutine(completeReturn: false);
@@ -162,6 +171,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     /// </summary>
     public void ResetToOrigin()
     {
+        StopIdleHop();
         // Os cards começam inativos na cena. Nesse estado, Awake ainda não foi
         // executado quando o controlador solicita o primeiro reset.
         CacheComponents();
@@ -199,6 +209,31 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         originLocalRotation = rectTransform.localRotation;
         originLocalScale = rectTransform.localScale;
         hasOrigin = originParent != null;
+    }
+
+    public void PlayIdleHop()
+    {
+        if (!IsAvailable || dragInProgress || returnRoutine != null || idleHop != null)
+            return;
+
+        CacheVisualReferences();
+        idleHopVisual = cardVisual != null ? cardVisual.transform as RectTransform : null;
+        if (idleHopVisual == null) return;
+        idleHopHome = idleHopVisual.anchoredPosition;
+        idleHop = DOTween.Sequence().SetUpdate(true).SetTarget(this)
+            .Append(idleHopVisual.DOAnchorPosY(idleHopHome.y + 10f, .17f)
+                .SetEase(Ease.OutQuad))
+            .Append(idleHopVisual.DOAnchorPosY(idleHopHome.y, .23f)
+                .SetEase(Ease.InQuad))
+            .OnComplete(() => idleHop = null);
+    }
+
+    private void StopIdleHop()
+    {
+        idleHop?.Kill();
+        idleHop = null;
+        if (idleHopVisual != null)
+            idleHopVisual.anchoredPosition = idleHopHome;
     }
 
     private void CacheComponents()
@@ -270,6 +305,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
             float t = returnDuration <= 0f
                 ? 1f
                 : Mathf.Clamp01(elapsed / returnDuration);
+            t = t * t * (3f - 2f * t);
 
             rectTransform.position = Vector3.Lerp(start, target, t);
             yield return null;
@@ -318,6 +354,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
     private void OnDisable()
     {
+        StopIdleHop();
         // Durante OnDisable o Unity ainda está processando a desativação;
         // alterar a hierarquia nesse ponto gera erro de ativação/desativação.
         // O reparenting é feito com segurança no reset ou no fim do retorno.

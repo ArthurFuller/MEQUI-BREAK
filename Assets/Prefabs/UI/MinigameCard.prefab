@@ -61,14 +61,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0.78, b: 0, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: -1231187046462702323, guid: b8bd015b3b6ba6f4c8f2d57c16ed8118, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -139,6 +139,9 @@ MonoBehaviour:
   releaseDuration: 0.1
   pressEase: 6
   releaseEase: 6
+  clickPopScale: 1.035
+  clickPopDuration: 0.14
+  playClickSound: 1
 --- !u!114 &-3390230580442647410
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -152,5 +155,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MinigameCardView
   button: {fileID: 3483707572110548600}
-  definition: {fileID: 0}
+  definition: {fileID: 11400000, guid: ae5ba5e13f55fd04bb80fd4c9ef206f7, type: 2}
   sceneLoader: {fileID: 0}

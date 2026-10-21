@@ -18,9 +18,12 @@ public sealed class ComboCrewWorkerStationDrag : MonoBehaviour, IBeginDragHandle
     private CanvasGroup actorGroup;
     private bool actorRaycasts;
     private int pointerId;
+    private int hoveredStation = -1;
     private bool dragging, accepted;
     public bool IsDragging => dragging;
     public int WorkerIndex => workerIndex;
+    public RectTransform Actor => actor;
+    public void SetWorkerIndex(int index) => workerIndex = index;
     public bool OwnsPointer(PointerEventData data) => dragging && pointerId == data.pointerId;
 
     private void Awake()
@@ -42,6 +45,7 @@ public sealed class ComboCrewWorkerStationDrag : MonoBehaviour, IBeginDragHandle
         pointerId = data.pointerId;
         dragging = true;
         accepted = false;
+        hoveredStation = -1;
         actor.SetParent(canvasRect, true);
         actor.SetAsLastSibling();
         actorRaycasts = actorGroup.blocksRaycasts;
@@ -52,7 +56,9 @@ public sealed class ComboCrewWorkerStationDrag : MonoBehaviour, IBeginDragHandle
 
     public void OnDrag(PointerEventData data)
     {
-        if (OwnsPointer(data) && Point(data, out Vector3 position)) actor.position = position + offset;
+        if (!OwnsPointer(data) || !Point(data, out Vector3 position)) return;
+        actor.position = position + offset;
+        hoveredStation = owner.UpdateDropTarget(workerIndex, actor);
     }
 
     public void AcceptCurrentDrop() { if (dragging) accepted = true; }
@@ -60,7 +66,10 @@ public sealed class ComboCrewWorkerStationDrag : MonoBehaviour, IBeginDragHandle
     public void OnEndDrag(PointerEventData data)
     {
         if (!OwnsPointer(data)) return;
+        if (!accepted && hoveredStation >= 0)
+            accepted = owner.AssignWorker(workerIndex, hoveredStation);
         dragging = false;
+        hoveredStation = -1;
         if (actorGroup != null) actorGroup.blocksRaycasts = actorRaycasts;
         canvasGroup.blocksRaycasts = true;
         owner.HighlightStations(false);

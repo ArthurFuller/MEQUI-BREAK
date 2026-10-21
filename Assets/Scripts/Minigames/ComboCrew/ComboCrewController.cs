@@ -6,19 +6,19 @@ using UnityEngine.UI;
 
 /// <summary>Pedidos, funcionários e bandejas do Combo Crew; todos os visuais são da Hierarchy.</summary>
 [DisallowMultipleComponent]
-public sealed class ComboCrewController : MonoBehaviour
+public sealed partial class ComboCrewController : MonoBehaviour
 {
     private const int MainStationCount = 4;
     private const int WashStation = 4;
     private static readonly string[] StationNames = { "PREPARO", "CHAPA", "MONTAGEM", "ENTREGA", "LAVA-LOUÇA" };
-    private const float RepairWarningAt = .65f;
-    private const float AbsenceAt = .5f;
     private enum OrderState { Free, Working, Travelling, Resolving }
-    private enum Incident { None, Warning, Broken, Repairing, Done }
+    private enum Incident { None, Warning, Broken, Repairing }
     private sealed class Order
     {
         public OrderState State;
         public int Sequence, Stage, Items;
+        public readonly Sprite[] MenuItems = new Sprite[3];
+        public float WorkMultiplier;
         public float Patience, Remaining, Progress;
         public float ReadyHold;
         public bool HasTray;
@@ -40,19 +40,23 @@ public sealed class ComboCrewController : MonoBehaviour
     [Header("Animação do aviso da prancheta")]
     [SerializeField, Min(.01f)] private float clipboardPulseSeconds = .9f;
     [SerializeField] private GameObject profilePanel;
+    [SerializeField] private Sprite profileCellSprite;
     [SerializeField] private TMP_Text profileTitle;
     [SerializeField] private TMP_Text profileDescription;
     [SerializeField] private Button closeProfileButton;
     [SerializeField, Min(1f)] private float matchSeconds = 70f;
-    [SerializeField, Min(.1f)] private float spawnInterval = 6f;
+    [SerializeField, Min(.1f)] private float spawnInterval = 7f;
     [SerializeField, Min(1f)] private float patienceSeconds = 42f;
     [SerializeField, Min(.1f)] private float stageSeconds = 4f;
     [SerializeField, Min(1)] private int initialTrays = 4;
-    [SerializeField, Min(.1f)] private float washSecondsPerTray = 1.4f;
-    [SerializeField, Min(0)] private int completionPoints = 20;
+    [SerializeField, Min(.1f)] private float washSecondsPerTray = 6f;
+    [SerializeField, Min(0)] private int pointsPerDelivery = 4;
     [SerializeField, Min(0f)] private float repairWarningSeconds = 3f;
-    [SerializeField, Min(.1f)] private float repairSeconds = 3.5f;
-    [SerializeField, Min(1f)] private float absenceSeconds = 15f;
+    [Header("Variação do turno")]
+    [SerializeField] private ComboCrewTurnProfile[] turnProfiles;
+    [SerializeField, Tooltip("Zero cria uma semente nova; outro valor repete o mesmo sorteio.")]
+    private int seedOverride;
+    [SerializeField] private Sprite[] menuSprites;
 
     [Header("Referências montadas no Canvas")]
     [Tooltip("Ordem: Preparo, Chapa, Montagem, Entrega, Lava-louça. A posição visual pode ser em S.")]
@@ -70,21 +74,15 @@ public sealed class ComboCrewController : MonoBehaviour
     private int[] assigned;
     private int[] stationWorker;
     private bool[] moving;
-    private float matchRemaining, nextSpawn, messageRemaining, repairDuration;
+    private float[] workerWaitStarted;
+    private float matchRemaining, nextSpawn, messageRemaining;
     private int nextSequence, delivered, missed, cleanTrays, dirtyTrays;
     private bool preparing, playing, closing, settled, leaving, paused, logged;
     private int washingCount;
+    private int activeDeliveries;
     private bool washCounterReserved;
-    private int repairStation = -1;
-    private Incident incident;
-    private float incidentRemaining, patienceGrace, absenceWarningRemaining;
-    private int absentWorker = -1;
     private bool breakReorganizationLogged;
-    private int absencePendingWorker = -1;
-    private int problemWorker = -1;
-    private bool absenceTriggered;
     private Tween clipboardPulse;
-    private Image[] clipboardEdges;
     private RectTransform clipboardHandle;
     private Vector2 clipboardHandlePosition;
     private Vector3 clipboardHandleScale;
@@ -95,22 +93,37 @@ public sealed class ComboCrewController : MonoBehaviour
     private Vector3 profileHomeScale;
     private float profileSourceScale = .3f;
     private Tween profileTween;
+    private Image profilePortraitBody, profilePortraitFace, profilePortraitHat;
+    private ComboCrewTurnIntro turnIntro;
+    private bool[] generatedProfiles;
 
     public bool CanMoveWorker(int index) => (preparing || playing) && !leaving && !settled
         && index >= 0 && index < workers.Length && workers[index] != null
-        && index != absentWorker && !workers[index].Busy;
+        && workerAvailable != null && !IsUnavailable(index) && !workers[index].Busy;
     public bool CanNudgeWorkerCards => preparing && clipboard != null && clipboard.IsOpen
         && (profilePanel == null || !profilePanel.activeSelf);
     public RectTransform CardHome(int index) => cardAnchors != null && index >= 0
         && index < cardAnchors.Length ? cardAnchors[index] : null;
     public string WorkerTrait(int index) => workers != null && index >= 0
-        && index < workers.Length ? workers[index].ShortTrait : string.Empty;
+        && index < workers.Length ? workers[index].CardSummary() : string.Empty;
+    public ComboCrewWorkerView.CardBadge[] WorkerBadges(int index) => workers != null && index >= 0
+        && index < workers.Length ? workers[index].CardBadges() : System.Array.Empty<ComboCrewWorkerView.CardBadge>();
+    public string WorkerName(int index) => workers != null && index >= 0
+        && index < workers.Length ? workers[index].DisplayName : string.Empty;
+    public void CopyWorkerPortrait(int index, Image body, Image face, Image hat)
+    {
+        if (workers != null && index >= 0 && index < workers.Length && workers[index] != null)
+            workers[index].CopyPortrait(body, face, hat);
+    }
 
     private void Awake()
     {
+        HideLegacyTutorialOverlay();
         if (startButton != null) startButton.onClick.AddListener(StartMatch);
         if (backButton != null) backButton.onClick.AddListener(BackToHub);
         if (closeProfileButton != null) closeProfileButton.onClick.AddListener(CloseProfile);
+        if (messageLabel != null) messageLabel.gameObject.SetActive(false);
+        if (dirtyTrayLabel != null) dirtyTrayLabel.gameObject.SetActive(false);
         if (preparationPanel != null) preparationPanel.SetActive(true);
         if (profilePanel != null) profilePanel.SetActive(false);
         if (profilePanel != null)
@@ -124,6 +137,20 @@ public sealed class ComboCrewController : MonoBehaviour
         }
     }
 
+    private void HideLegacyTutorialOverlay()
+    {
+        // Uma cópia temporária da cena aberta no Editor pode conservar o antigo
+        // overlay mesmo depois de ele ter sido removido do arquivo da cena.
+        foreach (GameObject root in gameObject.scene.GetRootGameObjects())
+        {
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name == "TutorialRoot_ComboCrew")
+                    child.gameObject.SetActive(false);
+            }
+        }
+    }
+
     private void OnEnable() => SceneLoader.SceneLeaving += SceneLeaving;
 
     private void Start()
@@ -131,6 +158,8 @@ public sealed class ComboCrewController : MonoBehaviour
         UnityEngine.Device.Screen.orientation = ScreenOrientation.Portrait;
         Canvas.ForceUpdateCanvases();
         if (profileRect != null) profileHomePosition = profileRect.position;
+        EnsureTurnProfiles();
+        EnsureRoster();
         if (!Validate()) { ShowMessage("Configuração incompleta. Consulte o Console."); return; }
         orders = new Order[orderCards.Length];
         for (int i = 0; i < orders.Length; i++)
@@ -140,6 +169,8 @@ public sealed class ComboCrewController : MonoBehaviour
         }
         assigned = new int[workers.Length];
         moving = new bool[workers.Length];
+        workerWaitStarted = new float[workers.Length];
+        for (int i = 0; i < workerWaitStarted.Length; i++) workerWaitStarted[i] = -1f;
         stationWorker = new int[stations.Length];
         for (int i = 0; i < workers.Length; i++) assigned[i] = -1;
         for (int i = 0; i < stations.Length; i++)
@@ -148,11 +179,20 @@ public sealed class ComboCrewController : MonoBehaviour
             stations[i].Bind(this, i);
         }
         cleanTrays = initialTrays;
-        incident = Incident.None;
         workers[0].ApplyPlayerAppearance();
+        PrepareTurn();
+        for (int i = 0; i < workerCards.Length; i++)
+            workerCards[i].RefreshPortrait();
         preparing = true;
-        CreateClipboardEdges();
+        CacheClipboardHandle();
         RefreshHud();
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null)
+        {
+            turnIntro = gameObject.AddComponent<ComboCrewTurnIntro>();
+            turnIntro.Build(canvas.rootCanvas, timerLabel);
+            turnIntro.Show(turnProfile.title);
+        }
     }
 
     private bool Validate()
@@ -169,8 +209,17 @@ public sealed class ComboCrewController : MonoBehaviour
             && orderCards != null && orderCards.Length >= 2
             && orderAnchors != null && orderAnchors.Length == orderCards.Length
             && departureAnchor != null
+            && turnProfiles != null && turnProfiles.Length == 3
             && PlayerManager.Instance != null && PlayerManager.Instance.Profile != null
             && PointsService.Instance != null && EventLogger.Instance != null;
+        if (valid)
+        {
+            int totalWeight = 0;
+            for (int i = 0; i < turnProfiles.Length; i++)
+                if (turnProfiles[i] != null)
+                    totalWeight += Mathf.Max(0, turnProfiles[i].selectionWeight);
+            valid = totalWeight > 0;
+        }
         if (valid)
             for (int i = 0; i < stations.Length; i++)
                 if (stations[i] == null || !stations[i].Configured) { valid = false; break; }
@@ -186,8 +235,49 @@ public sealed class ComboCrewController : MonoBehaviour
             for (int i = 0; i < orderCards.Length; i++)
                 if (orderCards[i] == null || !orderCards[i].Configured || orderAnchors[i] == null)
                 { valid = false; break; }
-        if (!valid && startButton != null) startButton.interactable = false;
+        if (!valid)
+        {
+            Debug.LogError("Combo Crew: " + ConfigurationError(), this);
+            if (startButton != null) startButton.interactable = false;
+        }
         return valid;
+    }
+
+    private string ConfigurationError()
+    {
+        if (sceneLoader == null) return "SceneLoader ausente.";
+        if (resultPopup == null) return "ResultPopup ausente.";
+        if (startButton == null || backButton == null || preparationPanel == null)
+            return "Botões ou painel de preparação ausentes.";
+        if (timerLabel == null || messageLabel == null || cleanTrayLabel == null
+            || dirtyTrayLabel == null) return "Textos do HUD ausentes.";
+        if (clipboard == null || !clipboard.Configured) return "Prancheta incompleta.";
+        if (stations == null || stations.Length != 5) return "Lista de estações inválida.";
+        for (int i = 0; i < stations.Length; i++)
+            if (stations[i] == null || !stations[i].Configured) return $"Estação {i} incompleta.";
+        if (workers == null || workers.Length < 2 || workerCards == null
+            || workerCards.Length != workers.Length || cardAnchors == null
+            || cardAnchors.Length != workers.Length) return "Listas de personagens inválidas.";
+        for (int i = 0; i < workers.Length; i++)
+            if (workers[i] == null || !workers[i].Configured || workerCards[i] == null
+                || !workerCards[i].Configured || cardAnchors[i] == null)
+                return $"Personagem ou card {i} incompleto.";
+        if (orderCards == null || orderCards.Length < 2 || orderAnchors == null
+            || orderAnchors.Length != orderCards.Length || departureAnchor == null)
+            return "Lista de pedidos ou destino de entrega inválido.";
+        for (int i = 0; i < orderCards.Length; i++)
+            if (orderCards[i] == null || !orderCards[i].Configured || orderAnchors[i] == null)
+                return $"Card de pedido {i} incompleto.";
+        if (turnProfiles == null || turnProfiles.Length != 3) return "Perfis de turno ausentes.";
+        int totalWeight = 0;
+        for (int i = 0; i < turnProfiles.Length; i++)
+            if (turnProfiles[i] != null) totalWeight += Mathf.Max(0, turnProfiles[i].selectionWeight);
+        if (totalWeight <= 0) return "Nenhum perfil de turno está habilitado.";
+        if (PlayerManager.Instance == null || PlayerManager.Instance.Profile == null)
+            return "Perfil do jogador ainda não carregado.";
+        if (PointsService.Instance == null || EventLogger.Instance == null)
+            return "Serviços de pontos ou eventos ausentes.";
+        return "Parâmetros de tempo ou bandejas inválidos.";
     }
 
     private void Update()
@@ -207,7 +297,11 @@ public sealed class ComboCrewController : MonoBehaviour
         {
             matchRemaining = Mathf.Max(0f, matchRemaining - delta);
             nextSpawn -= delta;
-            if (nextSpawn <= 0f && matchRemaining > 0f && TrySpawn()) nextSpawn = spawnInterval;
+            if (nextSpawn <= 0f && matchRemaining > 0f)
+            {
+                TrySpawn();
+                nextSpawn = spawnInterval;
+            }
             if (matchRemaining <= 0f)
             {
                 closing = true;
@@ -216,14 +310,12 @@ public sealed class ComboCrewController : MonoBehaviour
             }
         }
         UpdateEvents(delta);
-        bool protectPatience = patienceGrace > 0f;
-        patienceGrace = Mathf.Max(0f, patienceGrace - delta);
         for (int i = 0; i < orders.Length; i++)
         {
             Order order = orders[i];
             if (order.State == OrderState.Free || order.State == OrderState.Resolving) continue;
             // A entrega já saiu da bancada: o pedido não pode expirar durante a rota.
-            if (!protectPatience && !(order.State == OrderState.Travelling && order.Stage == 3))
+            if (!(order.State == OrderState.Travelling && order.Stage == 3))
                 order.Remaining = Mathf.Max(0f, order.Remaining - delta);
             if (order.Remaining <= 0f && !(order.State == OrderState.Travelling && order.Stage == 3))
             { Resolve(i, false); continue; }
@@ -236,9 +328,10 @@ public sealed class ComboCrewController : MonoBehaviour
 
     public void StartMatch()
     {
-        if (!preparing || orders == null || leaving || !ReadyToStart()) return;
+        if (!preparing || orders == null || leaving || !crewFeasible || !ReadyToStart()) return;
         preparing = false;
         playing = true;
+        activeDeliveries = 0;
         if (clipboard.IsOpen) clipboard.Toggle();
         SetClipboardPulse(false);
         preparationPanel.SetActive(false);
@@ -248,6 +341,7 @@ public sealed class ComboCrewController : MonoBehaviour
         nextSpawn = spawnInterval;
         EventLogger.Instance.BeginSession("combo_crew");
         logged = true;
+        EventLogger.Instance.RecordActivityEvent($"combo_turn_{turnProfile.name}_{turnSeed}");
         EventLogger.Instance.RecordUserAction("combo_start");
         breakReorganizationLogged = false;
         int specialistPlacements = 0;
@@ -256,7 +350,7 @@ public sealed class ComboCrewController : MonoBehaviour
         {
             float best = 1f;
             for (int stage = 0; stage < stations.Length; stage++) best = Mathf.Max(best, workers[employee].SpeedAt(stage));
-            if (best <= 1f) continue;
+            if (!workerAvailable[employee] || best <= 1f) continue;
             specialists++;
             int assignedStation = assigned[employee];
             if (assignedStation >= 0 && workers[employee].SpeedAt(assignedStation) >= best - .001f) specialistPlacements++;
@@ -276,17 +370,42 @@ public sealed class ComboCrewController : MonoBehaviour
             order.State = OrderState.Working;
             order.Sequence = nextSequence++;
             order.Stage = 0;
-            // A máscara é compartilhada com o card e com a bandeja: hambúrguer, bebida, batata.
-            order.Items = order.Sequence % 3 == 0 ? 1 : order.Sequence % 3 == 1 ? 5 : 7;
+            int size = RollOrderSize();
+            order.Items = (1 << size) - 1;
+            order.WorkMultiplier = size == 1 ? turnProfile.orderTimeMultipliers.x
+                : size == 2 ? turnProfile.orderTimeMultipliers.y
+                : turnProfile.orderTimeMultipliers.z;
+            for (int item = 0; item < size; item++)
+            {
+                if (menuSprites == null || menuSprites.Length == 0)
+                {
+                    order.MenuItems[item] = null;
+                    continue;
+                }
+                int pick, attempts = 0;
+                do
+                {
+                    pick = turnRandom.Next(menuSprites.Length);
+                } while (menuSprites.Length >= size && attempts++ < menuSprites.Length
+                    && AlreadyChosen(order.MenuItems, item, menuSprites[pick]));
+                order.MenuItems[item] = menuSprites[pick];
+            }
             order.Patience = patienceSeconds;
             order.Remaining = order.Patience;
             order.Progress = 0f;
             order.ReadyHold = 0f;
             order.HasTray = false;
-            orderCards[i].Show(order.Items, orderAnchors[Rank(i)]);
+            orderCards[i].Show(order.Items, orderAnchors[Rank(i)], order.MenuItems);
             EventLogger.Instance?.RecordActivityEvent("combo_order_created");
             return true;
         }
+        EventLogger.Instance?.RecordActivityEvent("combo_order_skipped_full");
+        return false;
+    }
+
+    private static bool AlreadyChosen(Sprite[] chosen, int count, Sprite candidate)
+    {
+        for (int i = 0; i < count; i++) if (chosen[i] == candidate) return true;
         return false;
     }
 
@@ -295,13 +414,14 @@ public sealed class ComboCrewController : MonoBehaviour
         Order order = orders[id];
         int stage = order.Stage;
         int employee = stationWorker[stage];
-        if (employee < 0 || employee == absentWorker || moving[employee] || workers[employee].Busy
-            || (stage == repairStation && (incident == Incident.Broken || incident == Incident.Repairing))
+        if (employee < 0 || IsUnavailable(employee) || moving[employee] || workers[employee].Busy
+            || IsBlocked(stage) || (stage == MainStationCount - 1 && washCounterReserved)
             || FirstAtStage(stage) != id) return;
         float speed = workers[employee].SpeedAt(stage);
         if (speed <= 0f) return;
         if (order.Progress < 1f)
-            order.Progress = Mathf.Min(1f, order.Progress + delta * speed / stageSeconds);
+            order.Progress = Mathf.Min(1f, order.Progress + delta * speed
+                / (stageSeconds * Mathf.Max(.1f, order.WorkMultiplier)));
         if (order.Progress >= 1f) order.ReadyHold += delta;
         if (order.Progress < 1f || order.ReadyHold < .18f || (stage == 0 && cleanTrays < 1)) return;
         if (stage < MainStationCount - 1 && StageOccupied(stage + 1, id)) return;
@@ -311,9 +431,10 @@ public sealed class ComboCrewController : MonoBehaviour
         moving[employee] = true;
         if (stage == MainStationCount - 1)
         {
+            activeDeliveries++;
             bool deliveredAtDestination = false;
-            workers[employee].SetTrayItems(order.Items);
-            workers[employee].Deliver(departureAnchor, () =>
+            workers[employee].SetTrayItems(order.Items, order.MenuItems);
+            workers[employee].Deliver(departureAnchor, stations[stage].ForegroundLayer, () =>
             {
                 if (!playing || order.State != OrderState.Travelling) return;
                 deliveredAtDestination = true;
@@ -321,15 +442,18 @@ public sealed class ComboCrewController : MonoBehaviour
             }, () =>
             {
                 moving[employee] = false;
+                activeDeliveries = Mathf.Max(0, activeDeliveries - 1);
                 if (!deliveredAtDestination) return;
                 workers[employee].SetTrayItems(0);
                 dirtyTrays++;
+                StartWashing();
                 RefreshHud();
                 TryFinish();
             });
             return;
         }
-        workers[employee].Travel(stations[stage + 1].HandoffAnchor, () =>
+        workers[employee].Travel(stations[stage + 1].HandoffAnchor,
+            stations[stage + 1].ForegroundLayer, () =>
         {
             if (!playing || order.State != OrderState.Travelling) return;
             order.Stage = stage + 1;
@@ -368,136 +492,19 @@ public sealed class ComboCrewController : MonoBehaviour
         return false;
     }
 
-    private void UpdateEvents(float delta)
-    {
-        if (!closing && incident == Incident.None && matchRemaining <= matchSeconds * RepairWarningAt)
-        {
-            repairStation = Random.Range(0, stations.Length);
-            incident = Incident.Warning;
-            incidentRemaining = repairWarningSeconds;
-            stations[repairStation].SetAlert(ComboCrewStationView.Alert.Warning);
-            ShowMessage($"{StationNames[repairStation]}: ajuste em breve", 2.5f);
-        }
-        if (incident == Incident.Warning)
-        {
-            incidentRemaining -= delta;
-            int employee = stationWorker[repairStation];
-            if (incidentRemaining <= 0f && (employee < 0 || (!moving[employee] && !workers[employee].Busy)))
-            {
-                incident = Incident.Broken;
-                patienceGrace = 3f;
-                stations[repairStation].SetAlert(ComboCrewStationView.Alert.Broken);
-                ShowMessage($"Toque na estação {StationNames[repairStation]} para reparar", 3f);
-                AudioManager.Instance?.PlayError();
-                EventLogger.Instance?.RecordActivityEvent("combo_station_problem");
-            }
-        }
-        else if (incident == Incident.Repairing)
-        {
-            incidentRemaining = Mathf.Max(0f, incidentRemaining - delta);
-            if (incidentRemaining <= 0f)
-            {
-                incident = Incident.Done;
-                stations[repairStation].SetAlert(ComboCrewStationView.Alert.None);
-                stations[repairStation].ResetProgress();
-                ShowMessage($"Estação {StationNames[repairStation]} pronta", 1.5f);
-                AudioManager.Instance?.PlayReady();
-                EventLogger.Instance?.RecordActivityEvent("combo_station_repaired");
-            }
-        }
-
-        if (!closing && !absenceTriggered && absencePendingWorker < 0
-            && matchRemaining <= matchSeconds * AbsenceAt)
-        {
-            float totalWeight = 0f;
-            for (int stage = 0; stage < stations.Length; stage++)
-            {
-                int employee = stationWorker[stage];
-                if (employee >= 0 && !moving[employee] && !workers[employee].Busy
-                    && !workers[employee].Dragging) totalWeight += workers[employee].PauseWeight;
-            }
-            float pick = Random.value * totalWeight;
-            for (int stage = 0; stage < stations.Length && totalWeight > 0f; stage++)
-            {
-                int employee = stationWorker[stage];
-                if (employee < 0 || moving[employee] || workers[employee].Busy
-                    || workers[employee].Dragging || workers[employee].PauseWeight <= 0f) continue;
-                pick -= workers[employee].PauseWeight;
-                if (pick > 0f) continue;
-                absencePendingWorker = employee;
-                breakReorganizationLogged = false;
-                absenceWarningRemaining = 5f;
-                ShowMessage("Pausa em 5 segundos: reorganize a equipe", 3f);
-                break;
-            }
-        }
-        if (absencePendingWorker >= 0 && !closing)
-        {
-            absenceWarningRemaining = Mathf.Max(0f, absenceWarningRemaining - delta);
-            int employee = absencePendingWorker;
-            workers[employee].ShowBreakWarning(absenceWarningRemaining / 5f);
-            if (absenceWarningRemaining <= 0f && !moving[employee]
-                && !workers[employee].Busy && !workers[employee].Dragging
-                && workers[employee].TakeBreak(absenceSeconds, () =>
-                {
-                    moving[employee] = false;
-                    absentWorker = -1;
-                    ShowMessage("Equipe completa novamente", 1.5f);
-                    AudioManager.Instance?.PlayReady();
-                    EventLogger.Instance?.RecordActivityEvent("combo_worker_returned");
-                    RefreshHud();
-                    TryFinish();
-                }))
-            {
-                absentWorker = employee;
-                absencePendingWorker = -1;
-                absenceTriggered = true;
-                moving[employee] = true;
-                patienceGrace = Mathf.Max(patienceGrace, 2f);
-                ShowMessage("Pessoa da equipe em pausa: reorganize", 3f);
-                EventLogger.Instance?.RecordActivityEvent("combo_worker_absent");
-            }
-        }
-        else if (closing && absencePendingWorker >= 0)
-        {
-            workers[absencePendingWorker].ShowBreakWarning(0f);
-            absencePendingWorker = -1;
-        }
-    }
-
-    public void TryRepairStation(int station)
-    {
-        if (!playing || leaving || station != repairStation || incident != Incident.Broken) return;
-        incident = Incident.Repairing;
-        int employee = stationWorker[station];
-        repairDuration = repairSeconds * (employee >= 0 && employee != absentWorker
-            ? workers[employee].RepairTimeMultiplier : 1f);
-        incidentRemaining = repairDuration;
-        stations[station].SetAlert(ComboCrewStationView.Alert.Repairing);
-        stations[station].ResetProgress();
-        ShowMessage("Manutenção iniciada", 1.5f);
-        AudioManager.Instance?.PlayRepair();
-        MequiHaptics.Selection();
-        EventLogger.Instance?.RecordUserAction("combo_repair_station");
-    }
-
     private void StartWashing()
     {
-        if (repairStation == WashStation && (incident == Incident.Broken || incident == Incident.Repairing)) return;
-        // Aguarda o balcão liberar o pedido em curso antes de buscar bandejas usadas.
-        int counterEmployee = stationWorker[MainStationCount - 1];
-        if (StageOccupied(MainStationCount - 1, -1)
-            || (counterEmployee >= 0 && workers[counterEmployee].Busy)) return;
-        for (int i = 0; i < orders.Length; i++)
-            if (orders[i].State == OrderState.Travelling
-                && orders[i].Stage == MainStationCount - 2) return;
+        if (washingCount > 0 || dirtyTrays < 1 || IsBlocked(WashStation)) return;
+        // dirtyTrays só inclui bandejas que já voltaram de uma entrega ou pedido encerrado.
+        // A reserva segura o balcão apenas até a coleta, sem exigir uma pausa entre pedidos.
         int employee = stationWorker[WashStation];
-        if (employee < 0 || employee == absentWorker || workers[employee].Busy || moving[employee]) return;
+        if (employee < 0 || IsUnavailable(employee) || workers[employee].Busy || moving[employee]) return;
         int batch = dirtyTrays;
         washingCount = batch;
+        stations[WashStation].ResetProgress();
         washCounterReserved = true;
         moving[employee] = true;
-        workers[employee].Wash(stations[3].HandoffAnchor, stations[0].HandoffAnchor,
+        if (!workers[employee].Wash(stations[3].HandoffAnchor, stations[0].HandoffAnchor,
             batch, washSecondsPerTray / workers[employee].SpeedAt(WashStation), () =>
             {
                 washCounterReserved = false;
@@ -509,10 +516,16 @@ public sealed class ComboCrewController : MonoBehaviour
                 moving[employee] = false;
                 cleanTrays += washingCount;
                 washingCount = 0;
+                stations[WashStation].ResetProgress();
                 AudioManager.Instance?.PlayReady();
                 RefreshHud();
                 TryFinish();
-            });
+            }))
+        {
+            washingCount = 0;
+            washCounterReserved = false;
+            moving[employee] = false;
+        }
     }
 
     private void Resolve(int id, bool success, bool trayReturned = true)
@@ -545,17 +558,19 @@ public sealed class ComboCrewController : MonoBehaviour
     public bool AssignWorker(int worker, int station)
     {
         if ((!preparing && !playing) || worker < 0 || worker >= workers.Length
-            || worker == absentWorker || station < 0 || station >= stations.Length
+            || IsUnavailable(worker) || station < 0 || station >= stations.Length
             || workers[worker].Busy || moving[worker]) return false;
         int old = assigned[worker];
         if (old == station) return true;
         int occupant = stationWorker[station];
         if (occupant >= 0 && occupant != worker)
         {
-            if (old < 0 || (occupant != absentWorker && (workers[occupant].Busy || moving[occupant])))
+            bool occupantAway = workerAway[occupant];
+            if (!occupantAway && (old < 0 || workers[occupant].Busy || moving[occupant]))
             { ShowMessage("Esta bancada já tem alguém."); return false; }
             assigned[occupant] = old;
-            workers[occupant].Place(stations[old].WorkAnchor, false);
+            if (old >= 0) workers[occupant].Place(stations[old].WorkAnchor, false);
+            else workers[occupant].ReturnToReserveAfterBreak();
         }
         if (old >= 0) stationWorker[old] = occupant;
         assigned[worker] = station;
@@ -563,9 +578,12 @@ public sealed class ComboCrewController : MonoBehaviour
         clipboardGuidanceComplete = true;
         SetClipboardPulse(false);
         workers[worker].Place(stations[station].WorkAnchor, false);
+        workerCards[worker].SetAssigned(true);
+        if (occupant >= 0 && occupant != worker)
+            workerCards[occupant].SetAssigned(old >= 0);
         if (preparing) RefreshHud();
         EventLogger.Instance?.RecordUserAction(worker == 0 ? "combo_player_move" : "combo_assign_worker");
-        if (playing && !breakReorganizationLogged && (absencePendingWorker >= 0 || absentWorker >= 0))
+        if (playing && !breakReorganizationLogged && AnyBreakActive())
         {
             breakReorganizationLogged = true;
             EventLogger.Instance?.RecordActivityEvent("combo_break_reorganized");
@@ -589,23 +607,53 @@ public sealed class ComboCrewController : MonoBehaviour
         if (stations == null || stationWorker == null) return;
         for (int i = 0; i < stations.Length; i++)
         {
-            int occupant = stationWorker[i];
-            bool canSwap = draggedWorker >= 0 && assigned[draggedWorker] >= 0
-                && occupant >= 0 && occupant != absentWorker
-                && !workers[occupant].Busy && !moving[occupant];
-            stations[i].Highlight(visible && (occupant < 0 || canSwap));
+            stations[i].Highlight(visible && CanReceiveWorker(draggedWorker, i));
         }
+    }
+
+    private bool CanReceiveWorker(int worker, int station)
+    {
+        if (worker < 0 || worker >= workers.Length || station < 0
+            || station >= stationWorker.Length || IsUnavailable(worker)
+            || workers[worker].Busy || moving[worker]) return false;
+        int occupant = stationWorker[station];
+        if (occupant < 0 || occupant == worker || workerAway[occupant]) return true;
+        return assigned[worker] >= 0 && !IsUnavailable(occupant)
+            && !workers[occupant].Busy && !moving[occupant];
+    }
+
+    private int DropTargetFor(int worker, RectTransform visual)
+    {
+        if (visual == null || stations == null || stationWorker == null) return -1;
+        for (int i = 0; i < stations.Length; i++)
+            if (CanReceiveWorker(worker, i) && stations[i].ContainsDraggedVisual(visual))
+                return i;
+        return -1;
+    }
+
+    public int UpdateDropTarget(int worker, RectTransform visual)
+    {
+        int target = DropTargetFor(worker, visual);
+        if (stations != null)
+            for (int i = 0; i < stations.Length; i++) stations[i].SetDropHover(i == target);
+        return target;
+    }
+
+    public bool AssignDraggedWorker(int worker, RectTransform visual)
+    {
+        int target = DropTargetFor(worker, visual);
+        return target >= 0 && AssignWorker(worker, target);
     }
 
     private void TryFinish()
     {
-        if (!closing || settled || washingCount > 0) return;
-        for (int i = 0; i < moving.Length; i++) if (moving[i]) return;
+        if (!closing || settled) return;
+        if (activeDeliveries > 0) return;
         for (int i = 0; i < orders.Length; i++) if (orders[i].State != OrderState.Free) return;
         settled = true;
         playing = false;
         backButton.interactable = false;
-        int points = PointsService.Instance.AwardParticipation(completionPoints);
+        int points = PointsService.Instance.AwardParticipation(pointsPerDelivery * delivered);
         PlayerManager.Instance.SetPendingPoints(points, "ComboCrew");
         EventLogger.Instance?.RecordActivityEvent($"combo_result_{delivered}_{missed}");
         EventLogger.Instance?.CompleteSession();
@@ -618,20 +666,22 @@ public sealed class ComboCrewController : MonoBehaviour
     {
         if (timerLabel != null)
         {
-            if (preparing) timerLabel.text = "PRONTO";
-            else
+            if (preparing) timerLabel.text = string.Empty;
+            else if (playing)
             {
                 int seconds = Mathf.CeilToInt(matchRemaining);
                 timerLabel.SetText("{0}:{1:00}", seconds / 60, seconds % 60);
             }
+            else timerLabel.text = string.Empty;
         }
         if (preparing)
         {
             int staffed = 0;
             for (int i = 0; i < stationWorker.Length; i++) if (stationWorker[i] >= 0) staffed++;
             if (preparationHint != null)
-                preparationHint.text = "POSICIONE AO MENOS 1 PERSONAGEM";
-            if (startButton != null) startButton.interactable = staffed > 0;
+                preparationHint.text = crewFeasible ? "POSICIONE AO MENOS 1 PERSONAGEM"
+                    : "TURNO INVIÁVEL: REVISE OS PERFIS";
+            if (startButton != null) startButton.interactable = staffed > 0 && crewFeasible;
         }
         if (cleanTrayLabel != null) cleanTrayLabel.SetText("LIMPAS {0}/{1}", cleanTrays, initialTrays);
         if (dirtyTrayLabel != null) dirtyTrayLabel.SetText("SUJAS {0}", dirtyTrays);
@@ -647,22 +697,22 @@ public sealed class ComboCrewController : MonoBehaviour
         {
             int id = VisibleAtStage(stage);
             if (stage == WashStation)
-                stations[stage].Refresh(stage == repairStation && incident == Incident.Repairing
-                        ? 1f - incidentRemaining / repairDuration
-                        : stage == repairStation && incident == Incident.Broken ? 0f
+                stations[stage].Refresh(stationIncidents[stage] == Incident.Repairing
+                        ? 1f - stationTimers[stage] / stationRepairDurations[stage]
+                        : stationIncidents[stage] == Incident.Broken ? 0f
                         : washingCount > 0 && stationWorker[stage] >= 0
-                            ? workers[stationWorker[stage]].RouteProgress : 0f,
-                    stage == repairStation && (incident == Incident.Warning || incident == Incident.Broken
-                        || incident == Incident.Repairing) ? StationStatus(stage, id)
+                            ? workers[stationWorker[stage]].WashProgress : 0f,
+                    stationIncidents[stage] != Incident.None ? StationStatus(stage, id)
                         : stationWorker[stage] < 0 ? "Sem funcionário"
-                        : stationWorker[stage] == absentWorker ? "Ausente"
-                        : stationWorker[stage] == absencePendingWorker ? "Pausa em breve"
+                        : IsUnavailable(stationWorker[stage]) ? "Ausente"
+                        : IsWarned(stationWorker[stage]) ? "Pausa em breve"
                         : washingCount > 0 ? "Lavando"
                         : dirtyTrays > 0 ? "Bandejas aguardando" : "Livre", false,
                     stationWorker[stage] >= 0 && workers[stationWorker[stage]].WashingAtSink);
             else
-                stations[stage].Refresh(stage == repairStation && incident == Incident.Repairing
-                        ? 1f - incidentRemaining / repairDuration : id < 0 ? 0f : orders[id].Progress,
+                stations[stage].Refresh(stationIncidents[stage] == Incident.Repairing
+                        ? 1f - stationTimers[stage] / stationRepairDurations[stage]
+                        : id < 0 ? 0f : orders[id].Progress,
                     StationStatus(stage, id),
                     (id >= 0 && orders[id].State == OrderState.Working
                         && (orders[id].HasTray || (stage == 0 && cleanTrays > 0)))
@@ -672,27 +722,36 @@ public sealed class ComboCrewController : MonoBehaviour
 
     private void UpdateProblemWorker()
     {
-        int current = incident == Incident.Broken && repairStation >= 0 ? stationWorker[repairStation] : -1;
-        if (current == absentWorker || (current >= 0 && (moving[current] || workers[current].Busy)))
-            current = -1;
-        if (current == problemWorker) return;
-        if (problemWorker >= 0) workers[problemWorker].ShowStationProblem(false);
-        problemWorker = current;
-        if (current >= 0) workers[current].ShowStationProblem(true);
+        for (int worker = 0; worker < workers.Length; worker++)
+        {
+            int station = assigned[worker];
+            bool present = playing && station >= 0 && !IsUnavailable(worker)
+                && !moving[worker] && !workers[worker].Busy && !workers[worker].Dragging;
+            bool broken = present && stationIncidents[station] == Incident.Broken;
+            int order = present && station < MainStationCount - 1
+                ? FirstAtStage(station) : -1;
+            bool waiting = order >= 0 && stationIncidents[station] == Incident.None
+                && orders[order].Progress >= 1f && StageOccupied(station + 1, order);
+            if (waiting)
+            {
+                if (workerWaitStarted[worker] < 0f) workerWaitStarted[worker] = Time.time;
+            }
+            else workerWaitStarted[worker] = -1f;
+            workers[worker].ShowStationProblem(broken);
+            workers[worker].ShowFlowBlocked(waiting
+                && Time.time - workerWaitStarted[worker] >= 2.5f);
+        }
     }
 
     private string StationStatus(int stage, int id)
     {
         int employee = stationWorker[stage];
-        if (stage == repairStation)
-        {
-            if (incident == Incident.Warning) return "Precisa de ajuste";
-            if (incident == Incident.Broken) return "Quebrada";
-            if (incident == Incident.Repairing) return "Em manutenção";
-        }
+        if (stationIncidents[stage] == Incident.Warning) return "Precisa de ajuste";
+        if (stationIncidents[stage] == Incident.Broken) return "Quebrada";
+        if (stationIncidents[stage] == Incident.Repairing) return "Em manutenção";
         if (employee < 0) return "Sem funcionário";
-        if (employee == absentWorker) return "Ausente";
-        if (employee == absencePendingWorker) return "Pausa em breve";
+        if (IsUnavailable(employee)) return "Ausente";
+        if (IsWarned(employee)) return "Pausa em breve";
         if (id >= 0 && orders[id].State == OrderState.Travelling) return "Transportando";
         if (moving[employee]) return "Retornando";
         if (id < 0) return "Pronta";
@@ -727,7 +786,7 @@ public sealed class ComboCrewController : MonoBehaviour
 
     private void SetClipboardPulse(bool enabled)
     {
-        if (clipboardEdges == null || clipboardHandle == null) return;
+        if (clipboardHandle == null) return;
         if (enabled && (clipboardPulse == null || !clipboardPulse.IsActive()))
         {
             Sequence wave = DOTween.Sequence().SetTarget(this);
@@ -735,15 +794,11 @@ public sealed class ComboCrewController : MonoBehaviour
                 clipboardPulseSeconds * .38f).SetEase(Ease.OutCubic));
             wave.Join(clipboardHandle.DOScale(clipboardHandleScale * 1.018f,
                 clipboardPulseSeconds * .38f).SetEase(Ease.OutCubic));
-            foreach (Image edge in clipboardEdges)
-                wave.Join(edge.DOFade(.8f, clipboardPulseSeconds * .38f));
             wave.Append(clipboardHandle.DOAnchorPos(clipboardHandlePosition,
                 clipboardPulseSeconds * .62f).SetEase(Ease.OutBack));
             wave.Join(clipboardHandle.DOScale(clipboardHandleScale,
                 clipboardPulseSeconds * .62f).SetEase(Ease.OutCubic));
-            foreach (Image edge in clipboardEdges)
-                wave.Join(edge.DOFade(0f, clipboardPulseSeconds * .62f));
-            clipboardPulse = wave.AppendInterval(1.1f).SetLoops(-1);
+            clipboardPulse = wave.AppendInterval(.12f).SetLoops(-1);
         }
         else if (!enabled && clipboardPulse != null)
         {
@@ -751,53 +806,38 @@ public sealed class ComboCrewController : MonoBehaviour
             clipboardPulse = null;
             clipboardHandle.anchoredPosition = clipboardHandlePosition;
             clipboardHandle.localScale = clipboardHandleScale;
-            foreach (Image edge in clipboardEdges)
-                edge.color = new Color(edge.color.r, edge.color.g, edge.color.b, 0f);
         }
     }
 
-    private void CreateClipboardEdges()
+    private void CacheClipboardHandle()
     {
         if (clipboardHighlight == null) return;
         RectTransform frame = clipboardHighlight.rectTransform;
         clipboardHandle = frame;
         clipboardHandlePosition = frame.anchoredPosition;
         clipboardHandleScale = frame.localScale;
-        clipboardEdges = new[]
-        {
-            CreateClipboardEdge(frame, "BordaSuperior", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 7f), new Vector2(0f, -3.5f)),
-            CreateClipboardEdge(frame, "BordaDireita", new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(7f, 0f), new Vector2(-3.5f, 0f)),
-            CreateClipboardEdge(frame, "BordaInferior", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 7f), new Vector2(0f, 3.5f)),
-            CreateClipboardEdge(frame, "BordaEsquerda", new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(7f, 0f), new Vector2(3.5f, 0f))
-        };
-    }
-
-    private static Image CreateClipboardEdge(RectTransform parent, string name,
-        Vector2 min, Vector2 max, Vector2 size, Vector2 position)
-    {
-        GameObject item = new GameObject(name, typeof(RectTransform), typeof(Image));
-        RectTransform rect = item.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = min;
-        rect.anchorMax = max;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-        rect.sizeDelta = size;
-        rect.anchoredPosition = position;
-        Image image = item.GetComponent<Image>();
-        image.color = new Color(.18f, .13f, .03f, 0f);
-        image.raycastTarget = false;
-        return image;
     }
 
     public void OpenProfile(int index)
     {
-        if (!preparing || profilePanel == null || index < 0 || index >= workers.Length) return;
+        if ((!preparing && !playing) || profilePanel == null || index < 0 || index >= workers.Length) return;
         profileTween?.Kill();
+        EnsureProfileLayout();
+        CopyWorkerPortrait(index, profilePortraitBody, profilePortraitFace, profilePortraitHat);
         profileSource = workerCards != null && index < workerCards.Length && workerCards[index] != null
             ? workerCards[index].transform as RectTransform : null;
         profileTitle.text = workers[index].DisplayName;
-        profileDescription.text = workers[index].Description;
+        profileDescription.text = workers[index].ProfileDetails();
+        profileDescription.richText = true;
+        profileDescription.fontSize = 29f;
+        profileDescription.enableAutoSizing = true;
+        profileDescription.fontSizeMin = 24f;
+        profileDescription.fontSizeMax = 29f;
+        profileDescription.fontStyle = FontStyles.Bold;
+        profileDescription.color = new Color32(239, 239, 234, 255);
+        RectTransform detailsRect = profileDescription.rectTransform;
+        detailsRect.anchoredPosition = new Vector2(126f, 28f);
+        detailsRect.sizeDelta = new Vector2(438f, 246f);
         if (profileRect != null && profileSource != null)
         {
             float widthRatio = profileSource.rect.width * profileSource.lossyScale.x
@@ -816,6 +856,57 @@ public sealed class ComboCrewController : MonoBehaviour
                 .Join(profileRect.DOScale(profileHomeScale, .3f))
                 .SetEase(Ease.OutCubic);
         }
+    }
+
+    private void EnsureProfileLayout()
+    {
+        if (profileRect == null) return;
+        Sprite cellSprite = profileCellSprite != null
+            ? profileCellSprite : Resources.Load<Sprite>("ComboCrew/profile_cell");
+        if (cellSprite == null) cellSprite = profileRect.GetComponent<Image>()?.sprite;
+        Image details = ProfileImage("AreaDosDetalhes", profileRect,
+            new Vector2(124f, 30f), new Vector2(510f, 290f), cellSprite,
+            Color.white);
+        details.transform.SetAsFirstSibling();
+        Image portrait = ProfileImage("CartaoDoFuncionario", profileRect,
+            new Vector2(-276f, 30f), new Vector2(245f, 290f), cellSprite,
+            Color.white);
+        portrait.transform.SetSiblingIndex(1);
+        Transform oldAccent = portrait.transform.Find("AcentoDoCartao");
+        if (oldAccent != null) oldAccent.gameObject.SetActive(false);
+        profilePortraitBody = ProfileImage("CorpoFuncionario", portrait.rectTransform,
+            new Vector2(0f, 19f), new Vector2(160f, 160f), null, Color.white);
+        profilePortraitFace = ProfileImage("RostoFuncionario", portrait.rectTransform,
+            new Vector2(0f, 19f), new Vector2(160f, 160f), null, Color.white);
+        profilePortraitHat = ProfileImage("ChapeuFuncionario", portrait.rectTransform,
+            new Vector2(0f, 66f), new Vector2(160f, 90f), null, Color.white);
+        profileTitle.rectTransform.anchoredPosition = new Vector2(-276f, -82f);
+        profileTitle.rectTransform.sizeDelta = new Vector2(222f, 56f);
+        profileTitle.fontSize = 34f;
+        profileTitle.fontStyle = FontStyles.Bold;
+        profileTitle.color = new Color32(239, 239, 234, 255);
+    }
+
+    private static Image ProfileImage(string name, Transform parent, Vector2 position,
+        Vector2 size, Sprite sprite, Color color)
+    {
+        Transform existing = parent.Find(name);
+        var go = existing != null ? existing.gameObject
+            : new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rect = (RectTransform)go.transform;
+        if (existing == null) rect.SetParent(parent, false);
+        rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
+        rect.pivot = new Vector2(.5f, .5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+        Image image = go.GetComponent<Image>();
+        image.sprite = sprite;
+        if (sprite != null && sprite.border != Vector4.zero)
+            image.type = Image.Type.Sliced;
+        image.color = color;
+        image.raycastTarget = false;
+        image.preserveAspect = sprite == null;
+        return image;
     }
 
     public void CloseProfile()
@@ -877,6 +968,7 @@ public sealed class ComboCrewController : MonoBehaviour
         DOTween.Kill(this);
         SetClipboardPulse(false);
         profileTween?.Kill();
+        if (turnIntro != null) turnIntro.Hide();
     }
 
     private void OnDestroy()
@@ -884,5 +976,8 @@ public sealed class ComboCrewController : MonoBehaviour
         if (startButton != null) startButton.onClick.RemoveListener(StartMatch);
         if (backButton != null) backButton.onClick.RemoveListener(BackToHub);
         if (closeProfileButton != null) closeProfileButton.onClick.RemoveListener(CloseProfile);
+        if (generatedProfiles != null)
+            for (int i = 0; i < generatedProfiles.Length; i++)
+                if (generatedProfiles[i] && turnProfiles[i] != null) Destroy(turnProfiles[i]);
     }
 }

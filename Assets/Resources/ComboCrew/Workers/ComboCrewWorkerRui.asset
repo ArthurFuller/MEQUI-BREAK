@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35cd4de874bb4d2c9b0e5c284e9bb9f8, type: 3}
+  m_Name: ComboCrewWorkerRui
+  m_EditorClassIdentifier: Assembly-CSharp::ComboCrewWorkerProfile
+  displayName: Rui
+  head: {fileID: -3913592910891531090, guid: 4493eb3c2cb8d324782c64c2ea1026e8, type: 3}
+  face: {fileID: 21300000, guid: ea63634220acdb83c850ebfd491223ff, type: 3}
+  hat: {fileID: 0}
+  stationSpeed:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1.18
+  repairTimeMultiplier: 1
+  pauseWeight: 1
+  transportSpeedMultiplier: 1
+  breakDurationMultiplier: 0.9

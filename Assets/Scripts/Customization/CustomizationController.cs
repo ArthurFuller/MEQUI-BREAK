@@ -141,6 +141,7 @@ public sealed partial class CustomizationController : MonoBehaviour
         _started = true;
         CopyFromSavedAvatar();
         ApplyPreview();
+        PolishOptionPreviews();
         CacheOptionButtons();
         CacheOptionWaveTargets();
         PrepareOptionsHiddenForInitialWave();
@@ -160,6 +161,68 @@ public sealed partial class CustomizationController : MonoBehaviour
         if (purchaseConfirmPanel != null)
             purchaseConfirmPanel.SetActive(false);
 
+    }
+
+    private void PolishOptionPreviews()
+    {
+        for (int i = 0; i < (faceOptions?.Length ?? 0); i++)
+        {
+            Image preview = FindOptionPreview(faceOptions[i], "Preview_Face_");
+            if (preview == null) continue;
+            preview.color = Color.black;
+            AvatarOptionAccent.SetFaceAccent(preview, avatarPreview);
+        }
+
+        for (int i = 0; i < (colorOptions?.Length ?? 0); i++)
+        {
+            Image preview = FindOptionPreview(colorOptions[i], "Preview_Color_");
+            if (preview == null) continue;
+            RectTransform rect = preview.rectTransform;
+            rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, 0f);
+            AddOptionAccent(preview.transform, "ContornoCor", AvatarOptionAccent.AccentKind.ColorBorder);
+        }
+
+        for (int i = 0; i < (hatOptions?.Length ?? 0); i++)
+        {
+            Image preview = FindOptionPreview(hatOptions[i], "Preview_Hat_");
+            if (preview == null) continue;
+
+            if (i == 0)
+            {
+                preview.enabled = false;
+                AddOptionAccent(preview.transform, "SemChapeu", AvatarOptionAccent.AccentKind.NoHat);
+                continue;
+            }
+
+            Outline oldOutline = preview.GetComponent<Outline>();
+            if (oldOutline != null) oldOutline.enabled = false;
+            AvatarSpriteOutline outline = preview.GetComponent<AvatarSpriteOutline>();
+            if (outline == null) outline = preview.gameObject.AddComponent<AvatarSpriteOutline>();
+            outline.Thickness = 4f;
+        }
+    }
+
+    private static void AddOptionAccent(Transform parent, string name, AvatarOptionAccent.AccentKind kind)
+    {
+        Transform existing = parent.Find(name);
+        GameObject icon = existing != null ? existing.gameObject
+            : new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(AvatarOptionAccent));
+        if (existing == null) icon.transform.SetParent(parent, false);
+        RectTransform rect = (RectTransform)icon.transform;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        icon.GetComponent<AvatarOptionAccent>().SetKind(kind);
+    }
+
+    private static Image FindOptionPreview(GameObject option, string prefix)
+    {
+        if (option == null) return null;
+        Image[] images = option.GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+            if (images[i].name.StartsWith(prefix)) return images[i];
+        return null;
     }
 
 

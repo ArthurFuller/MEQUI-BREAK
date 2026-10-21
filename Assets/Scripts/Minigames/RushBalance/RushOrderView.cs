@@ -63,8 +63,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     private readonly Vector3[] itemBasePositions = new Vector3[3];
     private readonly Vector3[] itemBaseScales = new Vector3[3];
     private readonly Quaternion[] itemBaseRotations = new Quaternion[3];
-    private Vector3 progressFullScale;
-    private RectTransform progressBar;
+    private float progressDisplayed;
     private Image deliveryBox;
     private float progressTarget;
     private bool defaultsCached;
@@ -82,13 +81,6 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     public int OrderId { get; private set; } = -1;
     public bool IsDelivering => delivering;
     public bool IsFailing => failing;
-    public float FailureQueueDelay => Owner != null
-        ? Owner.AnimationSeconds(failureShakeSeconds + failureFadeDelay + failureFadeSeconds) + .05f
-        : failureShakeSeconds + failureFadeDelay + failureFadeSeconds + .05f;
-    public float DeliveryQueueDelay => Owner != null
-        ? Owner.AnimationSeconds(deliverySeconds + itemStagger * Mathf.Max(0, visibleItemCount - 1))
-            + Owner.DeliveryQueuePause
-        : deliverySeconds + itemStagger * Mathf.Max(0, visibleItemCount - 1) + .4f;
     public string ConfigurationError =>
         DragConfigurationError != null ? DragConfigurationError :
         cardVisual == null ? "cardVisual" :
@@ -142,10 +134,11 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     private void CacheDefaults()
     {
         if (defaultsCached || deliveryIconsRoot == null) return;
-        progressBar = progressFill.rectTransform;
         deliveryBox = deliveryIconsRoot.GetComponent<Image>();
-        progressFullScale = progressBar.localScale;
-        progressFill.type = Image.Type.Simple;
+        progressFill.type = Image.Type.Filled;
+        progressFill.fillMethod = Image.FillMethod.Horizontal;
+        progressFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        progressFill.fillAmount = 0f;
         cardBaseScale = cardVisual.transform.localScale;
         cardBasePosition = cardVisual.transform.localPosition;
         deliveryBaseScale = deliveryIconsRoot.localScale;
@@ -161,11 +154,9 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     private void Update()
     {
-        if (progressBar == null) return;
         float blend = 1f - Mathf.Exp(-barSmoothing * Time.unscaledDeltaTime);
-        Vector3 scale = progressBar.localScale;
-        scale.x = Mathf.Lerp(scale.x, progressFullScale.x * progressTarget, blend);
-        progressBar.localScale = scale;
+        progressDisplayed = Mathf.Lerp(progressDisplayed, progressTarget, blend);
+        progressFill.fillAmount = progressDisplayed;
     }
 
     public void Bind(
@@ -208,10 +199,10 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         cardVisual.transform.localScale = cardBaseScale;
         cardVisual.transform.localPosition = cardBasePosition;
         DragCanvasGroup.alpha = 1f;
+        DragCanvasGroup.blocksRaycasts = true;
         progressTarget = 0f;
-        Vector3 emptyScale = progressFullScale;
-        emptyScale.x = 0f;
-        progressBar.localScale = emptyScale;
+        progressDisplayed = 0f;
+        progressFill.fillAmount = 0f;
         for (int i = 0; i < itemIcons.Length; i++)
         {
             itemIcons[i].transform.localPosition = itemBasePositions[i];
@@ -267,12 +258,8 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         }
         if (deliveryBox != null) deliveryBox.enabled = true;
         progressTarget = 0f;
-        if (progressBar != null && defaultsCached)
-        {
-            Vector3 emptyScale = progressFullScale;
-            emptyScale.x = 0f;
-            progressBar.localScale = emptyScale;
-        }
+        if (progressFill != null) progressFill.fillAmount = 0f;
+        progressDisplayed = 0f;
         gameObject.SetActive(false);
     }
 
@@ -299,6 +286,19 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
         int rank = Owner.Rank(OrderId);
         bool ready = order.State == RushRound.Status.Ready;
+        // Mantém posição e prioridade visual estáveis durante a saída de outro card.
+        if (Owner.HoldQueuePositions && wasVisible)
+        {
+            if (!IsDragging) SetVisualState(ready ? 3 : 0);
+            if (ready && !wasReady)
+            {
+                AudioManager.Instance?.PlayReady();
+                MequiHaptics.Confirm();
+                PlaySinglePulse();
+            }
+            wasReady = ready;
+            return;
+        }
         Color nextPriorityColor = ready
             ? new Color(.34f, .72f, .39f)
             : rank == 0 ? new Color(1f, .73f, .08f)
@@ -321,14 +321,12 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         wasReady = ready;
 
         RectTransform anchor = Owner.Anchor(OrderId);
-        // Após tirar o pedido concluído do modelo, os cards visíveis começam a avançar já durante a entrega.
         if (anchor != previousAnchor || !wasVisible)
         {
             previousAnchor = anchor;
-            if (!wasVisible) MoveHome(Owner.QueueCardMoveSeconds, Owner.QueueCardMoveEase);
+            if (!wasVisible) MoveHome(true);
             else if (queuePositionChanged)
-                MoveHome(Owner.QueueCardMoveSeconds, Owner.QueueCardMoveEase,
-                    Owner.QueueReflowDelay + Owner.QueueCardStaggerSeconds(rank));
+                MoveHome(Owner.QueueCardMoveSeconds, Owner.QueueCardMoveEase);
             else MoveHome(false);
         }
         if (!wasVisible) PlayAppearance();
@@ -433,6 +431,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         appearanceTween?.Kill();
         cardPulse?.Kill();
         DragCanvasGroup.alpha = 1f;
+        DragCanvasGroup.blocksRaycasts = false;
         cardVisual.SetActive(false);
         if (deliveryBox != null) deliveryBox.enabled = false;
         deliveryIconsRoot.gameObject.SetActive(true);
@@ -473,7 +472,11 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     public void HoldForResolution()
     {
-        if (!delivering) waitingForResolution = true;
+        if (delivering) return;
+        waitingForResolution = true;
+        // Um card à espera da animação não pode bloquear o toque em outro
+        // pedido que já está pronto, mesmo quando os dois se sobrepõem.
+        DragCanvasGroup.blocksRaycasts = false;
     }
 
     private static Vector3 EvaluateBezier(Vector3 start, Vector3 control, Vector3 end, float value)
@@ -497,6 +500,11 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     protected override void DragFinished(bool accepted)
     {
+        if (accepted && Owner != null)
+        {
+            MoveHome(Owner.QueueCardMoveSeconds, Owner.QueueCardMoveEase);
+            return;
+        }
         if (accepted || cardVisual == null || invalidDropShake <= 0f) return;
         invalidDropTween?.Kill();
         cardVisual.transform.localPosition = cardBasePosition;

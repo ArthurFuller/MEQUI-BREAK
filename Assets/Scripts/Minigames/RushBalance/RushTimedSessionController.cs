@@ -12,6 +12,7 @@ public sealed class RushTimedSessionController : MonoBehaviour
     [Header("Partida")]
     [SerializeField, Min(1f)] private float matchSeconds = 60f;
     [SerializeField] private string activityId = "rush_balance";
+    [SerializeField, Min(0)] private int pointsPerDelivery = 4;
 
     [Header("Objetos existentes na Hierarchy")]
     [SerializeField] private GameObject startPanel;
@@ -37,6 +38,7 @@ public sealed class RushTimedSessionController : MonoBehaviour
     public bool IsPlaying => playing && !leaving && !settled;
     public bool IsFinishingCycle => closing && IsPlaying;
     public float Remaining => remaining;
+    public int DeliveredCount => delivered;
     public event Action MatchStarted;
     public event Action TimeExpired;
 
@@ -140,10 +142,10 @@ public sealed class RushTimedSessionController : MonoBehaviour
         closing = false;
         backButton.interactable = false;
 
-        int points = PointsService.Instance.AwardParticipation();
+        int points = PointsService.Instance.AwardParticipation(pointsPerDelivery * delivered);
         PlayerManager.Instance.SetPendingPoints(points, "RushBalance");
         EventLogger.Instance?.RecordActivityEvent($"result_delivered_{delivered}_missed_{missed}");
-        EventLogger.Instance?.RecordActivityEvent($"participation_reward_{points}");
+        EventLogger.Instance?.RecordActivityEvent($"rush_delivery_reward_{points}");
         EventLogger.Instance?.CompleteSession();
         logged = false;
         AudioManager.Instance?.PlayCompletion();

@@ -719,6 +719,7 @@ MonoBehaviour:
   nameInput: {fileID: 1497257218}
   storeInput: {fileID: 1575973153}
   shiftSelectorButton: {fileID: 4100000000}
+  shiftSelectorFrame: {fileID: 836521300}
   shiftValueText: {fileID: 4000000012}
   shiftOptionsPanel: {fileID: 4100000011}
   shiftOptionsCanvasGroup: {fileID: 4100000014}
@@ -729,12 +730,12 @@ MonoBehaviour:
   shiftPlaceholder: Selecione o turno
   shiftPlaceholderColor: {r: 0.275, g: 0.275, b: 0.275, a: 1}
   shiftSelectedColor: {r: 1, g: 0.78, b: 0, a: 1}
-  shiftPanelDuration: 0.12
-  shiftPanelEase: 9
-  shiftOptionDuration: 0.08
-  shiftOptionStagger: 0.055
-  shiftOptionStartScale: 0.96
-  shiftOptionEase: 9
+  shiftPanelDuration: 0.3
+  shiftPanelEase: 4
+  shiftOptionDuration: 0.28
+  shiftOptionStagger: 0.04
+  shiftOptionStartOffset: 12
+  shiftOptionEase: 4
   selectionPunchScale: 0.05
   submitButton: {fileID: 1994283502}
   errorText: {fileID: 508695364}

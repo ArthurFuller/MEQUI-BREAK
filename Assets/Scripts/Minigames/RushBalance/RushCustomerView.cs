@@ -65,8 +65,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     private Tween balloonFeedback;
     private Vector3 characterBaseScale;
     private Vector3 balloonBaseScale;
-    private Vector3 patienceFullScale;
-    private RectTransform patienceBar;
+    private float patienceDisplayed = 1f;
     private RectTransform balloonRect;
     private float patienceTarget = 1f;
     private int customerIndex;
@@ -117,9 +116,10 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         characterBaseScale = character.localScale;
         balloonRect = balloon.transform as RectTransform;
         balloonBaseScale = balloonRect != null ? balloonRect.localScale : Vector3.one;
-        patienceBar = patienceFill.rectTransform;
-        patienceFullScale = patienceBar.localScale;
-        patienceFill.type = Image.Type.Simple;
+        patienceFill.type = Image.Type.Filled;
+        patienceFill.fillMethod = Image.FillMethod.Horizontal;
+        patienceFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        patienceFill.fillAmount = 1f;
 
         for (int i = 0; i < faces.Length; i++)
         {
@@ -133,11 +133,9 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
 
     private void Update()
     {
-        if (patienceBar == null) return;
         float blend = 1f - Mathf.Exp(-barSmoothing * Time.unscaledDeltaTime);
-        Vector3 scale = patienceBar.localScale;
-        scale.x = Mathf.Lerp(scale.x, patienceFullScale.x * patienceTarget, blend);
-        patienceBar.localScale = scale;
+        patienceDisplayed = Mathf.Lerp(patienceDisplayed, patienceTarget, blend);
+        patienceFill.fillAmount = patienceDisplayed;
     }
 
     public void Clear()
@@ -156,7 +154,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         mood = -1;
         character.localScale = characterBaseScale;
         if (balloonRect != null) balloonRect.localScale = balloonBaseScale;
-        if (patienceBar != null) patienceBar.localScale = patienceFullScale;
+        patienceDisplayed = 1f;
+        if (patienceFill != null) patienceFill.fillAmount = 1f;
         patienceTarget = 1f;
         gameObject.SetActive(false);
     }
@@ -221,7 +220,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         patienceFill.gameObject.SetActive(true);
         speech.gameObject.SetActive(false);
         speech.enabled = false;
-        patienceBar.localScale = patienceFullScale;
+        patienceDisplayed = 1f;
+        patienceFill.fillAmount = 1f;
         patienceTarget = 1f;
         character.position = instant ? target.position : entrance.position;
         for (int i = 0; i < itemIcons.Length; i++) itemIcons[i].SetActive(i < order.Items);

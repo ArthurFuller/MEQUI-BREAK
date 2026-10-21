@@ -15,7 +15,11 @@ public sealed class PlayerManager : MonoBehaviour
     [Header("Progressão")]
     [Tooltip("Total histórico de Break Points exigido por nível. O índice 0 representa o nível 1, o índice 1 representa o nível 2 e assim por diante.")]
     [SerializeField]
-    private List<int> lifetimePointsPerLevel = new List<int> { 0, 100, 250, 450, 700, 1000 };
+    private List<int> lifetimePointsPerLevel = new List<int>
+    {
+        0, 100, 250, 450, 700, 1000, 1350, 1750, 2200, 2700,
+        3250, 3850, 4500, 5200, 5950, 6750, 7600, 8500, 9450, 10450
+    };
 
     public PlayerProfileData Profile { get; private set; }
     public bool HasValidRegistration => IsRegistrationValid(Profile);
@@ -65,6 +69,12 @@ public sealed class PlayerManager : MonoBehaviour
         }
 
         RecalculateLevel();
+        if (Profile.LastPresentedLevel <= 0)
+        {
+            // Perfis anteriores à apresentação de níveis já conheciam o nível atual.
+            Profile.LastPresentedLevel = Profile.Level;
+            TrySaveProfile();
+        }
     }
 
     /// <summary>
@@ -291,6 +301,39 @@ public sealed class PlayerManager : MonoBehaviour
         Profile.LifetimeBreakPoints += amount;
         RecalculateLevel();
         BreakPointsChanged?.Invoke(Profile.BreakPoints);
+    }
+
+    public bool TryGetLevelProgress(out float fraction)
+    {
+        fraction = 0f;
+        if (Profile == null || lifetimePointsPerLevel == null
+            || lifetimePointsPerLevel.Count < 2)
+            return false;
+
+        int current = Mathf.Clamp(Profile.Level - 1, 0, lifetimePointsPerLevel.Count - 1);
+        if (current >= lifetimePointsPerLevel.Count - 1)
+        {
+            fraction = 1f;
+            return false;
+        }
+
+        int floor = lifetimePointsPerLevel[current];
+        int ceiling = lifetimePointsPerLevel[current + 1];
+        fraction = Mathf.Clamp01((float)(Profile.LifetimeBreakPoints - floor)
+            / Mathf.Max(1, ceiling - floor));
+        return true;
+    }
+
+    public bool MarkLevelPresented(int level)
+    {
+        if (Profile == null || level <= Profile.LastPresentedLevel || level > Profile.Level)
+            return false;
+
+        int previous = Profile.LastPresentedLevel;
+        Profile.LastPresentedLevel = level;
+        if (TrySaveProfile()) return true;
+        Profile.LastPresentedLevel = previous;
+        return false;
     }
 
     /// <summary>

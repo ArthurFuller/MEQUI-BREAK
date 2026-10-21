@@ -53,6 +53,15 @@ public sealed class AvatarView : MonoBehaviour
             : null;
     }
 
+    public Sprite GetFaceSprite(string spriteName)
+    {
+        if (faceOptions == null) return null;
+        for (int i = 0; i < faceOptions.Length; i++)
+            if (faceOptions[i] != null && faceOptions[i].name == spriteName)
+                return faceOptions[i];
+        return null;
+    }
+
     public bool TryGetCustomizationColor(int optionIndex, out Color color)
     {
         if (colorOptions != null && optionIndex >= 0 && optionIndex < colorOptions.Length)
@@ -176,6 +185,12 @@ public sealed class AvatarView : MonoBehaviour
     {
         SetSprite(faceImage, faceOptions, faceIndex);
         ApplyItemTransform(faceImage, AvatarCustomizationCategory.Face, faceIndex);
+        if (faceImage != null)
+        {
+            faceImage.color = Color.black;
+            if (Application.isPlaying)
+                AvatarOptionAccent.SetFaceAccent(faceImage, this);
+        }
     }
 
     public void PlayReaction(string triggerName)

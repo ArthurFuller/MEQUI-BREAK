@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -50,6 +51,9 @@ public sealed class EnergyStationController : MonoBehaviour
     private int lastDisplayedSecond = int.MinValue;
     private bool rewardGranted;
     private bool sessionStarted;
+    private Coroutine cardWave;
+    private Tween completeButtonTween;
+    private Vector3 completeButtonHomeScale;
 
     /// <summary>
     /// Disparado somente depois que uma interação válida foi registrada.
@@ -76,6 +80,8 @@ public sealed class EnergyStationController : MonoBehaviour
 
     private void Awake()
     {
+        if (completeButton != null)
+            completeButtonHomeScale = completeButton.transform.localScale;
         if (completeButton != null)
             completeButton.onClick.AddListener(CompleteSession);
 
@@ -113,6 +119,7 @@ public sealed class EnergyStationController : MonoBehaviour
         SetTrayLocked(false);
         UpdateTimer();
         UpdateProgress(immediate: true);
+        cardWave = StartCoroutine(AnimateAvailableCards());
     }
 
     private void Update()
@@ -137,10 +144,21 @@ public sealed class EnergyStationController : MonoBehaviour
 
         if (progressTween != null && progressTween.IsActive())
             progressTween.Kill();
+        if (cardWave != null) StopCoroutine(cardWave);
+        completeButtonTween?.Kill();
     }
 
     private void OnDisable()
     {
+        if (cardWave != null)
+        {
+            StopCoroutine(cardWave);
+            cardWave = null;
+        }
+        completeButtonTween?.Kill();
+        completeButtonTween = null;
+        if (completeButton != null)
+            completeButton.transform.localScale = completeButtonHomeScale;
         if (progressTween != null && progressTween.IsActive())
             progressTween.Kill();
 
@@ -272,6 +290,36 @@ public sealed class EnergyStationController : MonoBehaviour
         }
 
         return null;
+    }
+
+    public DraggableInteraction GetDraggedInteraction()
+    {
+        if (sessionState != SessionState.Playing || interactionCards == null)
+            return null;
+        for (int i = 0; i < interactionCards.Length; i++)
+            if (interactionCards[i] != null && interactionCards[i].IsDragging)
+                return interactionCards[i];
+        return null;
+    }
+
+    private IEnumerator AnimateAvailableCards()
+    {
+        yield return new WaitForSecondsRealtime(3.5f);
+        while (true)
+        {
+            if (sessionState == SessionState.Playing && GetDraggedInteraction() == null
+                && interactionCards != null)
+            {
+                for (int i = 0; i < interactionCards.Length; i++)
+                {
+                    if (sessionState != SessionState.Playing || GetDraggedInteraction() != null)
+                        break;
+                    interactionCards[i]?.PlayIdleHop();
+                    yield return new WaitForSecondsRealtime(.14f);
+                }
+            }
+            yield return new WaitForSecondsRealtime(5.8f);
+        }
     }
 
     private void MakeCompletionAvailable()
@@ -447,8 +495,16 @@ public sealed class EnergyStationController : MonoBehaviour
     {
         if (completeButton != null)
         {
+            completeButtonTween?.Kill();
+            completeButtonTween = null;
             completeButton.gameObject.SetActive(enabled);
             completeButton.interactable = enabled;
+            completeButton.transform.localScale = enabled
+                ? completeButtonHomeScale * .9f : completeButtonHomeScale;
+            if (enabled)
+                completeButtonTween = completeButton.transform
+                    .DOScale(completeButtonHomeScale, .28f)
+                    .SetEase(Ease.OutBack).SetUpdate(true);
         }
     }
 

@@ -350,6 +350,8 @@ MonoBehaviour:
   energyDragClip: {fileID: 8300000, guid: a98c1de5398b4f0caf7b4fa5944138ce, type: 3}
   loginJingleClip: {fileID: 8300000, guid: f6b2d4a9c1834e54aa96b801c2d7e3f1, type: 3}
   repairClip: {fileID: 8300000, guid: 4d0bc7b12a764955adf9e1885290a314, type: 3}
+  stationBreakClip: {fileID: 8300000, guid: 63605be7948247f29f2ac62d8ab95fe8, type: 3}
+  stationReadyClip: {fileID: 8300000, guid: f93748d3671c4e2eac746dc20074f995, type: 3}
   musicVolume: 0.695
   sfxVolume: 0.776
   clickCooldown: 0.04
@@ -471,7 +473,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90b2dcce1306f4c418b06f7a24fc52d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerManager
-  lifetimePointsPerLevel: 0000000064000000fa000000c2010000bc020000e8030000
+  lifetimePointsPerLevel: 0000000064000000fa000000c2010000bc020000e803000046050000d6060000980800008c0a0000b20c00000a0f000094110000501400003e1700005e1a0000b01d000034210000ea240000d2280000
 --- !u!1 &964514660
 GameObject:
   m_ObjectHideFlags: 0

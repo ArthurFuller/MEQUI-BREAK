@@ -32,6 +32,9 @@ public sealed class PlayerProfileData
 
     public int Level = 1;
 
+    /// <summary>Último nível cuja conquista foi apresentada ao jogador.</summary>
+    public int LastPresentedLevel;
+
     /// <summary>Saldo disponível para compras de customização.</summary>
     public int BreakPoints;
 

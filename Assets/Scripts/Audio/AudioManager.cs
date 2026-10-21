@@ -32,6 +32,8 @@ public sealed class AudioManager : MonoBehaviour
     [Tooltip("Opcional. Se vazio, usa o clique como fallback.")]
     [SerializeField] private AudioClip incidentClip;
     [SerializeField] private AudioClip repairClip;
+    [SerializeField] private AudioClip stationBreakClip;
+    [SerializeField] private AudioClip stationReadyClip;
 
     [Header("Volumes")]
     [SerializeField, Range(0f, 1f)] private float musicVolume = 0.9f;
@@ -160,12 +162,12 @@ public sealed class AudioManager : MonoBehaviour
         }
     }
 
-    private void PlayEffect(AudioClip clip)
+    private void PlayEffect(AudioClip clip, float volume = 1f)
     {
         if (!sfxEnabled || sfxSource == null || clip == null)
             return;
 
-        sfxSource.PlayOneShot(clip, 1f);
+        sfxSource.PlayOneShot(clip, volume);
     }
 
     public void PlayClick()
@@ -185,6 +187,10 @@ public sealed class AudioManager : MonoBehaviour
     public void PlayReady() => PlayEffect(readyClip != null ? readyClip : confirmClip);
     public void PlayIncident() => PlayEffect(incidentClip != null ? incidentClip : uiClickClip);
     public void PlayRepair() => PlayEffect(repairClip != null ? repairClip : confirmClip);
+    public void PlayStationBreak() => PlayEffect(stationBreakClip != null ? stationBreakClip
+        : incidentClip != null ? incidentClip : uiClickClip, .7f);
+    public void PlayStationReady() => PlayEffect(stationReadyClip != null ? stationReadyClip
+        : readyClip != null ? readyClip : confirmClip, .7f);
 
     public void PlayLoginJingle()
     {

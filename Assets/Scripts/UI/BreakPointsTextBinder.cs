@@ -10,6 +10,14 @@ public sealed class BreakPointsTextBinder : MonoBehaviour
 
     private PlayerManager playerManager;
 
+    public void Configure(TMP_Text output, bool suffix)
+    {
+        target = output;
+        includeSuffix = suffix;
+        Subscribe();
+        Refresh();
+    }
+
     private void OnEnable()
     {
         Subscribe();

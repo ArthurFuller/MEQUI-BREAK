@@ -131,12 +131,8 @@ public sealed class RushBalanceController : MonoBehaviour
     [SerializeField, Range(.25f, 3f)] private float animationSpeed = 1f;
 
     [Header("Animação da fila de cards")]
-    [Tooltip("Tempo adicional após os ícones chegarem ao cliente, antes dos cards avançarem.")]
-    [SerializeField, Min(0f)] private float deliveryQueuePause = .4f;
     [Tooltip("Duração do movimento dos cards para a próxima posição.")]
     [SerializeField, Min(.01f)] private float queueCardMoveSeconds = .32f;
-    [Tooltip("Pausa entre o movimento de cada card, criando o avanço em sequência.")]
-    [SerializeField, Min(0f)] private float queueCardStaggerSeconds = .32f;
     [SerializeField] private Ease queueCardMoveEase = Ease.OutCubic;
 
     private readonly List<int> customerLine = new List<int>(4);
@@ -155,24 +151,7 @@ public sealed class RushBalanceController : MonoBehaviour
     private bool processingResolution;
     private int visualResolutionsPending;
     public bool HoldQueuePositions => visualResolutionsPending > 0;
-    public float QueueReflowDelay
-    {
-        get
-        {
-            if (orderViews == null) return 0f;
-            foreach (RushOrderView view in orderViews)
-            {
-                if (view == null) continue;
-                if (view.IsDelivering) return view.DeliveryQueueDelay;
-                if (view.IsFailing) return view.FailureQueueDelay;
-            }
-            return 0f;
-        }
-    }
-    public float DeliveryQueuePause => AnimationSeconds(deliveryQueuePause);
     public float QueueCardMoveSeconds => AnimationSeconds(queueCardMoveSeconds);
-    public float QueueCardStaggerSeconds(int rank) =>
-        AnimationSeconds(queueCardStaggerSeconds * Mathf.Max(0, rank));
     public Ease QueueCardMoveEase => queueCardMoveEase;
 
     private bool finalCycle;
@@ -231,7 +210,7 @@ public sealed class RushBalanceController : MonoBehaviour
         for (int i = 0; i < visualReserved.Length; i++) visualReserved[i] = false;
         pendingCount = 0;
         nextTelemetryOrderId = 0;
-        feedback.text = string.Empty;
+        if (feedback != null) feedback.text = string.Empty;
         finalNoticeSequence?.Kill();
         finalNoticeSequence = null;
         finalCyclePanel.anchoredPosition = finalNoticeBasePosition;
@@ -251,7 +230,7 @@ public sealed class RushBalanceController : MonoBehaviour
             ActivateOrder(id, id, customerAnchors[id], true);
         }
 
-        Message("Toque nos balões para organizar os pedidos.");
+        // A própria fila e suas setas indicam que os pedidos podem ser movidos.
     }
 
     private void Update()
@@ -260,7 +239,7 @@ public sealed class RushBalanceController : MonoBehaviour
         round.Tick(Time.deltaTime * simulationSpeed, secondarySpeed);
         Refresh();
 
-        if (feedbackClock > 0f && (feedbackClock -= Time.deltaTime) <= 0f)
+        if (feedback != null && feedbackClock > 0f && (feedbackClock -= Time.deltaTime) <= 0f)
             feedback.text = string.Empty;
     }
 
@@ -724,6 +703,7 @@ public sealed class RushBalanceController : MonoBehaviour
 
     private void Message(string value)
     {
+        if (feedback == null) return;
         feedback.text = value;
         feedbackClock = 1.7f;
     }
@@ -731,7 +711,6 @@ public sealed class RushBalanceController : MonoBehaviour
     private bool ValidateSetup()
     {
         if (session == null) return false;
-        if (feedback == null) return false;
         if (finalCycleBanner == null || finalCyclePanel == null || finalCycleGroup == null || finalCycleLabel == null)
             return false;
         if (customers == null || customers.Length != 5) return false;

@@ -69,13 +69,9 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
     private Vector2 popupPanelRestingPosition;
     private bool isOpen;
     private bool initialized;
+    private int shownLevel;
 
     private void Awake()
-    {
-        UpdateSimulatorVisibility();
-    }
-
-    private void LateUpdate()
     {
         UpdateSimulatorVisibility();
     }
@@ -83,17 +79,9 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
     public void Initialize(AvatarView view)
     {
         ResolveSceneReferences(view);
-
-        // The simulator is authored as a regular HUB scene button. Keep its
-        // visibility owned by the scene hierarchy, even if popup data is incomplete.
-        if (simulateButton != null)
-        {
-            simulateButton.onClick.RemoveListener(OpenLevelTwoPreview);
-            simulateButton.onClick.AddListener(OpenLevelTwoPreview);
-        }
+        UpdateSimulatorVisibility();
 
         List<string> missingReferences = new();
-        AddMissing(missingReferences, simulateButton, nameof(simulateButton));
         AddMissing(missingReferences, continueButton, nameof(continueButton));
         AddMissing(missingReferences, popupRoot, nameof(popupRoot));
         AddMissing(missingReferences, popupGroup, nameof(popupGroup));
@@ -157,19 +145,8 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
 
     private void UpdateSimulatorVisibility()
     {
-        if (simulateButton == null)
-            return;
-
-        Scene scene = gameObject.scene;
-        bool belongsToHub = scene.IsValid()
-            && (string.Equals(scene.name, "HUB", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(scene.name, "Hub", StringComparison.OrdinalIgnoreCase));
-        bool shouldBeVisible = belongsToHub
-            && SceneManager.GetActiveScene() == scene
-            && !SceneLoader.IsTransitionInProgress;
-
-        if (simulateButton.gameObject.activeSelf != shouldBeVisible)
-            simulateButton.gameObject.SetActive(shouldBeVisible);
+        if (simulateButton != null)
+            simulateButton.gameObject.SetActive(false);
     }
 
     private T FindSceneComponent<T>(string objectName) where T : Component
@@ -217,24 +194,33 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
     {
         activeSequence?.Kill();
 
-        if (simulateButton != null)
-            simulateButton.onClick.RemoveListener(OpenLevelTwoPreview);
         if (continueButton != null)
             continueButton.onClick.RemoveListener(ClosePopup);
     }
 
-    private void OpenLevelTwoPreview()
+    public void TryShowPendingLevel()
     {
         if (!initialized || isOpen)
             return;
+
+        PlayerProfileData profile = PlayerManager.Instance?.Profile;
+        if (profile == null || profile.LastPresentedLevel >= profile.Level)
+            return;
+
+        int previousLevel = Mathf.Max(1, profile.LastPresentedLevel);
+        int nextLevel = previousLevel + 1;
+        shownLevel = nextLevel;
 
         const float panelRevealDuration = 0.3f;
         isOpen = true;
         activeSequence?.Kill();
 
-        List<AvatarCustomizationItem> rewards = GetLevelRewards(2);
+        List<AvatarCustomizationItem> rewards = GetLevelRewards(nextLevel);
         BindRewards(rewards);
         ResetPopupVisuals();
+        levelBadgeText.SetText("{0}", previousLevel);
+        previousLevelText.SetText("NÍVEL {0}", previousLevel);
+        nextLevelText.SetText("NÍVEL {0}", nextLevel);
         popupRoot.SetActive(true);
         Canvas.ForceUpdateCanvases();
         popupGroup.interactable = false;
@@ -265,7 +251,7 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
         activeSequence.InsertCallback(celebrationTime + 0.3f, () =>
         {
             if (levelBadgeText != null)
-                levelBadgeText.text = "2";
+                levelBadgeText.SetText("{0}", nextLevel);
         });
         activeSequence.Insert(celebrationTime + 0.36f,
             levelMedal.DOScale(1f, 0.26f).SetEase(Ease.OutSine));
@@ -477,6 +463,8 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
         {
             if (popupRoot != null)
                 popupRoot.SetActive(false);
+            if (PlayerManager.Instance?.MarkLevelPresented(shownLevel) == true)
+                TryShowPendingLevel();
         });
     }
 }

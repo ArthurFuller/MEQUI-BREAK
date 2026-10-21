@@ -1112,6 +1112,9 @@ MonoBehaviour:
   receiver: {fileID: 1998008790}
   rotatingVisual: {fileID: 714766888}
   clockwiseDegreesPerSecond: 8
+  restingAlpha: 0.72
+  glowResponse: 5
+  glowSprite: {fileID: 21300000, guid: b6d932a7a96c47aa9711a88ab417de91, type: 3}
 --- !u!114 &714766890
 MonoBehaviour:
   m_ObjectHideFlags: 0

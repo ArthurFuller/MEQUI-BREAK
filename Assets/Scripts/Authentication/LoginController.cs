@@ -23,6 +23,7 @@ public sealed class LoginController : MonoBehaviour
 
     [Header("Seleção de turno")]
     [SerializeField] private Button shiftSelectorButton;
+    [SerializeField] private Image shiftSelectorFrame;
     [SerializeField] private TMP_Text shiftValueText;
     [SerializeField] private RectTransform shiftOptionsPanel;
     [SerializeField] private CanvasGroup shiftOptionsCanvasGroup;
@@ -35,12 +36,12 @@ public sealed class LoginController : MonoBehaviour
     [SerializeField] private string shiftPlaceholder = "Selecione o turno";
     [SerializeField] private Color shiftPlaceholderColor = new Color(0.275f, 0.275f, 0.275f, 1f);
     [SerializeField] private Color shiftSelectedColor = new Color(1f, 0.78f, 0f, 1f);
-    [SerializeField, Min(0.05f)] private float shiftPanelDuration = 0.12f;
-    [SerializeField] private Ease shiftPanelEase = Ease.OutCubic;
-    [SerializeField, Min(0.03f)] private float shiftOptionDuration = 0.08f;
-    [SerializeField, Range(0f, 0.15f)] private float shiftOptionStagger = 0.055f;
-    [SerializeField, Range(0.9f, 1f)] private float shiftOptionStartScale = 0.96f;
-    [SerializeField] private Ease shiftOptionEase = Ease.OutCubic;
+    [SerializeField, Min(0.05f)] private float shiftPanelDuration = 0.3f;
+    [SerializeField] private Ease shiftPanelEase = Ease.InOutSine;
+    [SerializeField, Min(0.03f)] private float shiftOptionDuration = 0.28f;
+    [SerializeField, Range(0f, 0.15f)] private float shiftOptionStagger = 0.04f;
+    [SerializeField, Range(0f, 24f)] private float shiftOptionStartOffset = 12f;
+    [SerializeField] private Ease shiftOptionEase = Ease.InOutSine;
     [SerializeField, Range(0f, 0.12f)] private float selectionPunchScale = 0.05f;
 
     [Header("Interface")]
@@ -48,10 +49,17 @@ public sealed class LoginController : MonoBehaviour
     [SerializeField] private TMP_Text errorText;
 
     private bool isSubmitting;
+    private bool shiftOptionsOpen;
     private string selectedShift = string.Empty;
     private Tween shiftPanelTween;
     private Tween shiftSelectionTween;
+    private Tween shiftFrameTween;
     private float shiftPanelBackgroundAlpha = 1f;
+    private Color shiftFrameColor;
+    private Vector2 shiftPanelExpandedSize;
+    private Vector2 morningOptionPosition;
+    private Vector2 afternoonOptionPosition;
+    private Vector2 nightOptionPosition;
 
     private void Awake()
     {
@@ -60,6 +68,20 @@ public sealed class LoginController : MonoBehaviour
 
         if (shiftPanelBackground != null)
             shiftPanelBackgroundAlpha = shiftPanelBackground.color.a;
+        if (shiftOptionsPanel != null)
+        {
+            shiftPanelExpandedSize = shiftOptionsPanel.sizeDelta;
+            if (shiftOptionsPanel.GetComponent<RectMask2D>() == null)
+                shiftOptionsPanel.gameObject.AddComponent<RectMask2D>();
+        }
+        if (shiftSelectorFrame != null)
+            shiftFrameColor = shiftSelectorFrame.color;
+        morningOptionPosition = OptionPosition(morningOptionGroup);
+        afternoonOptionPosition = OptionPosition(afternoonOptionGroup);
+        nightOptionPosition = OptionPosition(nightOptionGroup);
+
+        RaiseCaret(nameInput);
+        RaiseCaret(storeInput);
 
         selectedShift = string.Empty;
         UpdateShiftLabel();
@@ -142,14 +164,30 @@ public sealed class LoginController : MonoBehaviour
 
         if (nameInput != null)
         {
-            if (enabled) nameInput.onSubmit.AddListener(FocusStore);
-            else nameInput.onSubmit.RemoveListener(FocusStore);
+            if (enabled)
+            {
+                nameInput.onSubmit.AddListener(FocusStore);
+                nameInput.onSelect.AddListener(FocusNameCaret);
+            }
+            else
+            {
+                nameInput.onSubmit.RemoveListener(FocusStore);
+                nameInput.onSelect.RemoveListener(FocusNameCaret);
+            }
         }
 
         if (storeInput != null)
         {
-            if (enabled) storeInput.onSubmit.AddListener(FocusShift);
-            else storeInput.onSubmit.RemoveListener(FocusShift);
+            if (enabled)
+            {
+                storeInput.onSubmit.AddListener(FocusShift);
+                storeInput.onSelect.AddListener(FocusStoreCaret);
+            }
+            else
+            {
+                storeInput.onSubmit.RemoveListener(FocusShift);
+                storeInput.onSelect.RemoveListener(FocusStoreCaret);
+            }
         }
 
     }
@@ -171,8 +209,20 @@ public sealed class LoginController : MonoBehaviour
 
     private void FocusStore(string _) => storeInput?.ActivateInputField();
 
+    private void FocusNameCaret(string _) => RaiseCaret(nameInput);
+
+    private void FocusStoreCaret(string _) => RaiseCaret(storeInput);
+
+    private static void RaiseCaret(TMP_InputField input)
+    {
+        if (input == null || input.textViewport == null) return;
+        Transform caret = input.textViewport.Find("Caret");
+        if (caret != null) caret.SetAsLastSibling();
+    }
+
     private void FocusShift(string _)
     {
+        FlashShiftFrame();
         OpenShiftOptions();
     }
 
@@ -204,7 +254,8 @@ public sealed class LoginController : MonoBehaviour
         if (shiftOptionsPanel == null || isSubmitting)
             return;
 
-        if (shiftOptionsPanel.gameObject.activeSelf)
+        FlashShiftFrame();
+        if (shiftOptionsOpen)
             CloseShiftOptions(immediate: false);
         else
             OpenShiftOptions();
@@ -215,32 +266,34 @@ public sealed class LoginController : MonoBehaviour
         if (shiftOptionsPanel == null || shiftOptionsCanvasGroup == null || isSubmitting)
             return;
 
+        bool wasVisible = shiftOptionsPanel.gameObject.activeSelf;
         KillPanelTween();
+        shiftOptionsOpen = true;
         shiftOptionsPanel.gameObject.SetActive(true);
-        shiftOptionsPanel.localScale = new Vector3(1f, 0.995f, 1f);
+        shiftOptionsPanel.localScale = Vector3.one;
+        if (!wasVisible)
+            shiftOptionsPanel.sizeDelta = new Vector2(shiftPanelExpandedSize.x, 0f);
         shiftOptionsCanvasGroup.alpha = 1f;
-        shiftOptionsCanvasGroup.interactable = false;
+        shiftOptionsCanvasGroup.interactable = true;
         shiftOptionsCanvasGroup.blocksRaycasts = true;
 
-        SetBackgroundAlpha(0f);
-        PrepareOptionForReveal(morningOptionGroup);
-        PrepareOptionForReveal(afternoonOptionGroup);
-        PrepareOptionForReveal(nightOptionGroup);
+        SetBackgroundAlpha(shiftPanelBackgroundAlpha);
+        if (!wasVisible)
+        {
+            PrepareOptionForReveal(morningOptionGroup, morningOptionPosition);
+            PrepareOptionForReveal(afternoonOptionGroup, afternoonOptionPosition);
+            PrepareOptionForReveal(nightOptionGroup, nightOptionPosition);
+        }
 
         Sequence sequence = DOTween.Sequence();
         sequence.SetUpdate(true);
-        sequence.Join(shiftOptionsPanel.DOScale(Vector3.one, shiftPanelDuration).SetEase(shiftPanelEase));
+        sequence.Join(shiftOptionsPanel.DOSizeDelta(shiftPanelExpandedSize, shiftPanelDuration)
+            .SetEase(shiftPanelEase));
 
-        if (shiftPanelBackground != null)
-            sequence.Join(shiftPanelBackground.DOFade(shiftPanelBackgroundAlpha, shiftPanelDuration)
-                .SetEase(Ease.OutSine));
+        InsertOptionReveal(sequence, morningOptionGroup, morningOptionPosition, 0f);
+        InsertOptionReveal(sequence, afternoonOptionGroup, afternoonOptionPosition, shiftOptionStagger);
+        InsertOptionReveal(sequence, nightOptionGroup, nightOptionPosition, shiftOptionStagger * 2f);
 
-        float firstOptionTime = shiftPanelDuration;
-        InsertOptionReveal(sequence, morningOptionGroup, firstOptionTime);
-        InsertOptionReveal(sequence, afternoonOptionGroup, firstOptionTime + shiftOptionStagger);
-        InsertOptionReveal(sequence, nightOptionGroup, firstOptionTime + shiftOptionStagger * 2f);
-
-        sequence.OnComplete(() => shiftOptionsCanvasGroup.interactable = true);
         shiftPanelTween = sequence;
     }
 
@@ -250,7 +303,7 @@ public sealed class LoginController : MonoBehaviour
             return;
 
         KillPanelTween();
-        shiftOptionsCanvasGroup.interactable = false;
+        shiftOptionsOpen = false;
         shiftOptionsCanvasGroup.blocksRaycasts = false;
 
         if (immediate || !shiftOptionsPanel.gameObject.activeSelf)
@@ -259,53 +312,71 @@ public sealed class LoginController : MonoBehaviour
             return;
         }
 
-        float closeDuration = shiftPanelDuration * 0.7f;
-        shiftPanelTween = DOTween.Sequence()
-            .Join(shiftOptionsCanvasGroup.DOFade(0f, closeDuration).SetEase(Ease.InSine))
-            .Join(shiftOptionsPanel.DOScale(new Vector3(1f, 0.995f, 1f), closeDuration)
-                .SetEase(Ease.InCubic))
-            .OnComplete(ResetClosedShiftPanel)
-            .SetUpdate(true);
+        float closeDuration = shiftPanelDuration * 0.6f;
+        float reverseStagger = shiftOptionStagger * 0.5f;
+        Sequence sequence = DOTween.Sequence().SetUpdate(true);
+        sequence.Join(shiftOptionsPanel.DOSizeDelta(
+            new Vector2(shiftPanelExpandedSize.x, 0f), closeDuration).SetEase(Ease.InCubic));
+        InsertOptionHide(sequence, nightOptionGroup, nightOptionPosition, 0f, closeDuration);
+        InsertOptionHide(sequence, afternoonOptionGroup, afternoonOptionPosition,
+            reverseStagger, closeDuration - reverseStagger);
+        InsertOptionHide(sequence, morningOptionGroup, morningOptionPosition,
+            reverseStagger * 2f, closeDuration - reverseStagger * 2f);
+        shiftPanelTween = sequence.OnComplete(ResetClosedShiftPanel);
     }
 
-    private void PrepareOptionForReveal(CanvasGroup optionGroup)
+    private static Vector2 OptionPosition(CanvasGroup optionGroup) =>
+        optionGroup != null ? ((RectTransform)optionGroup.transform).anchoredPosition : Vector2.zero;
+
+    private void PrepareOptionForReveal(CanvasGroup optionGroup, Vector2 position)
     {
         if (optionGroup == null)
             return;
 
         optionGroup.alpha = 1f;
-        optionGroup.transform.localScale = Vector3.one * shiftOptionStartScale;
+        ((RectTransform)optionGroup.transform).anchoredPosition = position + Vector2.down * shiftOptionStartOffset;
     }
 
-    private void InsertOptionReveal(Sequence sequence, CanvasGroup optionGroup, float atPosition)
+    private void InsertOptionReveal(Sequence sequence, CanvasGroup optionGroup, Vector2 position, float atPosition)
     {
         if (optionGroup == null)
             return;
 
         sequence.Insert(atPosition,
-            optionGroup.transform.DOScale(Vector3.one, shiftOptionDuration).SetEase(shiftOptionEase));
+            ((RectTransform)optionGroup.transform).DOAnchorPos(position, shiftOptionDuration)
+                .SetEase(shiftOptionEase));
+    }
+
+    private void InsertOptionHide(Sequence sequence, CanvasGroup optionGroup, Vector2 position,
+        float atPosition, float duration)
+    {
+        if (optionGroup == null) return;
+        sequence.Insert(atPosition, ((RectTransform)optionGroup.transform)
+            .DOAnchorPos(position + Vector2.down * shiftOptionStartOffset,
+                Mathf.Max(.01f, duration)).SetEase(Ease.InCubic));
     }
 
     private void ResetClosedShiftPanel()
     {
         shiftOptionsCanvasGroup.alpha = 1f;
-        shiftOptionsCanvasGroup.interactable = false;
+        shiftOptionsCanvasGroup.interactable = true;
         shiftOptionsCanvasGroup.blocksRaycasts = false;
         shiftOptionsPanel.localScale = Vector3.one;
+        shiftOptionsPanel.sizeDelta = shiftPanelExpandedSize;
         SetBackgroundAlpha(shiftPanelBackgroundAlpha);
-        ResetOptionVisual(morningOptionGroup);
-        ResetOptionVisual(afternoonOptionGroup);
-        ResetOptionVisual(nightOptionGroup);
+        ResetOptionVisual(morningOptionGroup, morningOptionPosition);
+        ResetOptionVisual(afternoonOptionGroup, afternoonOptionPosition);
+        ResetOptionVisual(nightOptionGroup, nightOptionPosition);
         shiftOptionsPanel.gameObject.SetActive(false);
     }
 
-    private static void ResetOptionVisual(CanvasGroup optionGroup)
+    private static void ResetOptionVisual(CanvasGroup optionGroup, Vector2 position)
     {
         if (optionGroup == null)
             return;
 
         optionGroup.alpha = 1f;
-        optionGroup.transform.localScale = Vector3.one;
+        ((RectTransform)optionGroup.transform).anchoredPosition = position;
     }
 
     private void SetBackgroundAlpha(float alpha)
@@ -316,6 +387,17 @@ public sealed class LoginController : MonoBehaviour
         Color color = shiftPanelBackground.color;
         color.a = alpha;
         shiftPanelBackground.color = color;
+    }
+
+    private void FlashShiftFrame()
+    {
+        if (shiftSelectorFrame == null) return;
+        shiftFrameTween?.Kill();
+        shiftSelectorFrame.color = shiftFrameColor;
+        shiftFrameTween = shiftSelectorFrame
+            .DOColor(new Color(.784f, .784f, .784f, shiftFrameColor.a), .1f)
+            .SetLoops(2, LoopType.Yoyo).SetUpdate(true)
+            .OnComplete(() => shiftSelectorFrame.color = shiftFrameColor);
     }
 
     public void SelectMorning() => SelectShift("Manhã");
@@ -363,6 +445,9 @@ public sealed class LoginController : MonoBehaviour
             shiftSelectionTween.Kill();
 
         shiftSelectionTween = null;
+        shiftFrameTween?.Kill();
+        shiftFrameTween = null;
+        if (shiftSelectorFrame != null) shiftSelectorFrame.color = shiftFrameColor;
     }
 
     private void KillPanelTween()

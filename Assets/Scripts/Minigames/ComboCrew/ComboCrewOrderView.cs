@@ -2,6 +2,7 @@ using System;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Sprites;
 using UnityEngine.UI;
 
 /// <summary>Card reutilizável; paciência diminui conforme o estado real do pedido.</summary>
@@ -11,10 +12,13 @@ public sealed class ComboCrewOrderView : MonoBehaviour
     [SerializeField] private RectTransform card;
     [SerializeField] private CanvasGroup canvasGroup;
     [SerializeField] private Image patienceFill;
+    [SerializeField, Range(0f, 6f), Tooltip("Recuo do preenchimento sob o contorno preto da barra.")]
+    private float patienceBarInset = 1f;
     [SerializeField] private GameObject[] itemIcons;
     [SerializeField] private GameObject completedMark;
     [SerializeField] private GameObject failedMark;
     [SerializeField] private Image resultFlash;
+    [SerializeField] private Shader resultOutlineShader;
     [Header("Animação do card")]
     [SerializeField, Range(.5f, 1f)] private float showStartScale = .94f;
     [SerializeField, Min(.01f)] private float showSeconds = .2f;
@@ -36,13 +40,14 @@ public sealed class ComboCrewOrderView : MonoBehaviour
     [SerializeField, Min(.05f)] private float exitSeconds = .3f;
     [SerializeField] private Ease exitEase = Ease.InCubic;
     private Sequence exit;
+    private Material resultOutlineMaterial;
     private float shown = 1f;
     public bool Configured => card != null && canvasGroup != null && patienceFill != null
         && itemIcons != null && itemIcons.Length == 3 && itemIcons[0] != null
         && itemIcons[1] != null && itemIcons[2] != null
         && completedMark != null && failedMark != null;
 
-    public void Show(int items, RectTransform anchor)
+    public void Show(int items, RectTransform anchor, Sprite[] sprites = null)
     {
         exit?.Kill();
         card.DOKill();
@@ -52,16 +57,18 @@ public sealed class ComboCrewOrderView : MonoBehaviour
         gameObject.SetActive(true);
         completedMark.SetActive(false);
         failedMark.SetActive(false);
-        ArrangeItems(items);
+        ArrangeItems(items, sprites);
         if (resultFlash != null)
         {
+            PrepareResultOutline();
             Color color = resultFlash.color;
             color.a = 0f;
             resultFlash.color = color;
             resultFlash.gameObject.SetActive(false);
         }
         shown = 1f;
-        patienceFill.type = Image.Type.Simple;
+        patienceFill.type = Image.Type.Sliced;
+        ComboCrewProgressBorder.Ensure(patienceFill);
         SetBar(1f);
         card.localScale = Vector3.one * showStartScale;
         card.DOScale(1f, showSeconds).SetEase(showEase).SetTarget(this);
@@ -71,7 +78,25 @@ public sealed class ComboCrewOrderView : MonoBehaviour
                     .SetDelay(itemPunchStartDelay + i * itemPunchStagger).SetTarget(this);
     }
 
-    private void ArrangeItems(int items)
+    private void PrepareResultOutline()
+    {
+        Image background = card != null ? card.GetComponent<Image>() : null;
+        if (background == null || background.sprite == null) return;
+        resultFlash.sprite = background.sprite;
+        resultFlash.type = background.type;
+        resultFlash.preserveAspect = background.preserveAspect;
+        if (resultOutlineShader == null || !resultOutlineShader.isSupported) return;
+        if (resultOutlineMaterial == null)
+            resultOutlineMaterial = new Material(resultOutlineShader);
+        Vector4 uv = DataUtility.GetOuterUV(background.sprite);
+        resultOutlineMaterial.SetVector("_SourceUV", uv);
+        resultOutlineMaterial.SetVector("_SampleStep", new Vector4(
+            (uv.z - uv.x) * 3f / Mathf.Max(1f, card.rect.width),
+            (uv.w - uv.y) * 3f / Mathf.Max(1f, card.rect.height), 0f, 0f));
+        resultFlash.material = resultOutlineMaterial;
+    }
+
+    private void ArrangeItems(int items, Sprite[] sprites)
     {
         int visibleCount = 0;
         float totalWidth = 0f;
@@ -79,6 +104,8 @@ public sealed class ComboCrewOrderView : MonoBehaviour
         {
             bool visible = (items & (1 << i)) != 0;
             itemIcons[i].SetActive(visible);
+            if (visible && sprites != null && i < sprites.Length)
+                ComboCrewItemVisual.Set(itemIcons[i], sprites[i]);
             if (!visible || !(itemIcons[i].transform is RectTransform rect)) continue;
             totalWidth += rect.rect.width;
             visibleCount++;
@@ -108,10 +135,18 @@ public sealed class ComboCrewOrderView : MonoBehaviour
 
     private void SetBar(float value)
     {
-        RectTransform bar = patienceFill.rectTransform;
-        Vector3 scale = bar.localScale;
-        scale.x = Mathf.Clamp01(value);
-        bar.localScale = scale;
+        RectTransform fillRect = patienceFill.rectTransform;
+        RectTransform track = (RectTransform)fillRect.parent;
+        float inset = Mathf.Clamp(patienceBarInset, 0f, track.rect.height * .5f);
+        float availableWidth = Mathf.Max(0f, track.rect.width - inset * 2f);
+        float width = availableWidth * Mathf.Clamp01(value);
+        fillRect.anchorMin = fillRect.anchorMax = new Vector2(.5f, .5f);
+        fillRect.pivot = new Vector2(0f, .5f);
+        fillRect.anchoredPosition = new Vector2(-track.rect.width * .5f + inset, 0f);
+        fillRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,
+            Mathf.Max(0f, track.rect.height - inset * 2f));
+        fillRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+        patienceFill.enabled = width > .5f;
         Color red = new Color(.9f, .33f, .28f);
         Color yellow = new Color(.94f, .73f, .26f);
         Color green = new Color(.43f, .73f, .53f);
@@ -143,4 +178,8 @@ public sealed class ComboCrewOrderView : MonoBehaviour
     }
 
     private void OnDisable() { exit?.Kill(); card?.DOKill(); DOTween.Kill(this); }
+    private void OnDestroy()
+    {
+        if (resultOutlineMaterial != null) Destroy(resultOutlineMaterial);
+    }
 }
