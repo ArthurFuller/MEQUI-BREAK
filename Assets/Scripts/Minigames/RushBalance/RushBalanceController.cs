@@ -740,8 +740,7 @@ public sealed class RushBalanceController : MonoBehaviour
             return;
         }
 
-        // Mantem o card visivel ate sua propria animacao, mesmo quando outro
-        // pedido esta sendo resolvido antes dele.
+        // Cada card responde imediatamente; apenas a reposicao de clientes entra na fila.
         orderViews[id].HoldForResolution();
         if (orderViews[id].gameObject.activeSelf && !visualReserved[id])
         {
@@ -749,12 +748,36 @@ public sealed class RushBalanceController : MonoBehaviour
             visualResolutionsPending++;
         }
 
-        if (pendingCount < pendingIds.Length)
+        int customerIndex = round.Orders[id].Customer;
+        if (delivered)
         {
-            pendingIds[pendingCount] = id;
-            pendingDelivered[pendingCount] = delivered;
-            pendingCount++;
+            Message("Pedido entregue!");
+            MequiHaptics.Confirm();
+            orderViews[id].PlayDelivery(
+                customers[customerIndex].DeliveryTarget,
+                () =>
+                {
+                    QueueCustomerReplacement(id, true);
+                });
         }
+        else
+        {
+            Message("A paciência acabou.");
+            MequiHaptics.Reject();
+            orderViews[id].PlayFailure(() =>
+            {
+                QueueCustomerReplacement(id, false);
+            });
+        }
+        Refresh();
+    }
+
+    private void QueueCustomerReplacement(int id, bool delivered)
+    {
+        if (ending) return;
+        ReleaseVisualReservation(id);
+        pendingIds[pendingCount] = id;
+        pendingDelivered[pendingCount++] = delivered;
         if (!processingResolution) ProcessNextResolution();
     }
 
@@ -775,31 +798,7 @@ public sealed class RushBalanceController : MonoBehaviour
             pendingDelivered[i - 1] = pendingDelivered[i];
         }
         pendingCount--;
-
-        int customerIndex = round.Orders[id].Customer;
-        if (delivered)
-        {
-            Message("Pedido entregue!");
-            MequiHaptics.Confirm();
-            orderViews[id].PlayDelivery(
-                customers[customerIndex].DeliveryTarget,
-                () =>
-                {
-                    ReleaseVisualReservation(id);
-                    BeginCustomerReplacement(id, customerIndex, true);
-                });
-        }
-        else
-        {
-            Message("A paciência acabou.");
-            MequiHaptics.Reject();
-            orderViews[id].PlayFailure(() =>
-            {
-                ReleaseVisualReservation(id);
-                BeginCustomerReplacement(id, customerIndex, false);
-            });
-        }
-        Refresh();
+        BeginCustomerReplacement(id, round.Orders[id].Customer, delivered);
     }
 
     private void ReleaseVisualReservation(int id)
@@ -908,7 +907,7 @@ public sealed class RushBalanceController : MonoBehaviour
 
     private void TryCompleteFinalCycle()
     {
-        if (!finalCycle || ending || processingResolution || pendingCount > 0
+        if (!finalCycle || ending || processingResolution || pendingCount > 0 || visualResolutionsPending > 0
             || (replacementSequence != null && replacementSequence.IsActive())) return;
 
         for (int i = 0; i < round.Orders.Length; i++)

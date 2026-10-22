@@ -20,6 +20,9 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private Image progressFill;
     [SerializeField] private RectTransform progressTrack;
+    [SerializeField, Range(0f, 6f)] private float progressBarInset = 1f;
+    [SerializeField] private Color progressStartColor = new Color32(223, 77, 67, 255);
+    [SerializeField] private Color progressEndColor = new Color32(79, 187, 112, 255);
     [SerializeField] private Image priorityIndicator;
     [SerializeField, Min(.05f)] private float deliverySeconds = .36f;
     [SerializeField, Min(0f)] private float itemStagger = .1f;
@@ -55,10 +58,12 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
     [SerializeField] private RectTransform hangingRoot;
     [SerializeField] private RectTransform selectionRoot;
     [SerializeField] private Image[] highlightBorders;
+    [SerializeField] private Image paperOutline;
     [SerializeField] private GameObject completedStamp;
     [SerializeField] private GameObject cancelledStamp;
     [SerializeField] private TMP_Text remainingLabel;
     [SerializeField] private Color readyOutlineColor = new Color(1f, .8f, .12f);
+    [SerializeField] private Color selectedOutlineColor = Color.white;
     [SerializeField, Range(1f, 1.1f)] private float selectedScale = 1.04f;
     [SerializeField, Range(0f, 8f)] private float swingDegrees = 3f;
     [SerializeField, Min(.05f)] private float swingSeconds = .42f;
@@ -214,7 +219,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
             return;
         }
         RectTransform bar = progressFill.rectTransform;
-        const float inset = 1f;
+        float inset = Mathf.Clamp(progressBarInset, 0f, progressTrack.rect.height * .5f);
         float width = Mathf.Max(0f, progressTrack.rect.width - inset * 2f) * Mathf.Clamp01(value);
         bar.anchorMin = bar.anchorMax = new Vector2(.5f, .5f);
         bar.pivot = new Vector2(0f, .5f);
@@ -222,6 +227,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         bar.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(0f, progressTrack.rect.height - inset * 2f));
         bar.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         progressFill.enabled = width > .5f;
+        progressFill.color = Color.Lerp(progressStartColor, progressEndColor, Mathf.Clamp01(value));
     }
 
     public void Bind(
@@ -351,7 +357,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         customerFace.enabled = faceSprite != null;
         progressTarget = Mathf.Clamp01(order.Work / order.Duration);
         if (remainingLabel != null)
-            remainingLabel.SetText("{0:0}s", Mathf.Ceil(order.Remaining));
+            remainingLabel.SetText("{0:0}s", Mathf.Ceil(Mathf.Max(0f, order.Duration - order.Work)));
 
         int rank = Owner.Rank(OrderId);
         bool ready = order.State == RushRound.Status.Ready;
@@ -553,12 +559,15 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         {
             Transform icon = itemIcons[i].transform;
             Vector3 start = icon.position;
-            Vector3 end = target.position;
-            Vector3 control = (start + end) * .5f + Vector3.up * deliveryArcHeight;
             float delay = stampDelay + i * Seconds(itemStagger);
             sequence.Insert(delay, DOTween.To(
                 () => 0f,
-                value => icon.position = EvaluateBezier(start, control, end, value),
+                value =>
+                {
+                    Vector3 end = target.position;
+                    Vector3 control = (start + end) * .5f + Vector3.up * deliveryArcHeight;
+                    icon.position = EvaluateBezier(start, control, end, value);
+                },
                 1f,
                 Seconds(deliverySeconds)).SetEase(deliveryPathEase));
             sequence.Insert(delay, icon.DOScale(itemBaseScales[i] * .7f, Seconds(deliverySeconds)).SetEase(deliveredItemShrinkEase));
@@ -723,12 +732,17 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     private void UpdateOutline()
     {
+        if (paperOutline != null)
+        {
+            paperOutline.color = visualState == 3 ? readyOutlineColor : selectedOutlineColor;
+            paperOutline.enabled = visualState == 3 || selected;
+        }
         if (highlightBorders == null) return;
         foreach (Image edge in highlightBorders)
         {
             if (edge == null) continue;
-            edge.enabled = visualState == 3 || selected;
-            edge.color = visualState == 3 ? readyOutlineColor : Color.white;
+            edge.enabled = paperOutline == null && (visualState == 3 || selected);
+            edge.color = visualState == 3 ? readyOutlineColor : selectedOutlineColor;
         }
     }
 
@@ -740,6 +754,7 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
 
     private void ResetQueueFeedback()
     {
+        if (paperOutline != null) paperOutline.enabled = false;
         StopSwing();
         selectionTween?.Kill();
         selected = false;
