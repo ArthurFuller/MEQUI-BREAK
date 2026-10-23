@@ -1,0 +1,15 @@
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\bin\Debug\net10.0\EnergyBehaviorTests.exe
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\bin\Debug\net10.0\EnergyBehaviorTests.deps.json
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\bin\Debug\net10.0\EnergyBehaviorTests.runtimeconfig.json
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\bin\Debug\net10.0\EnergyBehaviorTests.dll
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\bin\Debug\net10.0\EnergyBehaviorTests.pdb
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.GeneratedMSBuildEditorConfig.editorconfig
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.AssemblyInfoInputs.cache
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.AssemblyInfo.cs
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.csproj.CoreCompileInputs.cache
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.sourcelink.json
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.dll
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\refint\EnergyBehaviorTests.dll
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.pdb
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\EnergyBehaviorTests.genruntimeconfig.cache
+E:\SSD\GITHUB\MEQUI BREAK\tmp\EnergyBehaviorTests\obj\Debug\net10.0\ref\EnergyBehaviorTests.dll

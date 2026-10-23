@@ -1,0 +1,11 @@
+SLOT PASS: Style assets import
+SLOT PASS: Selected unlocked slot shows outline
+SLOT PASS: Selection preserves manual slot tint
+SLOT PASS: Locked slot has no selection outline
+SLOT PASS: Lock preserves slot and overlay tints
+SLOT PASS: Unlock restores selected outline and hides lock
+SLOT PASS: Later manual tint is also preserved
+SLOT PASS: Deselect hides outline
+SLOT PASS: Outline shader compiles
+SLOT PASS: Outline leaves slot interior unchanged
+SLOT PASS: Only selected slot renders a visible yellow contour

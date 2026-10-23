@@ -79,6 +79,10 @@ public sealed partial class ComboCrewController : MonoBehaviour
     private int nextSequence, delivered, missed, cleanTrays, dirtyTrays;
     private bool preparing, playing, closing, settled, leaving, paused, logged;
     private int washingCount;
+    private int washingWorker = -1;
+    private float savedWashProgress;
+    private bool washCollected;
+    private System.Action[] interruptTransport;
     private int activeDeliveries;
     private bool washCounterReserved;
     private bool breakReorganizationLogged;
@@ -99,7 +103,11 @@ public sealed partial class ComboCrewController : MonoBehaviour
 
     public bool CanMoveWorker(int index) => (preparing || playing) && !leaving && !settled
         && index >= 0 && index < workers.Length && workers[index] != null
-        && workerAvailable != null && !IsUnavailable(index) && !workers[index].Busy;
+        && workerAvailable != null && !IsUnavailable(index) && !paused
+        && !SceneLoader.IsTransitionInProgress;
+    private bool WorkerDragging(int index) => workers[index].Dragging
+        || workerCards[index].IsDragging;
+
     public bool CanNudgeWorkerCards => preparing && clipboard != null && clipboard.IsOpen
         && (profilePanel == null || !profilePanel.activeSelf);
     public RectTransform CardHome(int index) => cardAnchors != null && index >= 0
@@ -169,6 +177,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
         }
         assigned = new int[workers.Length];
         moving = new bool[workers.Length];
+        interruptTransport = new System.Action[workers.Length];
         workerWaitStarted = new float[workers.Length];
         for (int i = 0; i < workerWaitStarted.Length; i++) workerWaitStarted[i] = -1f;
         stationWorker = new int[stations.Length];
@@ -321,7 +330,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
             { Resolve(i, false); continue; }
             if (order.State == OrderState.Working) Advance(i, delta);
         }
-        if (washingCount == 0 && dirtyTrays > 0) StartWashing();
+        if (washingWorker < 0 && (washingCount > 0 || dirtyTrays > 0)) StartWashing();
         RefreshHud();
         if (closing) TryFinish();
     }
@@ -415,6 +424,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
         int stage = order.Stage;
         int employee = stationWorker[stage];
         if (employee < 0 || IsUnavailable(employee) || moving[employee] || workers[employee].Busy
+            || WorkerDragging(employee)
             || IsBlocked(stage) || (stage == MainStationCount - 1 && washCounterReserved)
             || FirstAtStage(stage) != id) return;
         float speed = workers[employee].SpeedAt(stage);
@@ -423,9 +433,9 @@ public sealed partial class ComboCrewController : MonoBehaviour
             order.Progress = Mathf.Min(1f, order.Progress + delta * speed
                 / (stageSeconds * Mathf.Max(.1f, order.WorkMultiplier)));
         if (order.Progress >= 1f) order.ReadyHold += delta;
-        if (order.Progress < 1f || order.ReadyHold < .18f || (stage == 0 && cleanTrays < 1)) return;
+        if (order.Progress < 1f || order.ReadyHold < .18f || (stage == 0 && !order.HasTray && cleanTrays < 1)) return;
         if (stage < MainStationCount - 1 && StageOccupied(stage + 1, id)) return;
-        if (stage == 0) cleanTrays--;
+        if (stage == 0 && !order.HasTray) cleanTrays--;
         order.HasTray = true;
         order.State = OrderState.Travelling;
         moving[employee] = true;
@@ -433,6 +443,12 @@ public sealed partial class ComboCrewController : MonoBehaviour
         {
             activeDeliveries++;
             bool deliveredAtDestination = false;
+            interruptTransport[employee] = () =>
+            {
+                activeDeliveries = Mathf.Max(0, activeDeliveries - 1);
+                if (deliveredAtDestination) dirtyTrays++;
+                else if (order.State == OrderState.Travelling) order.State = OrderState.Working;
+            };
             workers[employee].SetTrayItems(order.Items, order.MenuItems);
             workers[employee].Deliver(departureAnchor, stations[stage].ForegroundLayer, () =>
             {
@@ -442,6 +458,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
             }, () =>
             {
                 moving[employee] = false;
+                interruptTransport[employee] = null;
                 activeDeliveries = Mathf.Max(0, activeDeliveries - 1);
                 if (!deliveredAtDestination) return;
                 workers[employee].SetTrayItems(0);
@@ -452,6 +469,11 @@ public sealed partial class ComboCrewController : MonoBehaviour
             });
             return;
         }
+        interruptTransport[employee] = () =>
+        {
+            if (order.State == OrderState.Travelling && order.Stage == stage)
+                order.State = OrderState.Working;
+        };
         workers[employee].Travel(stations[stage + 1].HandoffAnchor,
             stations[stage + 1].ForegroundLayer, () =>
         {
@@ -462,7 +484,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
             order.State = OrderState.Working;
             stations[stage].ResetProgress();
             AudioManager.Instance?.PlayConfirm();
-        }, () => moving[employee] = false);
+        }, () => { moving[employee] = false; interruptTransport[employee] = null; });
     }
 
     private int FirstAtStage(int stage)
@@ -494,38 +516,69 @@ public sealed partial class ComboCrewController : MonoBehaviour
 
     private void StartWashing()
     {
-        if (washingCount > 0 || dirtyTrays < 1 || IsBlocked(WashStation)) return;
-        // dirtyTrays só inclui bandejas que já voltaram de uma entrega ou pedido encerrado.
-        // A reserva segura o balcão apenas até a coleta, sem exigir uma pausa entre pedidos.
+        if (washingWorker >= 0 || (washingCount == 0 && dirtyTrays < 1) || IsBlocked(WashStation)) return;
         int employee = stationWorker[WashStation];
-        if (employee < 0 || IsUnavailable(employee) || workers[employee].Busy || moving[employee]) return;
-        int batch = dirtyTrays;
-        washingCount = batch;
-        stations[WashStation].ResetProgress();
-        washCounterReserved = true;
+        if (employee < 0 || IsUnavailable(employee) || workers[employee].Busy
+            || WorkerDragging(employee) || moving[employee]) return;
+        if (washingCount == 0)
+        {
+            washingCount = dirtyTrays;
+            savedWashProgress = 0f;
+            washCollected = false;
+            stations[WashStation].ResetProgress();
+        }
+        int batch = washingCount;
+        washingWorker = employee;
+        washCounterReserved = !washCollected;
         moving[employee] = true;
         if (!workers[employee].Wash(stations[3].HandoffAnchor, stations[0].HandoffAnchor,
             batch, washSecondsPerTray / workers[employee].SpeedAt(WashStation), () =>
             {
                 washCounterReserved = false;
+                washCollected = true;
                 dirtyTrays -= batch;
                 RefreshHud();
             }, () =>
             {
                 washCounterReserved = false;
                 moving[employee] = false;
-                cleanTrays += washingCount;
+                washingWorker = -1;
+                cleanTrays += batch;
                 washingCount = 0;
+                savedWashProgress = 0f;
+                washCollected = false;
                 stations[WashStation].ResetProgress();
                 AudioManager.Instance?.PlayReady();
                 RefreshHud();
                 TryFinish();
-            }))
+            }, savedWashProgress, washCollected))
         {
-            washingCount = 0;
+            washingWorker = -1;
             washCounterReserved = false;
             moving[employee] = false;
         }
+    }
+
+    public bool BeginMoveWorker(int worker)
+    {
+        if (!CanMoveWorker(worker)) return false;
+        InterruptWorkerTask(worker);
+        return true;
+    }
+
+    private void InterruptWorkerTask(int worker)
+    {
+        if (worker == washingWorker)
+        {
+            savedWashProgress = workers[worker].WashProgress;
+            washingWorker = -1;
+            washCounterReserved = false;
+        }
+        System.Action interrupted = interruptTransport?[worker];
+        if (interruptTransport != null) interruptTransport[worker] = null;
+        workers[worker].StopWorkRoute();
+        moving[worker] = false;
+        interrupted?.Invoke();
     }
 
     private void Resolve(int id, bool success, bool trayReturned = true)
@@ -559,19 +612,21 @@ public sealed partial class ComboCrewController : MonoBehaviour
     {
         if ((!preparing && !playing) || worker < 0 || worker >= workers.Length
             || IsUnavailable(worker) || station < 0 || station >= stations.Length
-            || workers[worker].Busy || moving[worker]) return false;
+            || !CanMoveWorker(worker)) return false;
         int old = assigned[worker];
         if (old == station) return true;
         int occupant = stationWorker[station];
         if (occupant >= 0 && occupant != worker)
         {
             bool occupantAway = workerAway[occupant];
-            if (!occupantAway && (old < 0 || workers[occupant].Busy || moving[occupant]))
+            if (!occupantAway && (old < 0 || !CanMoveWorker(occupant) || WorkerDragging(occupant)))
             { ShowMessage("Esta bancada já tem alguém."); return false; }
+            if (!occupantAway) InterruptWorkerTask(occupant);
             assigned[occupant] = old;
             if (old >= 0) workers[occupant].Place(stations[old].WorkAnchor, false);
             else workers[occupant].ReturnToReserveAfterBreak();
         }
+        InterruptWorkerTask(worker);
         if (old >= 0) stationWorker[old] = occupant;
         assigned[worker] = station;
         stationWorker[station] = worker;
@@ -614,12 +669,11 @@ public sealed partial class ComboCrewController : MonoBehaviour
     private bool CanReceiveWorker(int worker, int station)
     {
         if (worker < 0 || worker >= workers.Length || station < 0
-            || station >= stationWorker.Length || IsUnavailable(worker)
-            || workers[worker].Busy || moving[worker]) return false;
+            || station >= stationWorker.Length || !CanMoveWorker(worker)) return false;
         int occupant = stationWorker[station];
         if (occupant < 0 || occupant == worker || workerAway[occupant]) return true;
         return assigned[worker] >= 0 && !IsUnavailable(occupant)
-            && !workers[occupant].Busy && !moving[occupant];
+            && CanMoveWorker(occupant) && !WorkerDragging(occupant);
     }
 
     private int DropTargetFor(int worker, RectTransform visual)
@@ -700,15 +754,16 @@ public sealed partial class ComboCrewController : MonoBehaviour
                 stations[stage].Refresh(stationIncidents[stage] == Incident.Repairing
                         ? 1f - stationTimers[stage] / stationRepairDurations[stage]
                         : stationIncidents[stage] == Incident.Broken ? 0f
-                        : washingCount > 0 && stationWorker[stage] >= 0
-                            ? workers[stationWorker[stage]].WashProgress : 0f,
+                        : washingCount > 0 ? (washingWorker >= 0
+                            ? workers[washingWorker].WashProgress : savedWashProgress) : 0f,
                     stationIncidents[stage] != Incident.None ? StationStatus(stage, id)
                         : stationWorker[stage] < 0 ? "Sem funcionário"
                         : IsUnavailable(stationWorker[stage]) ? "Ausente"
                         : IsWarned(stationWorker[stage]) ? "Pausa em breve"
                         : washingCount > 0 ? "Lavando"
                         : dirtyTrays > 0 ? "Bandejas aguardando" : "Livre", false,
-                    stationWorker[stage] >= 0 && workers[stationWorker[stage]].WashingAtSink);
+                    washingCount > 0 && (washCollected || washingWorker >= 0
+                        && workers[washingWorker].WashingAtSink));
             else
                 stations[stage].Refresh(stationIncidents[stage] == Incident.Repairing
                         ? 1f - stationTimers[stage] / stationRepairDurations[stage]
@@ -726,7 +781,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
         {
             int station = assigned[worker];
             bool present = playing && station >= 0 && !IsUnavailable(worker)
-                && !moving[worker] && !workers[worker].Busy && !workers[worker].Dragging;
+                && !moving[worker] && !workers[worker].Busy && !WorkerDragging(worker);
             bool broken = present && stationIncidents[station] == Incident.Broken;
             int order = present && station < MainStationCount - 1
                 ? FirstAtStage(station) : -1;

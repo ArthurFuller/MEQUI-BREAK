@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ComboCrewWorkerProfile
   displayName: Lia
   head: {fileID: 7295980251988841670, guid: 26687506cd65cde49a010f45347877e9, type: 3}
+  bodyColor: {r: 0.8980392156862745, g: 0.5607843137254902, b: 0.6588235294117647, a: 1}
   face: {fileID: 21300000, guid: e563a0cf7952407d5c99a311c39de8ec, type: 3}
   hat: {fileID: 0}
   stationSpeed:

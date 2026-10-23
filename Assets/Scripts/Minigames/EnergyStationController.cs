@@ -12,8 +12,20 @@ public sealed class EnergyStationController : MonoBehaviour
     [SerializeField] private ResultPopup resultPopup;
     [SerializeField] private DraggableInteraction[] interactionCards;
 
+    [System.Serializable]
+    private sealed class QuestionSet
+    {
+        public string id;
+        [TextArea(2, 3)] public string prompt;
+        public DraggableInteraction[] cards;
+    }
+
+    [Header("Perguntas e cards da Hierarchy")]
+    [SerializeField] private QuestionSet[] questionSets;
+    private const string QuestionIndexKey = "EnergyStation.QuestionIndex";
+    private int activeQuestionIndex;
+
     [Header("Interface")]
-    [SerializeField] private TMP_Text timerLabel;
     [SerializeField] private RectTransform progressBackground;
     [SerializeField] private RectTransform progressFill;
     [SerializeField] private TMP_Text feedbackLabel;
@@ -31,10 +43,8 @@ public sealed class EnergyStationController : MonoBehaviour
     [Header("Mensagens")]
     [SerializeField, TextArea(2, 3)] private string initialMessage = "Que tipo de pausa o Méqui precisa hoje?";
     [SerializeField, TextArea(2, 3)] private string completedMessage = "Méqui está pronto para voltar ao trabalho!";
-    [SerializeField, TextArea(2, 3)] private string timeExpiredMessage = "O tempo terminou. Toque em redefinir para tentar novamente.";
 
     [Header("Sessão")]
-    [SerializeField, Min(1f)] private float maxDurationSeconds = 45f;
     [SerializeField, Min(1)] private int interactionsToComplete = 2;
     [SerializeField, Min(0.1f)] private float inactivityThresholdSeconds = 2f;
     [SerializeField] private string activityId = "energy_station";
@@ -48,12 +58,17 @@ public sealed class EnergyStationController : MonoBehaviour
     private SessionState sessionState;
     private int interactionCount;
     private Tween progressTween;
-    private int lastDisplayedSecond = int.MinValue;
     private bool rewardGranted;
     private bool sessionStarted;
     private Coroutine cardWave;
     private Tween completeButtonTween;
-    private Vector3 completeButtonHomeScale;
+    private RectTransform completeButtonRect;
+    private Vector2 completeButtonHomePosition;
+    private RectTransform resetButtonRect;
+    private Vector2 resetButtonHomePosition;
+    private Tween resetButtonTween;
+    private Tween trayLockTween;
+    private Color trayLockColor;
 
     /// <summary>
     /// Disparado somente depois que uma interação válida foi registrada.
@@ -73,15 +88,25 @@ public sealed class EnergyStationController : MonoBehaviour
     {
         Playing,
         ReadyToComplete,
-        TimeExpired,
         RewardCollected,
         Abandoned
     }
 
     private void Awake()
     {
+        SelectQuestion();
         if (completeButton != null)
-            completeButtonHomeScale = completeButton.transform.localScale;
+        {
+            completeButtonRect = completeButton.transform as RectTransform;
+            completeButtonHomePosition = completeButtonRect.anchoredPosition;
+        }
+        if (resetButton != null)
+        {
+            resetButtonRect = resetButton.transform as RectTransform;
+            resetButtonHomePosition = resetButtonRect.anchoredPosition;
+        }
+        if (trayLockOverlay != null)
+            trayLockColor = trayLockOverlay.color;
         if (completeButton != null)
             completeButton.onClick.AddListener(CompleteSession);
 
@@ -91,7 +116,6 @@ public sealed class EnergyStationController : MonoBehaviour
         SetCompleteButton(false);
         SetInitialVisuals();
         SetTrayLocked(false);
-        UpdateTimer();
         UpdateProgress(immediate: true);
     }
 
@@ -107,7 +131,6 @@ public sealed class EnergyStationController : MonoBehaviour
         elapsedTime = 0f;
         lastInteractionTime = 0f;
         interactionCount = 0;
-        lastDisplayedSecond = int.MinValue;
         acceptedInteractionIds.Clear();
         sessionState = SessionState.Playing;
         rewardGranted = false;
@@ -117,21 +140,15 @@ public sealed class EnergyStationController : MonoBehaviour
 
         SetInitialVisuals();
         SetTrayLocked(false);
-        UpdateTimer();
         UpdateProgress(immediate: true);
         cardWave = StartCoroutine(AnimateAvailableCards());
     }
 
     private void Update()
     {
-        if (sessionState != SessionState.Playing)
-            return;
-
-        elapsedTime += Time.unscaledDeltaTime;
-        UpdateTimer();
-
-        if (elapsedTime >= maxDurationSeconds)
-            HandleTimeExpired();
+        // Tempo apenas para registrar a duração; esta atividade não tem prazo.
+        if (sessionState == SessionState.Playing)
+            elapsedTime += Time.unscaledDeltaTime;
     }
 
     private void OnDestroy()
@@ -146,6 +163,8 @@ public sealed class EnergyStationController : MonoBehaviour
             progressTween.Kill();
         if (cardWave != null) StopCoroutine(cardWave);
         completeButtonTween?.Kill();
+        resetButtonTween?.Kill();
+        trayLockTween?.Kill();
     }
 
     private void OnDisable()
@@ -157,8 +176,14 @@ public sealed class EnergyStationController : MonoBehaviour
         }
         completeButtonTween?.Kill();
         completeButtonTween = null;
-        if (completeButton != null)
-            completeButton.transform.localScale = completeButtonHomeScale;
+        if (completeButtonRect != null)
+            completeButtonRect.anchoredPosition = completeButtonHomePosition;
+        resetButtonTween?.Kill();
+        resetButtonTween = null;
+        if (resetButtonRect != null)
+            resetButtonRect.anchoredPosition = resetButtonHomePosition;
+        trayLockTween?.Kill();
+        trayLockTween = null;
         if (progressTween != null && progressTween.IsActive())
             progressTween.Kill();
 
@@ -238,8 +263,7 @@ public sealed class EnergyStationController : MonoBehaviour
     }
 
     /// <summary>
-    /// Restaura as escolhas sem recriar objetos. Depois do timeout, inicia uma
-    /// nova tentativa completa; durante uma tentativa ativa, mantém o tempo.
+    /// Restaura as escolhas na mesma sessão, sem recriar objetos.
     /// </summary>
     public void ResetChoices()
     {
@@ -247,17 +271,7 @@ public sealed class EnergyStationController : MonoBehaviour
             sessionState == SessionState.Abandoned)
             return;
 
-        bool restartExpiredAttempt = sessionState == SessionState.TimeExpired;
-        if (restartExpiredAttempt)
-        {
-            if (sessionStarted)
-                EventLogger.Instance?.AbandonSession();
-
-            elapsedTime = 0f;
-            lastDisplayedSecond = int.MinValue;
-            rewardGranted = false;
-            BeginLoggedSession();
-        }
+        EventLogger.Instance?.ResetChoices();
 
         sessionState = SessionState.Playing;
         interactionCount = 0;
@@ -268,8 +282,7 @@ public sealed class EnergyStationController : MonoBehaviour
         SetInitialVisuals();
         SetTrayLocked(false);
         ResetCardsToOrigin();
-        UpdateTimer();
-        UpdateProgress(immediate: restartExpiredAttempt);
+        UpdateProgress();
         ChoicesReset?.Invoke();
     }
 
@@ -318,45 +331,36 @@ public sealed class EnergyStationController : MonoBehaviour
                     yield return new WaitForSecondsRealtime(.14f);
                 }
             }
+            if (GetDraggedInteraction() == null
+                && (sessionState == SessionState.Playing || sessionState == SessionState.ReadyToComplete))
+                PlayResetHint();
             yield return new WaitForSecondsRealtime(5.8f);
         }
     }
 
     private void MakeCompletionAvailable()
     {
-        if (sessionState != SessionState.Playing
-            || interactionCount < interactionsToComplete)
+        if (sessionState != SessionState.Playing || interactionCount < interactionsToComplete)
             return;
 
         sessionState = SessionState.ReadyToComplete;
         EventLogger.Instance?.MarkActivityCompletedEarly();
-        SetCompletedVisuals();
-        SetTrayLocked(true);
-        UpdateProgress();
-        EventLogger.Instance?.MarkCompleteButtonAvailable();
-        SetCompleteButton(true);
+        if (interactionTray != null)
+        {
+            interactionTray.interactable = false;
+            interactionTray.blocksRaycasts = false;
+        }
+        LockCardsForSessionEnd();
+        UpdateProgress(onComplete: ShowCompletionFeedback);
     }
 
-    private void HandleTimeExpired()
+    private void ShowCompletionFeedback()
     {
-        if (sessionState != SessionState.Playing)
-            return;
-
-        sessionState = SessionState.TimeExpired;
-        elapsedTime = maxDurationSeconds;
-        EventLogger.Instance?.MarkTimeLimitReached();
-        SetCompleteButton(false);
+        if (sessionState != SessionState.ReadyToComplete) return;
+        SetCompletedVisuals();
         SetTrayLocked(true);
-        UpdateTimer();
-
-        if (instructionLabel != null)
-            instructionLabel.text = timeExpiredMessage;
-
-        if (feedbackLabel != null)
-            feedbackLabel.text = string.Empty;
-
-        if (resetButton != null)
-            resetButton.gameObject.SetActive(true);
+        EventLogger.Instance?.MarkCompleteButtonAvailable();
+        SetCompleteButton(true);
     }
 
     private void CompleteSession()
@@ -368,6 +372,11 @@ public sealed class EnergyStationController : MonoBehaviour
 
         rewardGranted = true;
         sessionState = SessionState.RewardCollected;
+        if (questionSets != null && questionSets.Length > 0)
+        {
+            PlayerPrefs.SetInt(QuestionIndexKey, (activeQuestionIndex + 1) % questionSets.Length);
+            PlayerPrefs.Save();
+        }
         sessionStarted = false;
         SetCompleteButton(false);
 
@@ -396,7 +405,8 @@ public sealed class EnergyStationController : MonoBehaviour
     private void SetInitialVisuals()
     {
         if (instructionLabel != null)
-            instructionLabel.text = initialMessage;
+            instructionLabel.text = questionSets != null && questionSets.Length > 0
+                ? questionSets[activeQuestionIndex].prompt : initialMessage;
 
         if (feedbackLabel != null)
             feedbackLabel.text = string.Empty;
@@ -416,7 +426,23 @@ public sealed class EnergyStationController : MonoBehaviour
         }
 
         EventLogger.Instance.BeginSession(activityId);
+        if (questionSets != null && questionSets.Length > 0)
+            EventLogger.Instance.RecordActivityEvent("energy_question:" + questionSets[activeQuestionIndex].id + ":v1");
         sessionStarted = true;
+    }
+
+    private void SelectQuestion()
+    {
+        if (questionSets == null || questionSets.Length == 0)
+            return;
+
+        activeQuestionIndex = Mathf.Clamp(PlayerPrefs.GetInt(QuestionIndexKey, 0), 0, questionSets.Length - 1);
+        foreach (QuestionSet question in questionSets)
+            foreach (DraggableInteraction card in question.cards)
+                if (card != null)
+                    card.gameObject.SetActive(false);
+
+        interactionCards = questionSets[activeQuestionIndex].cards;
     }
 
     private void SetCompletedVisuals()
@@ -458,16 +484,14 @@ public sealed class EnergyStationController : MonoBehaviour
             interactionTray.interactable = !locked;
             interactionTray.blocksRaycasts = !locked;
         }
-
-        // O bloqueio visual é individual: cards escolhidos deixam o slot vazio;
-        // somente os cards que não foram usados recebem a versão escurecida.
+        if (locked) LockCardsForSessionEnd();
+        trayLockTween?.Kill();
+        trayLockTween = null;
+        if (trayLockOverlay == null) return;
+        trayLockOverlay.color = new Color(trayLockColor.r, trayLockColor.g, trayLockColor.b, 0f);
+        trayLockOverlay.gameObject.SetActive(locked);
         if (locked)
-            LockCardsForSessionEnd();
-
-        // Mantido apenas para compatibilidade com cenas antigas. O painel
-        // inteiro não deve cobrir as segundas versões dos cards.
-        if (trayLockOverlay != null)
-            trayLockOverlay.gameObject.SetActive(false);
+            trayLockTween = trayLockOverlay.DOFade(trayLockColor.a, .22f).SetUpdate(true);
     }
 
     private void LockCardsForSessionEnd()
@@ -493,39 +517,38 @@ public sealed class EnergyStationController : MonoBehaviour
 
     private void SetCompleteButton(bool enabled)
     {
-        if (completeButton != null)
-        {
-            completeButtonTween?.Kill();
-            completeButtonTween = null;
-            completeButton.gameObject.SetActive(enabled);
-            completeButton.interactable = enabled;
-            completeButton.transform.localScale = enabled
-                ? completeButtonHomeScale * .9f : completeButtonHomeScale;
-            if (enabled)
-                completeButtonTween = completeButton.transform
-                    .DOScale(completeButtonHomeScale, .28f)
-                    .SetEase(Ease.OutBack).SetUpdate(true);
-        }
+        completeButtonTween?.Kill();
+        completeButtonTween = null;
+        if (completeButton == null) return;
+        completeButton.gameObject.SetActive(enabled);
+        completeButton.interactable = false;
+        if (completeButtonRect == null) return;
+        completeButtonRect.anchoredPosition = enabled
+            ? completeButtonHomePosition + Vector2.down * 180f : completeButtonHomePosition;
+        if (enabled)
+            completeButtonTween = completeButtonRect.DOAnchorPos(completeButtonHomePosition, .45f)
+                .SetEase(Ease.OutCubic).SetUpdate(true)
+                .OnComplete(() => completeButton.interactable = sessionState == SessionState.ReadyToComplete);
     }
 
-    private void UpdateTimer()
+    private void PlayResetHint()
     {
-        if (timerLabel == null)
-            return;
-
-        float remaining = Mathf.Max(0f, maxDurationSeconds - elapsedTime);
-        int displayedSecond = Mathf.CeilToInt(remaining);
-        if (displayedSecond == lastDisplayedSecond)
-            return;
-
-        lastDisplayedSecond = displayedSecond;
-        timerLabel.SetText("{0}", displayedSecond);
+        if (resetButtonRect == null || resetButton == null
+            || !resetButton.isActiveAndEnabled || !resetButton.IsInteractable()) return;
+        resetButtonTween?.Kill();
+        resetButtonRect.anchoredPosition = resetButtonHomePosition;
+        resetButtonTween = DOTween.Sequence().SetUpdate(true)
+            .Append(resetButtonRect.DOAnchorPosY(resetButtonHomePosition.y + 7f, .17f).SetEase(Ease.OutQuad))
+            .Append(resetButtonRect.DOAnchorPosY(resetButtonHomePosition.y, .25f).SetEase(Ease.InQuad));
     }
 
-    private void UpdateProgress(bool immediate = false)
+    private void UpdateProgress(bool immediate = false, System.Action onComplete = null)
     {
         if (progressBackground == null || progressFill == null || interactionsToComplete <= 0)
+        {
+            onComplete?.Invoke();
             return;
+        }
 
         float progress = Mathf.Clamp01((float)interactionCount / interactionsToComplete);
         float targetWidth = progressBackground.rect.width * progress;
@@ -538,6 +561,7 @@ public sealed class EnergyStationController : MonoBehaviour
             Vector2 sizeDelta = progressFill.sizeDelta;
             sizeDelta.x = targetWidth;
             progressFill.sizeDelta = sizeDelta;
+            onComplete?.Invoke();
             return;
         }
 
@@ -545,6 +569,7 @@ public sealed class EnergyStationController : MonoBehaviour
         targetSize.x = targetWidth;
         progressTween = progressFill
             .DOSizeDelta(targetSize, progressAnimationDuration)
-            .SetEase(Ease.OutCubic);
+            .SetEase(Ease.OutCubic)
+            .OnComplete(() => onComplete?.Invoke());
     }
 }

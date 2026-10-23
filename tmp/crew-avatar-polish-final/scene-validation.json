@@ -1,0 +1,22 @@
+[
+  {
+    "scene": "ComboCrew/ComboCrew.unity",
+    "bodyAndHatOutline": true
+  },
+  {
+    "scene": "Customization/Customization.unity",
+    "bodyAndHatOutline": true
+  },
+  {
+    "scene": "EnergyStation/EnergyStation.unity",
+    "bodyAndHatOutline": true
+  },
+  {
+    "scene": "Hub/HUB.unity",
+    "bodyAndHatOutline": true
+  },
+  {
+    "scene": "Profile/Profile.unity",
+    "bodyAndHatOutline": true
+  }
+]

@@ -1,0 +1,314 @@
+[
+  {
+    "name": "hydration",
+    "path": "Assets/Art/EnergyStaion/Cards/hydration.png",
+    "guid": "0124e2245c49305426fcddc4bf9682be",
+    "side": 368,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 153,
+      "right": 512,
+      "top": 79,
+      "bottom": 435
+    }
+  },
+  {
+    "name": "break",
+    "path": "Assets/Art/EnergyStaion/Cards/break.png",
+    "guid": "bd5c1b9dc289a75837a0c76194ea3c58",
+    "side": 369,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 523,
+      "right": 883,
+      "top": 79,
+      "bottom": 434
+    }
+  },
+  {
+    "name": "stretch",
+    "path": "Assets/Art/EnergyStaion/Cards/stretch.png",
+    "guid": "80b6c71aa9a057304d486ec788715f01",
+    "side": 367,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 893,
+      "right": 1251,
+      "top": 79,
+      "bottom": 435
+    }
+  },
+  {
+    "name": "restroom",
+    "path": "Assets/Art/EnergyStaion/Cards/restroom.png",
+    "guid": "5f51447572a01a53d268e18def068591",
+    "side": 365,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 1263,
+      "right": 1619,
+      "top": 80,
+      "bottom": 434
+    }
+  },
+  {
+    "name": "hydration_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/hydration_gray.png",
+    "guid": "1a80b3aa5bfe00fca004b5495de0a9d3",
+    "side": 367,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 154,
+      "right": 512,
+      "top": 443,
+      "bottom": 788
+    }
+  },
+  {
+    "name": "break_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/break_gray.png",
+    "guid": "34344c8330dba05685a7eb9748378968",
+    "side": 369,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 523,
+      "right": 883,
+      "top": 443,
+      "bottom": 788
+    }
+  },
+  {
+    "name": "stretch_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/stretch_gray.png",
+    "guid": "ed6cf955130a3a37a1fc948c2d3ab258",
+    "side": 366,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 894,
+      "right": 1251,
+      "top": 443,
+      "bottom": 788
+    }
+  },
+  {
+    "name": "restroom_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/restroom_gray.png",
+    "guid": "93fb2f07e8e3e4cac4649d92119c9ecd",
+    "side": 365,
+    "source": "Prancha1.png",
+    "bounds": {
+      "left": 1263,
+      "right": 1619,
+      "top": 443,
+      "bottom": 788
+    }
+  },
+  {
+    "name": "support_doubts",
+    "path": "Assets/Art/EnergyStaion/Cards/support_doubts.png",
+    "guid": "f1f13184295eb3cc746a2a2293e38b04",
+    "side": 368,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 151,
+      "right": 510,
+      "top": 77,
+      "bottom": 434
+    }
+  },
+  {
+    "name": "support_priorities",
+    "path": "Assets/Art/EnergyStaion/Cards/support_priorities.png",
+    "guid": "6f64dc5ab6f2dfea8636f5c8e692e058",
+    "side": 371,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 521,
+      "right": 883,
+      "top": 77,
+      "bottom": 434
+    }
+  },
+  {
+    "name": "support_reinforcement",
+    "path": "Assets/Art/EnergyStaion/Cards/support_reinforcement.png",
+    "guid": "501a93e421ae72d16d778a7ecc978c89",
+    "side": 370,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 892,
+      "right": 1253,
+      "top": 77,
+      "bottom": 434
+    }
+  },
+  {
+    "name": "support_materials",
+    "path": "Assets/Art/EnergyStaion/Cards/support_materials.png",
+    "guid": "a6b2ef255c60f186fb13211192c3cf81",
+    "side": 369,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 1262,
+      "right": 1622,
+      "top": 77,
+      "bottom": 434
+    }
+  },
+  {
+    "name": "support_doubts_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/support_doubts_gray.png",
+    "guid": "4c7b0ed854f71e3690631fb443f6cc12",
+    "side": 368,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 151,
+      "right": 510,
+      "top": 441,
+      "bottom": 789
+    }
+  },
+  {
+    "name": "support_priorities_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/support_priorities_gray.png",
+    "guid": "41387fd5ab725c63991de1b2fe3b0f98",
+    "side": 371,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 521,
+      "right": 883,
+      "top": 441,
+      "bottom": 789
+    }
+  },
+  {
+    "name": "support_reinforcement_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/support_reinforcement_gray.png",
+    "guid": "47692975384f3faf2a2b54ad607693fb",
+    "side": 370,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 892,
+      "right": 1253,
+      "top": 441,
+      "bottom": 789
+    }
+  },
+  {
+    "name": "support_materials_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/support_materials_gray.png",
+    "guid": "e0ceae3aebcf1fdd1edffca1ea423b52",
+    "side": 369,
+    "source": "Prancha2.png",
+    "bounds": {
+      "left": 1262,
+      "right": 1622,
+      "top": 441,
+      "bottom": 789
+    }
+  },
+  {
+    "name": "practice_service",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_service.png",
+    "guid": "c1cb51c857e6e24cacd46e437e95bed5",
+    "side": 370,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 148,
+      "right": 509,
+      "top": 76,
+      "bottom": 435
+    }
+  },
+  {
+    "name": "practice_preparation",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_preparation.png",
+    "guid": "95aaf5b9fe67576b85ccb59017dc2085",
+    "side": 373,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 519,
+      "right": 883,
+      "top": 76,
+      "bottom": 435
+    }
+  },
+  {
+    "name": "practice_assembly",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_assembly.png",
+    "guid": "3eaeeb386c1016bc5f0bfa67c1086213",
+    "side": 369,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 892,
+      "right": 1252,
+      "top": 76,
+      "bottom": 435
+    }
+  },
+  {
+    "name": "practice_organization",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_organization.png",
+    "guid": "afa43d2c88a146f098cf95ce89063c19",
+    "side": 373,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 1261,
+      "right": 1625,
+      "top": 76,
+      "bottom": 435
+    }
+  },
+  {
+    "name": "practice_service_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_service_gray.png",
+    "guid": "acfe36441ed2917ed6e76d74a22556a7",
+    "side": 370,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 148,
+      "right": 509,
+      "top": 441,
+      "bottom": 789
+    }
+  },
+  {
+    "name": "practice_preparation_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_preparation_gray.png",
+    "guid": "82d3193a6b203069391a65df8c8b43c9",
+    "side": 373,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 519,
+      "right": 883,
+      "top": 442,
+      "bottom": 789
+    }
+  },
+  {
+    "name": "practice_assembly_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_assembly_gray.png",
+    "guid": "3765c1228b8e837d4cb1ca42af9e18ca",
+    "side": 369,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 892,
+      "right": 1252,
+      "top": 441,
+      "bottom": 789
+    }
+  },
+  {
+    "name": "practice_organization_gray",
+    "path": "Assets/Art/EnergyStaion/Cards/practice_organization_gray.png",
+    "guid": "31cfcfab388e8889357e4b5d8da6e0c6",
+    "side": 373,
+    "source": "Prancha3.png",
+    "bounds": {
+      "left": 1261,
+      "right": 1625,
+      "top": 441,
+      "bottom": 789
+    }
+  }
+]

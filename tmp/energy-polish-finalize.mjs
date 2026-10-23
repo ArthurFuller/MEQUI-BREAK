@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+const dragPath='Assets/Scripts/Minigames/DraggableInteraction.cs';
+let d=fs.readFileSync(dragPath,'utf8');
+d=d.replace(/    \/\/\/ Bloqueia a bandeja ao encerrar a rodada\.[\s\S]*?    \/\/\/ <\/summary>/,'    /// Bloqueia a bandeja e preserva o estado visual das escolhas.\r\n    /// </summary>');
+fs.writeFileSync(dragPath,d);
+const controllerPath='Assets/Scripts/Minigames/EnergyStationController.cs';
+let c=fs.readFileSync(controllerPath,'utf8');
+c=c.replace(/        \/\/ O bloqueio visual[^\r\n]*\r?\n        \/\/ somente os cards[^\r\n]*\r?\n/,'        // O bloqueio impede novas escolhas; cada card preserva seu estado visual.\r\n');
+fs.writeFileSync(controllerPath,c);
+const scenePath='Assets/Scenes/EnergyStation/EnergyStation.unity';
+let s=fs.readFileSync(scenePath,'utf8');
+s=s.replace(/(^--- !u!\d+ &720000\d+\r?\n[\s\S]*?)(?=^--- |$(?![\s\S]))/gm,part=>part.replace(/[ \t]+\r?\n/g,'\r\n'));
+fs.writeFileSync(scenePath,s);

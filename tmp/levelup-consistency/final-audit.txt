@@ -1,0 +1,17 @@
+SampleScene.unity: 0 black face images verified
+Settings\Settings.unity: 0 black face images verified
+RushBalance\RushBalance.unity: 19 black face images verified
+RushBalance\RushBalance2.unity: 19 black face images verified
+Result\Result.unity: 0 black face images verified
+Profile\Profile.unity: 1 black face images verified
+Minigames\Minigames.unity: 0 black face images verified
+Login\Login.unity: 0 black face images verified
+Hub\HUB.unity: 2 black face images verified
+EnergyStation\EnergyStation.unity: 1 black face images verified
+Dashboard\Dashboard.unity: 0 black face images verified
+Dashboard\Dashboard2.unity: 0 black face images verified
+Customization\Customization.unity: 13 black face images verified
+ComboCrew\ComboCrew.unity: 15 black face images verified
+Boot\Boot.unity: 0 black face images verified
+Compilation PASS
+Unity QA: 24 checks PASS

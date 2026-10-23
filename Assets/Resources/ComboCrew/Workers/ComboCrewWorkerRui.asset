@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ComboCrewWorkerProfile
   displayName: Rui
   head: {fileID: -3913592910891531090, guid: 4493eb3c2cb8d324782c64c2ea1026e8, type: 3}
+  bodyColor: {r: 0.5568627450980392, g: 0.48627450980392156, b: 0.7647058823529411, a: 1}
   face: {fileID: 21300000, guid: ea63634220acdb83c850ebfd491223ff, type: 3}
   hat: {fileID: 0}
   stationSpeed:

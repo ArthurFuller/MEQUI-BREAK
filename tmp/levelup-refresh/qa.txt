@@ -1,0 +1,1 @@
+PASS: actual HUB hierarchy, four reward icons, visible editor preview, one-time migration, render

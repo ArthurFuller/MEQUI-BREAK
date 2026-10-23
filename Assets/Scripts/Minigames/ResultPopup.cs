@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-[DisallowMultipleComponent]
+[ExecuteAlways, DisallowMultipleComponent]
 public sealed class ResultPopup : MonoBehaviour
 {
     [Header("Sobreposição")]
@@ -20,6 +20,11 @@ public sealed class ResultPopup : MonoBehaviour
     [Header("Resumo opcional dos pedidos")]
     [Tooltip("Texto existente na Hierarchy. Pode ficar vazio no Energy Station.")]
     [SerializeField] private TMP_Text ordersSummaryLabel;
+
+    [SerializeField] private GameObject ordersStatistics;
+    [SerializeField] private TMP_Text deliveredCountLabel;
+    [SerializeField] private TMP_Text missedCountLabel;
+    [SerializeField, HideInInspector] private int referenceLayoutVersion;
 
     [Header("Animação")]
     [SerializeField, Min(0.05f)] private float enterDuration = 0.45f;
@@ -40,6 +45,7 @@ public sealed class ResultPopup : MonoBehaviour
     [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private string hubSceneName = "HUB";
 
+    private bool initialized;
     private Vector2 _shownPos;
     private Vector2 _hiddenPos;
     private Sequence _activeSequence;
@@ -49,20 +55,61 @@ public sealed class ResultPopup : MonoBehaviour
 
     private void Awake()
     {
+        if (Application.isPlaying && EnsureInitialized()) HideInstant();
+    }
+
+    private void OnEnable()
+    {
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            ShowEditorPreview();
+            return;
+        }
+#endif
+        if (EnsureInitialized()) HideInstant();
+    }
+
+#if UNITY_EDITOR
+    [ContextMenu("Exibir para edição (fora do Play)")]
+    private void ShowEditorPreview()
+    {
+        if (Application.isPlaying) return;
+        if (!gameObject.activeSelf) gameObject.SetActive(true);
+        if (popupPanel != null && !popupPanel.gameObject.activeSelf)
+            popupPanel.gameObject.SetActive(true);
+        if (popupCanvasGroup != null) popupCanvasGroup.alpha = 1f;
+        if (overlayImage != null)
+        {
+            Color color = overlayImage.color;
+            color.a = overlayMaxAlpha;
+            overlayImage.color = color;
+        }
+    }
+#endif
+
+    // Show pode ser chamado antes de Awake quando o objeto começa inativo.
+    private bool EnsureInitialized()
+    {
+        if (initialized) return false;
+        initialized = true;
         _shownPos = popupPanel.anchoredPosition;
         _hiddenPos = _shownPos + new Vector2(0f, -slideOffset);
 
         continueButton.onClick.AddListener(PlayOut);
 
-        HideInstant();
+        return true;
     }
 
     public void Show(int pointsEarned)
     {
+        EnsureInitialized();
         if (ordersSummaryLabel != null)
             ordersSummaryLabel.gameObject.SetActive(false);
 
-        titleLabel.text = "Minigame Concluído";
+        if (ordersStatistics != null) ordersStatistics.SetActive(false);
+
+        titleLabel.text = "RESULTADOS";
         continueButton.interactable = false;
         _displayedRewardPoints = 0;
         _lastRewardLabelValue = int.MinValue;
@@ -70,6 +117,7 @@ public sealed class ResultPopup : MonoBehaviour
 
         ResetVisualState();
         gameObject.SetActive(true);
+        transform.SetAsLastSibling();
         PlayIn();
         PlayRewardCounter(pointsEarned);
         MequiHaptics.Success();
@@ -78,6 +126,13 @@ public sealed class ResultPopup : MonoBehaviour
     public void Show(int pointsEarned, int delivered, int missed)
     {
         Show(pointsEarned);
+        if (ordersStatistics != null)
+        {
+            ordersStatistics.SetActive(true);
+            if (deliveredCountLabel != null) deliveredCountLabel.SetText("{0}", Mathf.Max(0, delivered));
+            if (missedCountLabel != null) missedCountLabel.SetText("{0}", Mathf.Max(0, missed));
+            return;
+        }
         if (ordersSummaryLabel == null)
             return;
 
@@ -160,7 +215,7 @@ public sealed class ResultPopup : MonoBehaviour
             return;
 
         _lastRewardLabelValue = value;
-        pointsLabel.SetText("+{0} Break Points", value);
+        pointsLabel.SetText("+{0} PB", value);
     }
 
     private void KillPointsSequence(bool complete)

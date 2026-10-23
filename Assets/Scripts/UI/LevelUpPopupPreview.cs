@@ -21,6 +21,9 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
         public CanvasGroup canvasGroup;
         public Image icon;
         public TMP_Text itemName;
+        [Tooltip("Centro do desenho no card, independente da transparência da PNG.")] public Vector2 iconCenter;
+        [Tooltip("Área útil do desenho no card, antes do ajuste da PNG.")] public Vector2 iconArea;
+        [NonSerialized] public bool iconLayoutCached;
     }
 
     [Serializable]
@@ -52,17 +55,37 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
 
     [Header("Recompensas")]
     [SerializeField] private RewardSlot[] rewardSlots = Array.Empty<RewardSlot>();
-    [SerializeField] private Sprite partyHatRewardIcon;
-    [SerializeField] private Sprite sailorHatRewardIcon;
-    [SerializeField] private Sprite starEyesRewardIcon;
-    [SerializeField] private Sprite colorSwatchSprite;
     [SerializeField] private CelebrationParticle[] celebrationParticles = Array.Empty<CelebrationParticle>();
 
     [Header("Animação")]
     [SerializeField, Min(0.1f)] private float progressDuration = 0.8f;
     [SerializeField, Min(0f)] private float rewardStagger = 0.12f;
 
+    [SerializeField, HideInInspector] private int referenceLayoutVersion;
+
+#if UNITY_EDITOR
+    [ContextMenu("Exibir para edição (fora do Play)")]
+    public void ShowEditorPreview()
+    {
+        if (Application.isPlaying || popupRoot == null) return;
+        popupRoot.SetActive(true);
+        if (popupGroup != null) { popupGroup.alpha = 1f; popupGroup.interactable = true; popupGroup.blocksRaycasts = true; }
+        if (popupPanel != null) popupPanel.localScale = Vector3.one;
+        if (levelMedal != null) levelMedal.localScale = Vector3.one;
+        if (progressFill != null) SetProgress(1f);
+        if (continueButton != null) continueButton.interactable = true;
+        foreach (RewardSlot slot in rewardSlots)
+            {
+                if (slot?.canvasGroup != null) slot.canvasGroup.alpha = 1f;
+                if (slot?.icon != null) FitRewardIcon(slot);
+            }
+        foreach (CelebrationParticle particle in celebrationParticles)
+            if (particle?.canvasGroup != null) particle.canvasGroup.alpha = 0f;
+    }
+#endif
+
     private const float ProgressInset = 6f;
+    private float progressValue;
 
     private Sequence activeSequence;
     private Vector2[] celebrationTargets = Array.Empty<Vector2>();
@@ -236,9 +259,8 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
         fullProgressSize.y = Mathf.Max(0f, progressTrack.rect.height - ProgressInset * 2f);
         progressFill.rectTransform.anchoredPosition = new Vector2(ProgressInset, 0f);
         progressFill.rectTransform.sizeDelta = fullProgressSize;
-        progressFill.fillAmount = 0f;
-        activeSequence.Append(progressFill
-            .DOFillAmount(1f, progressDuration)
+        SetProgress(0f);
+        activeSequence.Append(DOTween.To(() => progressValue, SetProgress, 1f, progressDuration)
             .SetEase(Ease.OutCubic));
 
         float celebrationTime = panelRevealDuration + progressDuration;
@@ -279,6 +301,20 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
             if (continueButton != null)
                 continueButton.interactable = true;
         });
+    }
+
+    private void SetProgress(float value)
+    {
+        progressValue = Mathf.Clamp01(value);
+        if (progressFill == null || progressTrack == null) return;
+        float height = Mathf.Max(0f, progressTrack.rect.height - ProgressInset * 2f);
+        float fullWidth = Mathf.Max(0f, progressTrack.rect.width - ProgressInset * 2f);
+        progressFill.type = Image.Type.Sliced;
+        progressFill.pixelsPerUnitMultiplier = progressFill.sprite != null && height > 0f
+            ? progressFill.sprite.rect.height / height : 1f;
+        progressFill.rectTransform.sizeDelta = new Vector2(Mathf.Max(height, fullWidth * progressValue), height);
+        progressFill.fillAmount = progressValue;
+        progressFill.enabled = progressValue > 0f;
     }
 
     private void PlayLevelUpFeedback()
@@ -365,36 +401,89 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
             slot.icon.preserveAspect = true;
             slot.icon.raycastTarget = false;
 
-            if (item.Category == AvatarCustomizationCategory.Color)
-            {
-                slot.icon.sprite = colorSwatchSprite;
-                slot.icon.color = avatarView.TryGetCustomizationColor(item.OptionIndex, out Color color)
-                    ? color
-                    : Color.white;
-            }
-            else
-            {
-                slot.icon.sprite = GetRewardIcon(item);
-                slot.icon.color = Color.white;
-            }
+            avatarView.ApplyCustomizationIcon(slot.icon, item.Category, item.OptionIndex);
+            FitRewardIcon(slot);
         }
     }
 
-    private Sprite GetRewardIcon(AvatarCustomizationItem item)
+    private static readonly Dictionary<Sprite, Rect> visibleIconBounds = new Dictionary<Sprite, Rect>();
+
+    private static void FitRewardIcon(RewardSlot slot)
     {
-        if (item.Category == AvatarCustomizationCategory.Hat)
+        RectTransform rect = slot.icon.rectTransform;
+        if (!slot.iconLayoutCached)
         {
-            if (item.OptionIndex == 8 && partyHatRewardIcon != null)
-                return partyHatRewardIcon;
-            if (item.OptionIndex == 17 && sailorHatRewardIcon != null)
-                return sailorHatRewardIcon;
+            if (slot.iconArea.x <= 0f || slot.iconArea.y <= 0f)
+            {
+                slot.iconCenter = rect.anchoredPosition;
+                slot.iconArea = rect.rect.size * .86f;
+            }
+            slot.iconLayoutCached = true;
         }
+        Sprite sprite = slot.icon.sprite;
+        if (sprite == null) return;
+        Rect bounds = GetVisibleIconBounds(sprite);
+        Vector2 min = bounds.min;
+        Vector2 max = bounds.max;
+        Vector2 visibleSize = max - min;
+        if (visibleSize.x <= 0f || visibleSize.y <= 0f) return;
+        float scale = Mathf.Min(slot.iconArea.x / visibleSize.x, slot.iconArea.y / visibleSize.y);
+        Vector2 fullSize = sprite.rect.size * scale;
+        Vector2 visibleCenter = (min + max) * .5f;
+        rect.pivot = Vector2.one * .5f;
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, fullSize.x);
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, fullSize.y);
+        rect.anchoredPosition = slot.iconCenter + (sprite.rect.size * .5f - visibleCenter) * scale;
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
+    }
 
-        if (item.Category == AvatarCustomizationCategory.Face
-            && item.OptionIndex == 8 && starEyesRewardIcon != null)
-            return starEyesRewardIcon;
-
-        return avatarView.GetCustomizationSprite(item.Category, item.OptionIndex);
+    // Lê a transparência uma única vez por sprite, inclusive quando o importador usa Full Rect.
+    // As Images continuam sendo as referências existentes da Hierarchy.
+    private static Rect GetVisibleIconBounds(Sprite sprite)
+    {
+        if (visibleIconBounds.TryGetValue(sprite, out Rect cached)) return cached;
+        Rect source = sprite.textureRect;
+        int width = Mathf.RoundToInt(source.width), height = Mathf.RoundToInt(source.height);
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture temporary = RenderTexture.GetTemporary(sprite.texture.width,
+            sprite.texture.height, 0, RenderTextureFormat.ARGB32);
+        Texture2D readable = null;
+        Rect bounds = new Rect(Vector2.zero, sprite.rect.size);
+        try
+        {
+            Graphics.Blit(sprite.texture, temporary);
+            RenderTexture.active = temporary;
+            readable = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            readable.ReadPixels(source, 0, 0);
+            Color32[] pixels = readable.GetPixels32();
+            int minX = width, minY = height, maxX = -1, maxY = -1;
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    if (pixels[y * width + x].a < 16) continue;
+                    minX = Mathf.Min(minX, x); minY = Mathf.Min(minY, y);
+                    maxX = Mathf.Max(maxX, x); maxY = Mathf.Max(maxY, y);
+                }
+            if (maxX >= minX && maxY >= minY)
+            {
+                Vector2 offset = sprite.textureRectOffset;
+                bounds = Rect.MinMaxRect(minX + offset.x, minY + offset.y,
+                    maxX + 1 + offset.x, maxY + 1 + offset.y);
+            }
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(temporary);
+            if (readable != null)
+            {
+                if (Application.isPlaying) Destroy(readable);
+                else DestroyImmediate(readable);
+            }
+        }
+        visibleIconBounds[sprite] = bounds;
+        return bounds;
     }
 
     private void ResetPopupVisuals()

@@ -1,0 +1,27 @@
+[
+  {
+    "scene": "ComboCrew/ComboCrew.unity",
+    "outlines": 28,
+    "thickness": 10
+  },
+  {
+    "scene": "Customization/Customization.unity",
+    "outlines": 24,
+    "thickness": 10
+  },
+  {
+    "scene": "EnergyStation/EnergyStation.unity",
+    "outlines": 2,
+    "thickness": 10
+  },
+  {
+    "scene": "Hub/HUB.unity",
+    "outlines": 6,
+    "thickness": 10
+  },
+  {
+    "scene": "Profile/Profile.unity",
+    "outlines": 2,
+    "thickness": 10
+  }
+]

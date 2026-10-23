@@ -16,8 +16,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     [SerializeField] private Image fullBodyImage;
     [SerializeField] private Image faceCover;
     [SerializeField] private Image hatImage;
-    [SerializeField, Range(.4f, 1f)] private float fullBodyHatScale = .7f;
-    [SerializeField] private Vector2 fullBodyHatOffset = new Vector2(0f, -.17f);
+    [SerializeField, Range(.4f, 1f)] private float fullBodyHatScale = .9f;
+    [SerializeField] private Vector2 fullBodyHatOffset = new Vector2(0f, -.03f);
     [SerializeField, Min(.01f)] private float hatScaleMultiplier = .78f;
     [SerializeField] private GameObject balloon;
     [SerializeField] private CanvasGroup balloonGroup;
@@ -81,6 +81,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     private float patienceDisplayed = 1f;
     private RectTransform balloonRect;
     private float patienceTarget = 1f;
+    private float patienceSecondsRemaining;
+    private bool patienceRunning;
     private int customerIndex;
     private int mood = -1;
     private bool departing;
@@ -92,7 +94,10 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     public RectTransform DeliveryTarget => character;
     public Color BodyColor => bodyImage != null ? bodyImage.color : Color.white;
     public Image HatImage => hatImage;
-    public float HatScaleMultiplier => hatScaleMultiplier;
+    public float HatScaleMultiplier => hatScaleMultiplier
+        * (fullBodyImage != null && fullBodyImage.enabled ? fullBodyHatScale : 1f);
+    public Vector2 HatModeOffset => fullBodyImage != null && fullBodyImage.enabled
+        ? fullBodyHatOffset : Vector2.zero;
     public bool HasAppearance { get; private set; }
     public int HatIndex { get; private set; } = -1;
     public int TorsoIndex { get; private set; } = -1;
@@ -148,15 +153,22 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
 
     private void Update()
     {
-        float blend = 1f - Mathf.Exp(-barSmoothing * Time.unscaledDeltaTime);
-        patienceDisplayed = Mathf.Lerp(patienceDisplayed, patienceTarget, blend);
-        patienceFill.fillAmount = patienceDisplayed;
-        bool warn = circularPatience && patienceTarget > 0f && patienceTarget <= .2f
+        UpdatePatienceDisplay(Time.unscaledDeltaTime);
+        bool warn = patienceRunning && circularPatience && patienceTarget > 0f && patienceTarget <= .2f
             && patienceTrack.activeInHierarchy;
         if (warn && (patiencePulse == null || !patiencePulse.IsActive()))
             patiencePulse = patienceTrack.transform.DOScale(patienceBaseScale * 1.06f, .45f)
                 .SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo).SetTarget(this);
         else if (!warn) StopPatiencePulse();
+    }
+
+    private void UpdatePatienceDisplay(float deltaTime)
+    {
+        if (circularPatience)
+            patienceDisplayed = patienceTarget;
+        else if (deltaTime > 0f)
+            patienceDisplayed = Mathf.Lerp(patienceDisplayed, patienceTarget, 1f - Mathf.Exp(-barSmoothing * deltaTime));
+        patienceFill.fillAmount = patienceDisplayed;
     }
 
     public void Clear()
@@ -183,6 +195,8 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         patienceDisplayed = 1f;
         if (patienceFill != null) patienceFill.fillAmount = 1f;
         patienceTarget = 1f;
+        patienceSecondsRemaining = 0f;
+        patienceRunning = false;
         gameObject.SetActive(false);
     }
 
@@ -205,6 +219,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         faceCover.enabled = useFullBody;
         hatImage.sprite = appearance.HatSprite;
         hatImage.enabled = appearance.HatSprite != null;
+        AvatarView.StyleCustomizationIcon(hatImage, AvatarCustomizationCategory.Hat);
         AvatarView.ApplyNormalizedTransform(
             hatImage,
             appearance.HatOffset + (useFullBody ? fullBodyHatOffset : Vector2.zero),
@@ -298,8 +313,15 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     {
         if (!gameObject.activeSelf || departing) return;
 
-        float ratio = Mathf.Clamp01(order.Remaining / order.Patience);
+        bool active = order.State == RushRound.Status.Waiting || order.State == RushRound.Status.Queued
+            || order.State == RushRound.Status.Ready;
+        patienceSecondsRemaining = Mathf.Max(0f, order.Remaining);
+        float ratio = order.Patience > 0f ? Mathf.Clamp01(patienceSecondsRemaining / order.Patience) : 0f;
         patienceTarget = ratio;
+        patienceRunning = active && patienceSecondsRemaining > 0f;
+        if (!patienceRunning) StopPatiencePulse();
+        if (order.State == RushRound.Status.Delivered) patienceTrack.SetActive(false);
+        UpdatePatienceDisplay(0f);
         patienceFill.color = ratio > .65f
             ? new Color(.34f, .72f, .39f)
             : ratio > .3f ? new Color(1f, .72f, .12f) : new Color(.9f, .25f, .18f);

@@ -1,0 +1,4 @@
+Saved existing HUB popup objects: 54
+Version 1
+New badge, XP track/fill, result panel, reward blocks, continue button
+Editor group alpha=1

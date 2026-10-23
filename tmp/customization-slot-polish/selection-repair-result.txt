@@ -1,0 +1,1 @@
+PASS: 46 slots repaired; selection on/off; original colors preserved; idempotent; saved.

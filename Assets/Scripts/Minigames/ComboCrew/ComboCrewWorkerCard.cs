@@ -310,6 +310,7 @@ public sealed class ComboCrewWorkerCard : HierarchyDragHandle, IPointerClickHand
         if (cardDetails != null) cardDetails.SetActive(true);
         if (dragging)
         {
+            owner.BeginMoveWorker(workerIndex);
             hoveredStation = -1;
             transform.SetAsLastSibling();
             clipboard.CloseForDrag(DragVisual);

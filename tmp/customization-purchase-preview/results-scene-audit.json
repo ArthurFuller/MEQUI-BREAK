@@ -1,0 +1,22 @@
+[
+  {
+    "scene": "EnergyStation/EnergyStation",
+    "popupReferencesValid": true,
+    "returnScene": "HUB"
+  },
+  {
+    "scene": "ComboCrew/ComboCrew",
+    "popupReferencesValid": true,
+    "returnScene": "HUB"
+  },
+  {
+    "scene": "RushBalance/RushBalance",
+    "popupReferencesValid": true,
+    "returnScene": "HUB"
+  },
+  {
+    "scene": "RushBalance/RushBalance2",
+    "popupReferencesValid": true,
+    "returnScene": "HUB"
+  }
+]

@@ -37,6 +37,7 @@ public sealed class ComboCrewWorkerStationDrag : MonoBehaviour, IBeginDragHandle
         if (dragging || data.button != PointerEventData.InputButton.Left || owner == null
             || !owner.CanMoveWorker(workerIndex) || actor == null || canvasRect == null
             || canvasGroup == null || actorGroup == null || !Point(data, out Vector3 position)) return;
+        if (!owner.BeginMoveWorker(workerIndex)) return;
         actor.DOKill();
         origin = actor.position;
         offset = origin - position;
@@ -73,9 +74,8 @@ public sealed class ComboCrewWorkerStationDrag : MonoBehaviour, IBeginDragHandle
         if (actorGroup != null) actorGroup.blocksRaycasts = actorRaycasts;
         canvasGroup.blocksRaycasts = true;
         owner.HighlightStations(false);
-        if (!accepted) actor.DOMove(origin, .16f).SetEase(Ease.OutCubic);
         RestoreParent();
-        if (accepted) owner.SnapWorkerToStation(workerIndex);
+        owner.SnapWorkerToStation(workerIndex);
     }
 
     private bool Point(PointerEventData data, out Vector3 position) =>

@@ -1,0 +1,3 @@
+Assets\Scripts\Minigames\RushBalance\RushCustomerView.cs(56,47): warning CS0414: The field 'RushCustomerView.balloonPopSeconds' is assigned but its value is never used
+Assets\Scripts\Minigames\ComboCrew\ComboCrewStationView.cs(63,18): warning CS0414: The field 'ComboCrewStationView.completionPlayed' is assigned but its value is never used
+Assets\Scripts\Minigames\ComboCrew\ComboCrewStationView.cs(34,47): warning CS0414: The field 'ComboCrewStationView.completionFlashSeconds' is assigned but its value is never used

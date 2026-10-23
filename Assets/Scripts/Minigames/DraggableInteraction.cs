@@ -19,8 +19,11 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     [Header("Estado visual bloqueado")]
     [Tooltip("Arte do card. Se não for atribuída, o filho cujo nome começa com 'Card' será usado.")]
     [SerializeField] private GameObject cardVisual;
-    [Tooltip("Contorno tracejado do slot. Se não for atribuído, o filho cujo nome começa com 'Slot' será usado.")]
+    [Tooltip("Arte fixa do encaixe cinza. Se não for atribuída, o filho cujo nome começa com 'Slot' será usado.")]
     [SerializeField] private GameObject slotVisual;
+    [SerializeField] private Image stateImage;
+    [SerializeField] private Sprite normalSprite;
+    [SerializeField] private Sprite usedSprite;
     [SerializeField] private Color lockedTint = new Color(0.28f, 0.28f, 0.28f, 1f);
 
     private RectTransform rectTransform;
@@ -40,6 +43,8 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     private Tween idleHop;
     private RectTransform idleHopVisual;
     private Vector2 idleHopHome;
+    private RectTransform slotHopVisual;
+    private Vector2 slotHopHome;
 
     public string InteractionId => interactionId;
     public string ReactionTrigger => reactionTrigger;
@@ -120,7 +125,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     }
 
     /// <summary>
-    /// Marca o card como aceito e esconde sua arte, mantendo somente o slot vazio.
+    /// Consome a arte colorida e deixa visível o encaixe cinza já existente.
     /// </summary>
     public void AcceptDrop()
     {
@@ -142,8 +147,7 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     }
 
     /// <summary>
-    /// Bloqueia a bandeja ao encerrar a rodada. Cards escolhidos continuam
-    /// ausentes; somente os cards que sobraram recebem a versão escurecida.
+    /// Bloqueia a bandeja e preserva o estado visual das escolhas.
     /// </summary>
     public void LockForSessionEnd()
     {
@@ -220,12 +224,16 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         idleHopVisual = cardVisual != null ? cardVisual.transform as RectTransform : null;
         if (idleHopVisual == null) return;
         idleHopHome = idleHopVisual.anchoredPosition;
-        idleHop = DOTween.Sequence().SetUpdate(true).SetTarget(this)
-            .Append(idleHopVisual.DOAnchorPosY(idleHopHome.y + 10f, .17f)
-                .SetEase(Ease.OutQuad))
-            .Append(idleHopVisual.DOAnchorPosY(idleHopHome.y, .23f)
-                .SetEase(Ease.InQuad))
-            .OnComplete(() => idleHop = null);
+        slotHopVisual = slotVisual != null ? slotVisual.transform as RectTransform : null;
+        if (slotHopVisual != null) slotHopHome = slotHopVisual.anchoredPosition;
+        Sequence hop = DOTween.Sequence().SetUpdate(true).SetTarget(this);
+        hop.Append(idleHopVisual.DOAnchorPosY(idleHopHome.y + 10f, .17f).SetEase(Ease.OutQuad));
+        if (slotHopVisual != null)
+            hop.Join(slotHopVisual.DOAnchorPosY(slotHopHome.y + 10f, .17f).SetEase(Ease.OutQuad));
+        hop.Append(idleHopVisual.DOAnchorPosY(idleHopHome.y, .23f).SetEase(Ease.InQuad));
+        if (slotHopVisual != null)
+            hop.Join(slotHopVisual.DOAnchorPosY(slotHopHome.y, .23f).SetEase(Ease.InQuad));
+        idleHop = hop.OnComplete(() => idleHop = null);
     }
 
     private void StopIdleHop()
@@ -234,6 +242,8 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
         idleHop = null;
         if (idleHopVisual != null)
             idleHopVisual.anchoredPosition = idleHopHome;
+        if (slotHopVisual != null)
+            slotHopVisual.anchoredPosition = slotHopHome;
     }
 
     private void CacheComponents()
@@ -275,6 +285,14 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
 
     private void ApplyLockedTint(bool locked)
     {
+        // O encaixe cinza usa outro asset na cena; a arte arrastável permanece colorida.
+        if (stateImage != null && normalSprite != null && usedSprite != null)
+        {
+            stateImage.sprite = normalSprite;
+            stateImage.color = Color.white;
+            return;
+        }
+
         if (cardGraphics == null || originalGraphicColors == null)
             return;
 
@@ -355,6 +373,9 @@ public sealed class DraggableInteraction : MonoBehaviour, IBeginDragHandler, IDr
     private void OnDisable()
     {
         StopIdleHop();
+        // Slots fixos sao irmaos do card e acompanham a ativacao da pergunta.
+        if (slotVisual != null && slotVisual.transform.parent != transform)
+            slotVisual.SetActive(false);
         // Durante OnDisable o Unity ainda está processando a desativação;
         // alterar a hierarquia nesse ponto gera erro de ativação/desativação.
         // O reparenting é feito com segurança no reset ou no fim do retorno.

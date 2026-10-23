@@ -14,6 +14,8 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     private GameObject carriedTray;
     [SerializeField] private GameObject[] carriedItems;
     [SerializeField] private AvatarView playerAvatar;
+    [SerializeField, Tooltip("Mesma silhueta do jogador, com contorno configurado no objeto Corpo.")]
+    private Sprite bodySilhouette;
     [Header("Especialidade")]
     [SerializeField] private string displayName = "Equipe";
     [SerializeField, Tooltip("Ordem: Preparo, Chapa, Montagem, Entrega, Lava-louça. 1 = normal; 1,2 = 20% mais velocidade.")]
@@ -28,6 +30,10 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     private float breakDurationMultiplier = 1f;
     [Header("Pausa")]
     [SerializeField] private Image breakRing;
+    [SerializeField] private Animator breakWarningAnimator;
+    [SerializeField, Range(0f, 1f)] private float breakAlertFraction = .3f;
+    private static readonly int ClockProgressId = Animator.StringToHash("ClockProgress");
+    private static readonly int ClockUrgentId = Animator.StringToHash("Urgent");
     [SerializeField] private GameObject breakBubble;
     [SerializeField] private TMP_Text breakBubbleText;
     [SerializeField, Tooltip("Balão à direita do ator. Mova este objeto diretamente na cena.")]
@@ -94,15 +100,11 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         Image hat = actor.Find("Chapeu")?.GetComponent<Image>();
         if (body != null && profile.head != null)
         {
-            body.sprite = profile.head;
-            body.color = Color.white;
+            body.sprite = bodySilhouette != null ? bodySilhouette : profile.head;
+            body.color = bodySilhouette != null ? profile.bodyColor : Color.white;
         }
-        if (face != null && profile.face != null) face.sprite = profile.face;
-        if (hat != null && profile.hat != null)
-        {
-            hat.sprite = profile.hat;
-            hat.gameObject.SetActive(true);
-        }
+        if (face != null) { if (profile.face != null) face.sprite = profile.face; face.color = Color.black; }
+        if (hat != null) hat.gameObject.SetActive(false);
     }
     public void CopyPortrait(Image body, Image portraitFace, Image hat)
     {
@@ -114,11 +116,12 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
             body.sprite = actorBody.sprite;
             body.color = actorBody.color;
             body.preserveAspect = true;
+            CopyPortraitOutline(actorBody, body);
         }
         if (portraitFace != null && face != null)
         {
             portraitFace.sprite = face.sprite;
-            portraitFace.color = face.color;
+            portraitFace.color = Color.black;
         }
         if (hat != null)
         {
@@ -128,8 +131,15 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
             {
                 hat.sprite = actorHat.sprite;
                 hat.color = actorHat.color;
+                CopyPortraitOutline(actorHat, hat);
             }
         }
+    }
+    private static void CopyPortraitOutline(Image source, Image target)
+    {
+        AvatarSpriteOutline outline = target.GetComponent<AvatarSpriteOutline>();
+        if (outline != null)
+            outline.enabled = source.GetComponent<AvatarSpriteOutline>()?.enabled == true;
     }
     public float PauseWeight => pauseWeight;
     public float RepairTimeMultiplier => repairTimeMultiplier;
@@ -260,16 +270,16 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     public void ShowBreakWarning(float remainingFraction)
     {
         if (breakRing == null) return;
-        breakRing.gameObject.SetActive(remainingFraction > 0f);
-        if (remainingFraction > 0f && deliveryHomeParent == null)
-            MoveToForeground(pauseForegroundLayer);
-        else if (remainingFraction <= 0f && !Busy && ActiveBubble != null
-            && !ActiveBubble.activeSelf)
-            RestoreDeliveryLayer();
-        breakRing.type = Image.Type.Filled;
-        breakRing.fillMethod = Image.FillMethod.Radial360;
-        breakRing.fillOrigin = (int)Image.Origin360.Top;
-        breakRing.fillAmount = Mathf.Clamp01(remainingFraction);
+        float remaining = Mathf.Clamp01(remainingFraction);
+        bool visible = remaining > 0f;
+        breakRing.gameObject.SetActive(visible);
+
+        // Os clipes controlam a imagem e o pulso; o jogo apenas informa o tempo.
+        if (visible && breakWarningAnimator != null)
+        {
+            breakWarningAnimator.SetFloat(ClockProgressId, 1f - remaining);
+            breakWarningAnimator.SetBool(ClockUrgentId, remaining <= breakAlertFraction);
+        }
     }
 
     public void ShowStationProblem(bool visible)
@@ -631,30 +641,54 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     }
 
     public bool Wash(RectTransform counter, RectTransform firstStation, int count,
-        float secondsPerTray, Action collected, Action completed)
+        float secondsPerTray, Action collected, Action completed,
+        float progress = 0f, bool alreadyCollected = false)
     {
         if (!Configured || home == null || counter == null || firstStation == null || Busy || count < 1) return false;
+        actor.DOKill();
+        MoveToForeground(pauseForegroundLayer);
         WashingAtSink = false;
-        WashProgress = 0f;
+        WashProgress = Mathf.Clamp01(progress);
         SetTrayItems(0);
-        route = DOTween.Sequence().SetTarget(this)
-            .Append(actor.DOMove(counter.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
-            .AppendCallback(() => carriedTray.SetActive(true))
-            .AppendCallback(() => collected?.Invoke())
-            .Append(actor.DOMove(home.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
-            .AppendCallback(() => WashingAtSink = true)
+        route = DOTween.Sequence().SetTarget(this);
+        if (!alreadyCollected)
+        {
+            route.Append(actor.DOMove(counter.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
+                .AppendCallback(() => carriedTray.SetActive(true))
+                .AppendCallback(() => collected?.Invoke())
+                .Append(actor.DOMove(home.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic));
+        }
+        else
+        {
+            carriedTray.SetActive(true);
+            route.Append(actor.DOMove(home.position, travelSeconds).SetEase(Ease.InOutCubic));
+        }
+        route.AppendCallback(() => WashingAtSink = true)
             .Append(DOTween.To(() => WashProgress, value => WashProgress = value,
-                1f, secondsPerTray * count).SetEase(Ease.Linear))
+                1f, Mathf.Max(.01f, secondsPerTray * count * (1f - WashProgress))).SetEase(Ease.Linear))
             .AppendCallback(() => WashingAtSink = false)
             .Append(actor.DOMove(firstStation.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
             .AppendCallback(() => carriedTray.SetActive(false))
             .Append(actor.DOMove(home.position, travelSeconds).SetEase(Ease.InOutCubic))
-            .OnComplete(() => { WashingAtSink = false; route = null; completed?.Invoke(); });
+            .OnComplete(() => { WashingAtSink = false; RestoreDeliveryLayer(); route = null; completed?.Invoke(); });
         return true;
+    }
+
+    /// <summary>Interrompe o transporte; o controlador mantém o trabalho na estação.</summary>
+    public void StopWorkRoute()
+    {
+        route?.Kill(false);
+        route = null;
+        WashingAtSink = false;
+        actor?.DOKill();
+        RestoreDeliveryLayer();
+        if (carriedTray != null) carriedTray.SetActive(false);
+        SetTrayItems(0);
     }
 
     public void SetPaused(bool value)
     {
+        if (breakWarningAnimator != null) breakWarningAnimator.speed = value ? 0f : 1f;
         if (!Busy) return;
         if (value) route.Pause();
         else route.Play();
@@ -679,7 +713,6 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         if (breakRing != null)
         {
             breakRing.gameObject.SetActive(false);
-            breakRing.fillAmount = 0f;
         }
         SetTrayItems(0);
         if (actorGroup != null) actorGroup.blocksRaycasts = originalRaycasts;

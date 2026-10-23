@@ -1,0 +1,17 @@
+[
+  {
+    "scene": "EnergyStation/EnergyStation",
+    "version": "1",
+    "statistics": false
+  },
+  {
+    "scene": "RushBalance/RushBalance2",
+    "version": "1",
+    "statistics": true
+  },
+  {
+    "scene": "ComboCrew/ComboCrew",
+    "version": "1",
+    "statistics": true
+  }
+]

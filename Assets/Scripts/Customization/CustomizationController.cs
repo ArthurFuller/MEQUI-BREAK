@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// Controla a edição temporária do avatar, as regras de desbloqueio, a compra
@@ -47,7 +48,10 @@ public sealed partial class CustomizationController : MonoBehaviour
     [Header("Confirmação de compra (opcional)")]
     [Tooltip("Sem painel, a compra com Break Points é tentada imediatamente ao clicar.")]
     [SerializeField] private GameObject purchaseConfirmPanel;
-    [SerializeField] private TMP_Text purchaseConfirmLabel;
+    [FormerlySerializedAs("purchaseConfirmLabel")]
+    [SerializeField] private TMP_Text purchaseConfirmPrice;
+    [SerializeField] private Image purchaseConfirmSlot;
+    [SerializeField] private Image purchaseConfirmItem;
     [SerializeField] private Button purchaseConfirmYesButton;
     [SerializeField] private Button purchaseConfirmNoButton;
 
@@ -107,7 +111,9 @@ public sealed partial class CustomizationController : MonoBehaviour
     private CanvasGroup _feedbackCanvasGroup;
     private Sequence _purchasePanelSequence;
 
+    private Coroutine _initialOptionWave;
     private Sequence _optionWaveSequence;
+    private readonly List<Behaviour> _waveLayouts = new List<Behaviour>();
     private readonly List<OptionWaveTarget> _activeOptionWaveTargets = new List<OptionWaveTarget>();
     private readonly List<OptionWaveTarget> _optionWaveSortBuffer = new List<OptionWaveTarget>(12);
 
@@ -155,7 +161,7 @@ public sealed partial class CustomizationController : MonoBehaviour
             Canvas.ForceUpdateCanvases();
         UpdateTabIndicator(animate: false);
 
-        StartCoroutine(PlayInitialOptionWaveWhenReady());
+        _initialOptionWave = StartCoroutine(PlayInitialOptionWaveWhenReady());
 
         // O painel de compra sempre começa oculto.
         if (purchaseConfirmPanel != null)
@@ -169,7 +175,7 @@ public sealed partial class CustomizationController : MonoBehaviour
         {
             Image preview = FindOptionPreview(faceOptions[i], "Preview_Face_");
             if (preview == null) continue;
-            preview.color = Color.black;
+            AvatarView.StyleCustomizationIcon(preview, AvatarCustomizationCategory.Face);
             AvatarOptionAccent.SetFaceAccent(preview, avatarPreview);
         }
 
@@ -179,7 +185,7 @@ public sealed partial class CustomizationController : MonoBehaviour
             if (preview == null) continue;
             RectTransform rect = preview.rectTransform;
             rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, 0f);
-            AddOptionAccent(preview.transform, "ContornoCor", AvatarOptionAccent.AccentKind.ColorBorder);
+            AvatarView.StyleCustomizationIcon(preview, AvatarCustomizationCategory.Color);
         }
 
         for (int i = 0; i < (hatOptions?.Length ?? 0); i++)
@@ -197,8 +203,8 @@ public sealed partial class CustomizationController : MonoBehaviour
             Outline oldOutline = preview.GetComponent<Outline>();
             if (oldOutline != null) oldOutline.enabled = false;
             AvatarSpriteOutline outline = preview.GetComponent<AvatarSpriteOutline>();
-            if (outline == null) outline = preview.gameObject.AddComponent<AvatarSpriteOutline>();
-            outline.Thickness = 4f;
+            if (outline != null) outline.enabled = true;
+            AvatarView.StyleCustomizationIcon(preview, AvatarCustomizationCategory.Hat);
         }
     }
 
@@ -262,11 +268,13 @@ public sealed partial class CustomizationController : MonoBehaviour
 
         // Aguarda um frame para o layout assumir suas posições finais.
         yield return null;
+        _initialOptionWave = null;
         PlayOptionWave();
     }
 
     private void OnDisable()
     {
+        CancelInitialOptionWave();
         // Restaura alphas e posições se a tela sair durante a animação.
         KillOptionWave(true);
         KillFeedbackTween();
@@ -277,7 +285,10 @@ public sealed partial class CustomizationController : MonoBehaviour
     private void OnEnable()
     {
         if (_started)
+        {
             BindButtons();
+            _initialOptionWave = StartCoroutine(PlayInitialOptionWaveWhenReady());
+        }
     }
 
     private void OnDestroy()
@@ -319,19 +330,23 @@ public sealed partial class CustomizationController : MonoBehaviour
 
     private void SelectCategory(AvatarCustomizationCategory category)
     {
-        if (selectedCategory == category)
-        {
-            // Tocar novamente na aba ativa reinicia sua onda.
-            PlayOptionWave();
-            return;
-        }
-
+        CancelInitialOptionWave();
+        // Restaura a grade anterior antes de recalcular a categoria que vai entrar.
+        KillOptionWave(true);
         selectedCategory = category;
         RefreshVisibleOptions();
-        if (animateTabIndicator || animateOptionWave)
+        if (!animateOptionWave && animateTabIndicator)
             Canvas.ForceUpdateCanvases();
+        PlayOptionWave();
         UpdateTabIndicator(animate: true);
-        PlayOptionWave(forceLayout: false);
+    }
+
+    private void CancelInitialOptionWave()
+    {
+        if (_initialOptionWave == null)
+            return;
+        StopCoroutine(_initialOptionWave);
+        _initialOptionWave = null;
     }
 
     // Indicador de aba
@@ -662,10 +677,48 @@ public sealed partial class CustomizationController : MonoBehaviour
             return;
         }
 
-        if (purchaseConfirmLabel != null)
-            purchaseConfirmLabel.text = $"Comprar {DisplayNameOrFallback(item)} por {item.BreakPointCost} PB?";
+        RefreshPurchasePreview(item);
 
         AnimatePurchasePanelEnter();
+    }
+
+    private void RefreshPurchasePreview(AvatarCustomizationItem item)
+    {
+        if (purchaseConfirmPrice != null)
+            purchaseConfirmPrice.text = $"{item.BreakPointCost} PB";
+        if (purchaseConfirmItem == null) return;
+
+        GameObject[] options = item.Category == AvatarCustomizationCategory.Hat ? hatOptions
+            : item.Category == AvatarCustomizationCategory.Face ? faceOptions : colorOptions;
+        string prefix = item.Category == AvatarCustomizationCategory.Hat ? "Preview_Hat_"
+            : item.Category == AvatarCustomizationCategory.Face ? "Preview_Face_" : "Preview_Color_";
+        GameObject option = null;
+        if (options != null)
+            foreach (GameObject candidate in options)
+                if (candidate != null && candidate.GetComponent<AvatarOptionButton>()?.OptionIndex == item.OptionIndex)
+                { option = candidate; break; }
+        Image source = FindOptionPreview(option, prefix);
+        if (source != null)
+        {
+            purchaseConfirmItem.sprite = source.sprite;
+            purchaseConfirmItem.color = source.color;
+            if (purchaseConfirmSlot != null && option.TryGetComponent(out Image slot))
+            {
+                purchaseConfirmSlot.sprite = slot.sprite;
+                purchaseConfirmSlot.color = slot.color;
+                purchaseConfirmSlot.type = slot.type;
+            }
+        }
+        else
+        {
+            if (avatarPreview != null)
+                avatarPreview.ApplyCustomizationIcon(purchaseConfirmItem, item.Category, item.OptionIndex);
+        }
+        purchaseConfirmItem.preserveAspect = true;
+        purchaseConfirmItem.enabled = purchaseConfirmItem.sprite != null;
+        AvatarSpriteOutline outline = purchaseConfirmItem.GetComponent<AvatarSpriteOutline>();
+        if (outline != null) outline.enabled = item.Category != AvatarCustomizationCategory.Face;
+        AvatarView.StyleCustomizationIcon(purchaseConfirmItem, item.Category);
     }
 
     private static string DisplayNameOrFallback(AvatarCustomizationItem item)
@@ -727,7 +780,7 @@ public sealed partial class CustomizationController : MonoBehaviour
     /// <summary>
     /// Anima as opções visíveis de baixo para cima usando suas posições reais no layout.
     /// </summary>
-    private void PlayOptionWave(bool forceLayout = true)
+    private void PlayOptionWave()
     {
         if (!animateOptionWave)
             return;
@@ -738,8 +791,18 @@ public sealed partial class CustomizationController : MonoBehaviour
 
         KillOptionWave(true);
 
-        if (forceLayout)
-            Canvas.ForceUpdateCanvases();
+        Canvas.ForceUpdateCanvases();
+
+        // Cada categoria começa na primeira linha, sem a inércia da rolagem anterior.
+        for (int i = 0; i < cachedTargets.Length; i++)
+        {
+            ScrollRect scroll = cachedTargets[i]?.RectTransform?.GetComponentInParent<ScrollRect>();
+            if (scroll == null)
+                continue;
+            scroll.StopMovement();
+            scroll.verticalNormalizedPosition = 1f;
+            break;
+        }
 
         _optionWaveSortBuffer.Clear();
 
@@ -767,6 +830,23 @@ public sealed partial class CustomizationController : MonoBehaviour
             _optionWaveSortBuffer.Sort(CompareWaveTargetsTopToBottom);
         else
             _optionWaveSortBuffer.Sort(CompareWaveTargetsBottomToTop);
+
+        // A grade define as posições finais; durante a onda, só o tween pode movê-las.
+        foreach (OptionWaveTarget target in _optionWaveSortBuffer)
+        {
+            LayoutGroup layout = target.RectTransform.parent.GetComponent<LayoutGroup>();
+            if (layout != null && layout.enabled && !_waveLayouts.Contains(layout))
+            {
+                ContentSizeFitter fitter = layout.GetComponent<ContentSizeFitter>();
+                if (fitter != null && fitter.enabled)
+                {
+                    _waveLayouts.Add(fitter);
+                    fitter.enabled = false;
+                }
+                _waveLayouts.Add(layout);
+                layout.enabled = false;
+            }
+        }
 
         _optionWaveSequence = DOTween.Sequence();
         _optionWaveSequence.SetUpdate(UpdateType.Late);
@@ -820,6 +900,7 @@ public sealed partial class CustomizationController : MonoBehaviour
             }
 
             _activeOptionWaveTargets.Clear();
+            RestoreWaveLayouts();
             _optionWaveSequence = null;
         });
 
@@ -847,6 +928,7 @@ public sealed partial class CustomizationController : MonoBehaviour
         }
 
         _optionWaveSequence = null;
+        RestoreWaveLayouts();
 
         if (!restoreTargets)
         {
@@ -874,6 +956,14 @@ public sealed partial class CustomizationController : MonoBehaviour
         }
 
         _activeOptionWaveTargets.Clear();
+    }
+
+    private void RestoreWaveLayouts()
+    {
+        foreach (Behaviour layout in _waveLayouts)
+            if (layout != null)
+                layout.enabled = true;
+        _waveLayouts.Clear();
     }
 
     private void RefreshVisibleOptions()

@@ -1,0 +1,5 @@
+RushBalance: 9 outlined hats, calibrated full-body fit, new HUD, original back binding
+RushBalance2: 9 outlined hats, calibrated full-body fit, new HUD, original back binding
+New headphone texture: verified under original GUID
+Compilation PASS
+Unity QA: 103 checks PASS

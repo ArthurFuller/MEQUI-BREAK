@@ -85,6 +85,20 @@ public sealed class EventLogger : MonoBehaviour
         optionalClarityChoiceId = choiceId;
     }
 
+    // A redefinicao descarta as escolhas anteriores, sem reiniciar o cronometro.
+    public void ResetChoices()
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)) return;
+        interactionIds.Clear();
+        interactionCount = 0;
+        activityEnded = completedEarly = timeLimitReached = false;
+        gameplayEndTime = 0f;
+        optionalClarityChoiceId = null;
+        eventTypes.RemoveAll(value => value == "USER_ACTION"
+            || value == "ACTIVITY_COMPLETED_EARLY" || value == "COMPLETE_BUTTON_AVAILABLE");
+        eventTypes.Add("CHOICES_RESET");
+    }
+
     public void MarkActivityCompletedEarly()
     {
         if (activityEnded)

@@ -302,7 +302,7 @@ public sealed partial class ComboCrewController
                 continue;
             }
             if (workerWarnings[worker] > 0f || moving[worker]
-                || workers[worker].Busy || workers[worker].Dragging) continue;
+                || workers[worker].Busy || WorkerDragging(worker)) continue;
             int index = worker;
             if (!workers[index].TakeBreak(
                 workerBreakDurations[index] * workers[index].BreakDurationMultiplier,
@@ -350,7 +350,7 @@ public sealed partial class ComboCrewController
             if (workerAvailable[i] && assigned[i] >= 0 && !workerAway[i]
                 && !workerBreakPending[i]
                 && turnElapsed >= workerReadyAt[i] && !moving[i]
-                && !workers[i].Busy && !workers[i].Dragging)
+                && !workers[i].Busy && !WorkerDragging(i))
                 total += workers[i].PauseWeight;
         if (total <= 0f) return false;
         float ticket = (float)turnRandom.NextDouble() * total;
@@ -359,7 +359,7 @@ public sealed partial class ComboCrewController
             if (!workerAvailable[i] || assigned[i] < 0 || workers[i].PauseWeight <= 0f
                 || workerAway[i]
                 || workerBreakPending[i] || turnElapsed < workerReadyAt[i]
-                || moving[i] || workers[i].Busy || workers[i].Dragging) continue;
+                || moving[i] || workers[i].Busy || WorkerDragging(i)) continue;
             ticket -= workers[i].PauseWeight;
             if (ticket > 0f) continue;
             workerWarnings[i] = 5f;

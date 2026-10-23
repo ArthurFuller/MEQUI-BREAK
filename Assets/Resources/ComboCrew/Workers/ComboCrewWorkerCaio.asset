@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ComboCrewWorkerProfile
   displayName: Caio
   head: {fileID: -2134559655200964593, guid: 161b96eac9ed1c04c9c515d692deff48, type: 3}
+  bodyColor: {r: 0.9098039215686274, g: 0.5176470588235295, b: 0.22745098039215686, a: 1}
   face: {fileID: 21300000, guid: 786310f6d628431430d25dbde8f0619e, type: 3}
   hat: {fileID: 0}
   stationSpeed:

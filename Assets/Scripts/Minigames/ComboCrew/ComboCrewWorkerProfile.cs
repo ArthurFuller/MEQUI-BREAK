@@ -6,6 +6,7 @@ public sealed class ComboCrewWorkerProfile : ScriptableObject
 {
     public string displayName = "Equipe";
     public Sprite head;
+    public Color bodyColor = Color.white;
     public Sprite face;
     public Sprite hat;
     [Tooltip("Ordem: Preparo, Chapa, Montagem, Entrega, Lava-louça.")]

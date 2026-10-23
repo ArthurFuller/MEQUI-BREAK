@@ -1,0 +1,584 @@
+using System.Collections.Generic;
+using System.Collections;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+
+public sealed class EnergyStationController : MonoBehaviour
+{
+    [Header("Referências")]
+    [SerializeField] private ResultPopup resultPopup;
+    [SerializeField] private DraggableInteraction[] interactionCards;
+
+    [System.Serializable]
+    private sealed class QuestionSet
+    {
+        public string id;
+        [TextArea(2, 3)] public string prompt;
+        public DraggableInteraction[] cards;
+    }
+
+    [Header("Perguntas e cards da Hierarchy")]
+    [SerializeField] private QuestionSet[] questionSets;
+    private const string QuestionIndexKey = "EnergyStation.QuestionIndex";
+    private int activeQuestionIndex;
+
+    [Header("Interface")]
+    [SerializeField] private RectTransform progressBackground;
+    [SerializeField] private RectTransform progressFill;
+    [SerializeField] private TMP_Text feedbackLabel;
+    [SerializeField] private Button completeButton;
+    [SerializeField] private Button resetButton;
+    [SerializeField] private TMP_Text instructionLabel;
+    [SerializeField] private AvatarView avatarView;
+    [SerializeField] private Image trayLockOverlay;
+    [SerializeField] private CanvasGroup interactionTray;
+
+    [Header("Estado do avatar")]
+    [Tooltip("Índice da face de olhos fechados usada enquanto o Méqui descansa.")]
+    [SerializeField, Range(0, 12)] private int sleepingFaceIndex;
+
+    [Header("Mensagens")]
+    [SerializeField, TextArea(2, 3)] private string initialMessage = "Que tipo de pausa o Méqui precisa hoje?";
+    [SerializeField, TextArea(2, 3)] private string completedMessage = "Méqui está pronto para voltar ao trabalho!";
+
+    [Header("Sessão")]
+    [SerializeField, Min(1)] private int interactionsToComplete = 2;
+    [SerializeField, Min(0.1f)] private float inactivityThresholdSeconds = 2f;
+    [SerializeField] private string activityId = "energy_station";
+
+    [Header("Animação do progresso")]
+    [SerializeField, Min(0.05f)] private float progressAnimationDuration = 0.4f;
+
+    private readonly HashSet<string> acceptedInteractionIds = new HashSet<string>();
+    private float elapsedTime;
+    private float lastInteractionTime;
+    private SessionState sessionState;
+    private int interactionCount;
+    private Tween progressTween;
+    private bool rewardGranted;
+    private bool sessionStarted;
+    private Coroutine cardWave;
+    private Tween completeButtonTween;
+    private RectTransform completeButtonRect;
+    private Vector2 completeButtonHomePosition;
+    private RectTransform resetButtonRect;
+    private Vector2 resetButtonHomePosition;
+    private Tween resetButtonTween;
+    private Tween trayLockTween;
+    private Color trayLockColor;
+    private Image progressFillImage;
+    private float displayedProgress;
+    [SerializeField, Min(0f)] private float progressInset = 2f;
+
+    /// <summary>
+    /// Disparado somente depois que uma interação válida foi registrada.
+    /// O parâmetro informa quantas interações foram aceitas na sessão atual.
+    /// </summary>
+    public event System.Action<int> InteractionAccepted;
+
+    /// <summary>
+    /// Disparado depois que as escolhas foram restauradas aos slots de origem.
+    /// </summary>
+    public event System.Action ChoicesReset;
+
+    /// <summary>Quantidade de interações necessária para concluir a sessão.</summary>
+    public int InteractionsToComplete => interactionsToComplete;
+
+    private enum SessionState
+    {
+        Playing,
+        ReadyToComplete,
+        RewardCollected,
+        Abandoned
+    }
+
+    private void Awake()
+    {
+        SelectQuestion();
+        if (completeButton != null)
+        {
+            completeButtonRect = completeButton.transform as RectTransform;
+            completeButtonHomePosition = completeButtonRect.anchoredPosition;
+        }
+        if (resetButton != null)
+        {
+            resetButtonRect = resetButton.transform as RectTransform;
+            resetButtonHomePosition = resetButtonRect.anchoredPosition;
+        }
+        if (progressFill != null)
+            progressFillImage = progressFill.GetComponent<Image>();
+        if (trayLockOverlay != null)
+            trayLockColor = trayLockOverlay.color;
+        if (completeButton != null)
+            completeButton.onClick.AddListener(CompleteSession);
+
+        if (resetButton != null)
+            resetButton.onClick.AddListener(ResetChoices);
+
+        SetCompleteButton(false);
+        SetInitialVisuals();
+        SetTrayLocked(false);
+        UpdateProgress(immediate: true);
+    }
+
+    private void Start()
+    {
+        PlayerManager player = PlayerManager.Instance;
+        if (player != null && !player.CanPlayEnergyStation)
+        {
+            SceneManager.LoadScene("HUB");
+            return;
+        }
+
+        elapsedTime = 0f;
+        lastInteractionTime = 0f;
+        interactionCount = 0;
+        acceptedInteractionIds.Clear();
+        sessionState = SessionState.Playing;
+        rewardGranted = false;
+
+        ResetCardsToOrigin();
+        BeginLoggedSession();
+
+        SetInitialVisuals();
+        SetTrayLocked(false);
+        UpdateProgress(immediate: true);
+        cardWave = StartCoroutine(AnimateAvailableCards());
+    }
+
+    private void Update()
+    {
+        // Tempo apenas para registrar a duração; esta atividade não tem prazo.
+        if (sessionState == SessionState.Playing)
+            elapsedTime += Time.unscaledDeltaTime;
+    }
+
+    private void OnDestroy()
+    {
+        if (completeButton != null)
+            completeButton.onClick.RemoveListener(CompleteSession);
+
+        if (resetButton != null)
+            resetButton.onClick.RemoveListener(ResetChoices);
+
+        if (progressTween != null && progressTween.IsActive())
+            progressTween.Kill();
+        if (cardWave != null) StopCoroutine(cardWave);
+        completeButtonTween?.Kill();
+        resetButtonTween?.Kill();
+        trayLockTween?.Kill();
+    }
+
+    private void OnDisable()
+    {
+        if (cardWave != null)
+        {
+            StopCoroutine(cardWave);
+            cardWave = null;
+        }
+        completeButtonTween?.Kill();
+        completeButtonTween = null;
+        if (completeButtonRect != null)
+            completeButtonRect.anchoredPosition = completeButtonHomePosition;
+        resetButtonTween?.Kill();
+        resetButtonTween = null;
+        if (resetButtonRect != null)
+            resetButtonRect.anchoredPosition = resetButtonHomePosition;
+        trayLockTween?.Kill();
+        trayLockTween = null;
+        if (progressTween != null && progressTween.IsActive())
+            progressTween.Kill();
+
+        progressTween = null;
+
+        if (sessionStarted
+            && sessionState != SessionState.RewardCollected
+            && sessionState != SessionState.Abandoned)
+        {
+            sessionState = SessionState.Abandoned;
+            sessionStarted = false;
+            EventLogger.Instance?.AbandonSession();
+        }
+    }
+
+    public bool TryRegisterInteraction(string interactionId, string feedbackMessage)
+    {
+        if (sessionState != SessionState.Playing ||
+            interactionCount >= interactionsToComplete)
+            return false;
+
+        if (!string.IsNullOrEmpty(interactionId) &&
+            !acceptedInteractionIds.Add(interactionId))
+            return false;
+
+        float gap = interactionCount == 0
+            ? elapsedTime
+            : elapsedTime - lastInteractionTime;
+
+        if (gap >= inactivityThresholdSeconds)
+            EventLogger.Instance?.RecordInactive(gap);
+
+        EventLogger.Instance?.RecordUserAction(interactionId);
+
+        interactionCount++;
+        lastInteractionTime = elapsedTime;
+
+        if (feedbackLabel != null)
+            feedbackLabel.text = feedbackMessage ?? string.Empty;
+
+        if (interactionCount >= interactionsToComplete)
+            MakeCompletionAvailable();
+        else
+            UpdateProgress();
+
+        InteractionAccepted?.Invoke(interactionCount);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Mantém a API pública anterior para eventuais UnityEvents ou integrações externas.
+    /// </summary>
+    public void RegisterInteraction(string interactionId, string feedbackMessage)
+    {
+        TryRegisterInteraction(interactionId, feedbackMessage);
+    }
+
+    public void RegisterOptionalClarity(string choiceId)
+    {
+        if (sessionState == SessionState.RewardCollected ||
+            sessionState == SessionState.Abandoned)
+            return;
+
+        EventLogger.Instance?.RecordOptionalClarity(choiceId);
+    }
+
+    public void AbandonSession()
+    {
+        if (sessionState == SessionState.RewardCollected ||
+            sessionState == SessionState.Abandoned)
+            return;
+
+        sessionState = SessionState.Abandoned;
+        sessionStarted = false;
+        EventLogger.Instance?.AbandonSession();
+    }
+
+    /// <summary>
+    /// Restaura as escolhas na mesma sessão, sem recriar objetos.
+    /// </summary>
+    public void ResetChoices()
+    {
+        if (sessionState == SessionState.RewardCollected ||
+            sessionState == SessionState.Abandoned)
+            return;
+
+        EventLogger.Instance?.ResetChoices();
+
+        sessionState = SessionState.Playing;
+        interactionCount = 0;
+        lastInteractionTime = elapsedTime;
+        acceptedInteractionIds.Clear();
+
+        SetCompleteButton(false);
+        SetInitialVisuals();
+        SetTrayLocked(false);
+        ResetCardsToOrigin();
+        UpdateProgress();
+        ChoicesReset?.Invoke();
+    }
+
+    /// <summary>
+    /// Retorna o primeiro card ainda disponível no tray, sem criar objetos nem
+    /// alterar a ordem das referências configuradas no Inspector.
+    /// </summary>
+    public DraggableInteraction GetFirstAvailableInteraction()
+    {
+        if (interactionCards == null)
+            return null;
+
+        for (int i = 0; i < interactionCards.Length; i++)
+        {
+            DraggableInteraction interaction = interactionCards[i];
+            if (interaction != null && interaction.IsAvailable)
+                return interaction;
+        }
+
+        return null;
+    }
+
+    public DraggableInteraction GetDraggedInteraction()
+    {
+        if (sessionState != SessionState.Playing || interactionCards == null)
+            return null;
+        for (int i = 0; i < interactionCards.Length; i++)
+            if (interactionCards[i] != null && interactionCards[i].IsDragging)
+                return interactionCards[i];
+        return null;
+    }
+
+    private IEnumerator AnimateAvailableCards()
+    {
+        yield return new WaitForSecondsRealtime(3.5f);
+        while (true)
+        {
+            if (sessionState == SessionState.Playing && GetDraggedInteraction() == null
+                && interactionCards != null)
+            {
+                for (int i = 0; i < interactionCards.Length; i++)
+                {
+                    if (sessionState != SessionState.Playing || GetDraggedInteraction() != null)
+                        break;
+                    interactionCards[i]?.PlayIdleHop();
+                    yield return new WaitForSecondsRealtime(.14f);
+                }
+            }
+            if (GetDraggedInteraction() == null
+                && (sessionState == SessionState.Playing || sessionState == SessionState.ReadyToComplete))
+                PlayResetHint();
+            yield return new WaitForSecondsRealtime(5.8f);
+        }
+    }
+
+    private void MakeCompletionAvailable()
+    {
+        if (sessionState != SessionState.Playing || interactionCount < interactionsToComplete)
+            return;
+
+        sessionState = SessionState.ReadyToComplete;
+        EventLogger.Instance?.MarkActivityCompletedEarly();
+        if (interactionTray != null)
+        {
+            interactionTray.interactable = false;
+            interactionTray.blocksRaycasts = false;
+        }
+        LockCardsForSessionEnd();
+        UpdateProgress(onComplete: ShowCompletionFeedback);
+    }
+
+    private void ShowCompletionFeedback()
+    {
+        if (sessionState != SessionState.ReadyToComplete) return;
+        SetCompletedVisuals();
+        SetTrayLocked(true);
+        EventLogger.Instance?.MarkCompleteButtonAvailable();
+        SetCompleteButton(true);
+    }
+
+    private void CompleteSession()
+    {
+        if (sessionState != SessionState.ReadyToComplete
+            || interactionCount < interactionsToComplete
+            || rewardGranted)
+            return;
+
+        rewardGranted = true;
+        sessionState = SessionState.RewardCollected;
+        if (questionSets != null && questionSets.Length > 0)
+        {
+            PlayerPrefs.SetInt(QuestionIndexKey, (activeQuestionIndex + 1) % questionSets.Length);
+            PlayerPrefs.Save();
+        }
+        sessionStarted = false;
+        SetCompleteButton(false);
+
+        if (resetButton != null)
+            resetButton.gameObject.SetActive(false);
+
+        EventLogger.Instance?.CompleteSession();
+
+        int pointsEarned = 0;
+        if (PointsService.Instance != null)
+            pointsEarned = PointsService.Instance.AwardParticipation();
+
+        // Mantém os pontos pendentes para a animação ao entrar no HUB.
+        if (PlayerManager.Instance != null && pointsEarned > 0)
+        {
+            PlayerManager.Instance.SetPendingPoints(pointsEarned, "EnergyStation");
+            PlayerManager.Instance.MarkEnergyStationCompleted();
+        }
+
+        AudioManager.Instance?.PlayCompletion();
+
+        if (resultPopup != null)
+            resultPopup.Show(pointsEarned);
+    }
+
+    private void SetInitialVisuals()
+    {
+        if (instructionLabel != null)
+            instructionLabel.text = questionSets != null && questionSets.Length > 0
+                ? questionSets[activeQuestionIndex].prompt : initialMessage;
+
+        if (feedbackLabel != null)
+            feedbackLabel.text = string.Empty;
+
+        ApplySleepingFace();
+
+        if (resetButton != null)
+            resetButton.gameObject.SetActive(true);
+    }
+
+    private void BeginLoggedSession()
+    {
+        if (EventLogger.Instance == null)
+        {
+            sessionStarted = false;
+            return;
+        }
+
+        EventLogger.Instance.BeginSession(activityId);
+        if (questionSets != null && questionSets.Length > 0)
+            EventLogger.Instance.RecordActivityEvent("energy_question:" + questionSets[activeQuestionIndex].id + ":v1");
+        sessionStarted = true;
+    }
+
+    private void SelectQuestion()
+    {
+        if (questionSets == null || questionSets.Length == 0)
+            return;
+
+        activeQuestionIndex = Mathf.Clamp(PlayerPrefs.GetInt(QuestionIndexKey, 0), 0, questionSets.Length - 1);
+        foreach (QuestionSet question in questionSets)
+            foreach (DraggableInteraction card in question.cards)
+                if (card != null)
+                    card.gameObject.SetActive(false);
+
+        interactionCards = questionSets[activeQuestionIndex].cards;
+    }
+
+    private void SetCompletedVisuals()
+    {
+        if (instructionLabel != null)
+            instructionLabel.text = completedMessage;
+
+        ApplySelectedFace();
+    }
+
+    private void ApplySleepingFace() =>
+        ApplyAvatarFace(PlayerManager.Instance?.Profile?.Avatar, sleepingFaceIndex, restoreCustomization: true);
+
+    private void ApplySelectedFace()
+    {
+        AvatarCustomizationData customization = PlayerManager.Instance?.Profile?.Avatar;
+        ApplyAvatarFace(customization, customization?.FaceIndex ?? -1);
+    }
+
+    private void ApplyAvatarFace(
+        AvatarCustomizationData customization,
+        int faceIndex,
+        bool restoreCustomization = false)
+    {
+        if (avatarView == null || customization == null)
+            return;
+
+        // Garante primeiro que cor e chapéu sejam exatamente os salvos ao descansar.
+        if (restoreCustomization)
+            avatarView.Apply(customization);
+
+        avatarView.ApplyFace(faceIndex);
+    }
+
+    private void SetTrayLocked(bool locked)
+    {
+        if (interactionTray != null)
+        {
+            interactionTray.interactable = !locked;
+            interactionTray.blocksRaycasts = !locked;
+        }
+        if (locked) LockCardsForSessionEnd();
+        trayLockTween?.Kill();
+        trayLockTween = null;
+        if (trayLockOverlay == null) return;
+        trayLockOverlay.color = new Color(trayLockColor.r, trayLockColor.g, trayLockColor.b, 0f);
+        trayLockOverlay.gameObject.SetActive(locked);
+        if (locked)
+            trayLockTween = trayLockOverlay.DOFade(trayLockColor.a, .22f).SetUpdate(true);
+    }
+
+    private void LockCardsForSessionEnd()
+    {
+        if (interactionCards == null)
+            return;
+
+        for (int i = 0; i < interactionCards.Length; i++)
+            interactionCards[i]?.LockForSessionEnd();
+    }
+
+    private void ResetCardsToOrigin()
+    {
+        if (interactionCards == null)
+            return;
+
+        for (int i = 0; i < interactionCards.Length; i++)
+        {
+            if (interactionCards[i] != null)
+                interactionCards[i].ResetToOrigin();
+        }
+    }
+
+    private void SetCompleteButton(bool enabled)
+    {
+        completeButtonTween?.Kill();
+        completeButtonTween = null;
+        if (completeButton == null) return;
+        completeButton.gameObject.SetActive(enabled);
+        completeButton.interactable = false;
+        if (completeButtonRect == null) return;
+        completeButtonRect.anchoredPosition = enabled
+            ? completeButtonHomePosition + Vector2.down * 180f : completeButtonHomePosition;
+        if (enabled)
+            completeButtonTween = completeButtonRect.DOAnchorPos(completeButtonHomePosition, .45f)
+                .SetEase(Ease.OutCubic).SetUpdate(true)
+                .OnComplete(() => completeButton.interactable = sessionState == SessionState.ReadyToComplete);
+    }
+
+    private void PlayResetHint()
+    {
+        if (resetButtonRect == null || resetButton == null
+            || !resetButton.isActiveAndEnabled || !resetButton.IsInteractable()) return;
+        resetButtonTween?.Kill();
+        resetButtonRect.anchoredPosition = resetButtonHomePosition;
+        resetButtonTween = DOTween.Sequence().SetUpdate(true)
+            .Append(resetButtonRect.DOAnchorPosY(resetButtonHomePosition.y + 7f, .17f).SetEase(Ease.OutQuad))
+            .Append(resetButtonRect.DOAnchorPosY(resetButtonHomePosition.y, .25f).SetEase(Ease.InQuad));
+    }
+
+    private void UpdateProgress(bool immediate = false, System.Action onComplete = null)
+    {
+        progressTween?.Kill();
+        progressTween = null;
+        if (progressBackground == null || progressFill == null || interactionsToComplete <= 0)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+        float target = Mathf.Clamp01((float)interactionCount / interactionsToComplete);
+        if (immediate || progressAnimationDuration <= 0f)
+        {
+            ApplyProgress(target);
+            onComplete?.Invoke();
+            return;
+        }
+        progressTween = DOTween.To(() => displayedProgress, ApplyProgress, target, progressAnimationDuration)
+            .SetEase(Ease.OutCubic).SetUpdate(true)
+            .OnComplete(() => { progressTween = null; onComplete?.Invoke(); });
+    }
+
+    private void ApplyProgress(float value)
+    {
+        displayedProgress = Mathf.Clamp01(value);
+        float inset = Mathf.Clamp(progressInset, 0f, progressBackground.rect.height * .5f);
+        float width = Mathf.Max(0f, progressBackground.rect.width - inset * 2f) * displayedProgress;
+        progressFill.anchorMin = progressFill.anchorMax = new Vector2(0f, .5f);
+        progressFill.pivot = new Vector2(0f, .5f);
+        progressFill.anchoredPosition = new Vector2(inset, 0f);
+        progressFill.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,
+            Mathf.Max(0f, progressBackground.rect.height - inset * 2f));
+        progressFill.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+        if (progressFillImage != null) progressFillImage.enabled = width > .01f;
+    }
+}

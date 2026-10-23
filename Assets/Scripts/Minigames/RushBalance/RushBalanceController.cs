@@ -69,6 +69,8 @@ public sealed class RushBalanceController : MonoBehaviour
         }
     }
 
+    [SerializeField, HideInInspector] private int visualLayoutVersion;
+
     [Header("Sessão e pool da Hierarchy")]
     [SerializeField] private RushTimedSessionController session;
     [Tooltip("Cinco clientes: quatro visíveis e um reserva.")]
@@ -1072,7 +1074,7 @@ public sealed class RushBalanceController : MonoBehaviour
         float finalRotation = target.localEulerAngles.z;
         if (finalRotation > 180f) finalRotation -= 360f;
 
-        Vector2 nextOffset = finalOffset - baseOffset;
+        Vector2 nextOffset = finalOffset - baseOffset - hatPreviewCustomer.HatModeOffset;
         float nextScale = Mathf.Max(.1f, finalScale / Mathf.Max(.01f, baseScale));
         float nextRotation = finalRotation - baseRotation;
         if (Vector2.SqrMagnitude(adjustment.Offset - nextOffset) < .0000001f

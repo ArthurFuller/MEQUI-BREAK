@@ -1,0 +1,4 @@
+FAIL: System.Exception: Grid overwrote the wave during a layout rebuild
+  at CustomizationWaveValidation.Check (System.Boolean b, System.String m) [0x00016] in E:\workspace\combo-clock-validation-20261022\Assets\Editor\CustomizationWaveValidation.cs:7 
+  at CustomizationWaveValidation+<>c__DisplayClass6_0.<Run>b__1 (System.Action select, UnityEngine.GameObject[] items) [0x000a9] in E:\workspace\combo-clock-validation-20261022\Assets\Editor\CustomizationWaveValidation.cs:20 
+  at CustomizationWaveValidation.Run () [0x001fa] in E:\workspace\combo-clock-validation-20261022\Assets\Editor\CustomizationWaveValidation.cs:23 

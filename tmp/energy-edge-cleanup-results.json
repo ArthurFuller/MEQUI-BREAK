@@ -1,0 +1,218 @@
+[
+  {
+    "name": "break.png",
+    "w": 369,
+    "h": 369,
+    "removed": 0,
+    "fringe": 1014,
+    "keptInterior": 126981,
+    "sha256": "eb223a40fc1d9ae8ffcd2d79d37d216c07ec64ca63fbe3e67c48bdf1daaed45d"
+  },
+  {
+    "name": "break_gray.png",
+    "w": 369,
+    "h": 369,
+    "removed": 0,
+    "fringe": 981,
+    "keptInterior": 123305,
+    "sha256": "2c8cab1230316ddaf81e9f25f44f3e40797f299f5a2419d7c0999d9bf9d8a483"
+  },
+  {
+    "name": "hydration.png",
+    "w": 368,
+    "h": 368,
+    "removed": 0,
+    "fringe": 1192,
+    "keptInterior": 126745,
+    "sha256": "dec2972d98a3500489a9bbbb66aa2e30ea5890adf49dc28f81a689c701753647"
+  },
+  {
+    "name": "hydration_gray.png",
+    "w": 367,
+    "h": 367,
+    "removed": 0,
+    "fringe": 1248,
+    "keptInterior": 122424,
+    "sha256": "c4455d08babaa74e02d83d04751e095c17f56f8baef568b8f177707201c8c8bf"
+  },
+  {
+    "name": "practice_assembly.png",
+    "w": 369,
+    "h": 369,
+    "removed": 0,
+    "fringe": 1001,
+    "keptInterior": 128433,
+    "sha256": "d822ae342a387e7269ea6c2f2a6fc0fbf1856cb8921941f1f3bca7b48e030fae"
+  },
+  {
+    "name": "practice_assembly_gray.png",
+    "w": 369,
+    "h": 369,
+    "removed": 0,
+    "fringe": 1138,
+    "keptInterior": 124537,
+    "sha256": "4eec9ce631139352799f88437c2a00514567886fd7e6281413fdab2d3fa93327"
+  },
+  {
+    "name": "practice_organization.png",
+    "w": 373,
+    "h": 373,
+    "removed": 0,
+    "fringe": 824,
+    "keptInterior": 129880,
+    "sha256": "ac1a247ec6e3d7352f9a2b569f4d78c31fc63f114ea6135aa125d543b995abb3"
+  },
+  {
+    "name": "practice_organization_gray.png",
+    "w": 373,
+    "h": 373,
+    "removed": 0,
+    "fringe": 971,
+    "keptInterior": 125904,
+    "sha256": "238817fa1c18bdce91a35ee5c68a390e3f668c3a652f71c61201e37c91eb861d"
+  },
+  {
+    "name": "practice_preparation.png",
+    "w": 373,
+    "h": 373,
+    "removed": 0,
+    "fringe": 856,
+    "keptInterior": 129733,
+    "sha256": "52e9fe763d5f4332200dab97d823caddeb7eac718e450981731ca4be76d9e868"
+  },
+  {
+    "name": "practice_preparation_gray.png",
+    "w": 373,
+    "h": 373,
+    "removed": 0,
+    "fringe": 863,
+    "keptInterior": 125103,
+    "sha256": "4135c5d00c10213151e331ee0719b8d6d83660de1957e6f78697310570cf21ed"
+  },
+  {
+    "name": "practice_service.png",
+    "w": 370,
+    "h": 370,
+    "removed": 0,
+    "fringe": 881,
+    "keptInterior": 128868,
+    "sha256": "b577d9afc8006a0043c4e7c315ebaf12134e0592c74afb78c0b835f4c8b7003a"
+  },
+  {
+    "name": "practice_service_gray.png",
+    "w": 370,
+    "h": 370,
+    "removed": 0,
+    "fringe": 1098,
+    "keptInterior": 124904,
+    "sha256": "a17a14e6ac6728b9772e91537bf735e09cbf97f402cdb2cd74c7ae801489cd43"
+  },
+  {
+    "name": "restroom.png",
+    "w": 365,
+    "h": 365,
+    "removed": 0,
+    "fringe": 1294,
+    "keptInterior": 125315,
+    "sha256": "8942afeccadff518934bcaf824399e5c5bee98216b267614ba7b940b948ef101"
+  },
+  {
+    "name": "restroom_gray.png",
+    "w": 365,
+    "h": 365,
+    "removed": 0,
+    "fringe": 1264,
+    "keptInterior": 122002,
+    "sha256": "8ac9da1dfd1efa6cfbecd04f1d603e7dde5d40212e09f2058dd74f48817dc235"
+  },
+  {
+    "name": "stretch.png",
+    "w": 367,
+    "h": 367,
+    "removed": 0,
+    "fringe": 842,
+    "keptInterior": 126312,
+    "sha256": "dda459e55ed29df7a7ae2534b00bb095ad898668c8958b80a474d2c21e2d0ae0"
+  },
+  {
+    "name": "stretch_gray.png",
+    "w": 366,
+    "h": 366,
+    "removed": 0,
+    "fringe": 1255,
+    "keptInterior": 122321,
+    "sha256": "07a73b81ec29d290d210bad160800197a189d363e17e39aababe912119fc825d"
+  },
+  {
+    "name": "support_doubts.png",
+    "w": 368,
+    "h": 368,
+    "removed": 0,
+    "fringe": 1298,
+    "keptInterior": 127358,
+    "sha256": "29479d3c0347b3314f1576be872da4cc721ed787b5d837947fb17a5cc4542232"
+  },
+  {
+    "name": "support_doubts_gray.png",
+    "w": 368,
+    "h": 368,
+    "removed": 0,
+    "fringe": 1260,
+    "keptInterior": 124169,
+    "sha256": "df601b7aaf99dee19ddd9da6ed8b28bdafa9185f6ce91fcf2392b4ee67fee3ae"
+  },
+  {
+    "name": "support_materials.png",
+    "w": 369,
+    "h": 369,
+    "removed": 0,
+    "fringe": 1055,
+    "keptInterior": 127689,
+    "sha256": "4853f01ec1219e73932e6b2d6c3be0b9377397462f0249371f387fa2a994157c"
+  },
+  {
+    "name": "support_materials_gray.png",
+    "w": 369,
+    "h": 369,
+    "removed": 0,
+    "fringe": 1118,
+    "keptInterior": 124449,
+    "sha256": "7c17fb6a49d65a7706f2bba507d27b5a8be50ba3bfb1d300752eb09e9a2f69b5"
+  },
+  {
+    "name": "support_priorities.png",
+    "w": 371,
+    "h": 371,
+    "removed": 0,
+    "fringe": 1305,
+    "keptInterior": 128428,
+    "sha256": "86a14360218f5651b8178a242ecfd7b6c0493f69ed5c257b56a90b98240fb312"
+  },
+  {
+    "name": "support_priorities_gray.png",
+    "w": 371,
+    "h": 371,
+    "removed": 0,
+    "fringe": 1274,
+    "keptInterior": 125184,
+    "sha256": "a4fe566ff635e26af53f7922be95c630975d3f95cd0487aa598520046b4039f4"
+  },
+  {
+    "name": "support_reinforcement.png",
+    "w": 370,
+    "h": 370,
+    "removed": 0,
+    "fringe": 753,
+    "keptInterior": 128000,
+    "sha256": "b766d0f9b1e11f5896ff8c80e514266833d18dde214e0beb35198e38b52d18f3"
+  },
+  {
+    "name": "support_reinforcement_gray.png",
+    "w": 370,
+    "h": 370,
+    "removed": 0,
+    "fringe": 1021,
+    "keptInterior": 124833,
+    "sha256": "f7b12c72817c2f37166afea3c97af2982a8bb0af491a5f2299b0d780a6e44e38"
+  }
+]

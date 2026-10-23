@@ -1,0 +1,74 @@
+[
+  {
+    "id": "pause",
+    "prompt": "O que ajudaria o Méqui a recuperar as energias hoje?",
+    "names": [
+      "hydration",
+      "break",
+      "stretch",
+      "restroom"
+    ],
+    "labels": [
+      "Hidratar",
+      "Descansar",
+      "Alongar",
+      "Banheiro"
+    ],
+    "feedback": [
+      "Hidratação registrada!",
+      "Descanso registrado!",
+      "Alongamento registrado!",
+      "Pausa para banheiro registrada!"
+    ],
+    "cards": [
+      "2043999787",
+      "3100001005",
+      "3100001105",
+      "3100001205"
+    ]
+  },
+  {
+    "id": "support",
+    "prompt": "Que apoio ajudaria o Méqui no trabalho de hoje?",
+    "names": [
+      "support_doubts",
+      "support_priorities",
+      "support_reinforcement",
+      "support_materials"
+    ],
+    "labels": [
+      "Dúvidas",
+      "Prioridades",
+      "Reforço",
+      "Materiais"
+    ],
+    "cards": [
+      "7200000005",
+      "7200000021",
+      "7200000037",
+      "7200000053"
+    ]
+  },
+  {
+    "id": "practice",
+    "prompt": "O que o Méqui gostaria de praticar mais?",
+    "names": [
+      "practice_service",
+      "practice_preparation",
+      "practice_assembly",
+      "practice_organization"
+    ],
+    "labels": [
+      "Atendimento",
+      "Preparo",
+      "Montagem",
+      "Organização"
+    ],
+    "cards": [
+      "7200000069",
+      "7200000085",
+      "7200000101",
+      "7200000117"
+    ]
+  }
+]

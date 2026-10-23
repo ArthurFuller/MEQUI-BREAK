@@ -1,0 +1,19 @@
+CLOCK PASS: All animation assets import
+CLOCK PASS: Countdown edits Image.fillAmount
+CLOCK PASS: Countdown duration is 5 s
+CLOCK PASS: Two Animator layers import
+CLOCK PASS: Count uses existing timer parameter
+CLOCK PASS: Approved sprite rect imports
+CLOCK PASS: Clock starts whole
+CLOCK PASS: Clock half visible at 2.5 s
+CLOCK PASS: Clock disappears at 5 s
+CLOCK PASS: Alert pulse reaches approved scale
+CLOCK PASS: Calm restores scale
+CLOCK PASS: Animator synchronizes fill to game timer
+CLOCK PASS: Urgent Animator state pulses
+CLOCK PASS: Leaving urgent state restores scale
+CLOCK PASS: New warning resets fill
+CLOCK PASS: Game pause freezes pulse
+CLOCK PASS: Game resume continues pulse
+CLOCK PASS: Alert clip loops continuously
+CLOCK PASS: Reactivation restores whole clock and scale

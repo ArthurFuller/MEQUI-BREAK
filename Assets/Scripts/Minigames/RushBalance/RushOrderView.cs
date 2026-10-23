@@ -260,6 +260,8 @@ public sealed class RushOrderView : HierarchyDragHandle, IDropHandler, IPointerC
         customerFace.enabled = faceSprite != null;
         customerHat.sprite = appearance.HatSprite;
         customerHat.enabled = appearance.HatSprite != null;
+        AvatarView.StyleCustomizationIcon(customerHat, AvatarCustomizationCategory.Hat);
+        AvatarView.StyleCustomizationIcon(customerFace, AvatarCustomizationCategory.Face);
         AvatarView.ApplyNormalizedTransform(
             customerHat,
             appearance.HatOffset,

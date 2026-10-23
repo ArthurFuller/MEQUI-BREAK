@@ -1,0 +1,1 @@
+PASS 72 checks: 26/31/36-second profiles, exact circle synchronization, no visual additions, instant empty on expiry, pulse stop, cancellation, pooled reuse

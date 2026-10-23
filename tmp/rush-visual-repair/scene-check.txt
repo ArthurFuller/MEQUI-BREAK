@@ -1,0 +1,2 @@
+RushBalance2: 9 authored hat outlines, HUD sprites replaced, full-body hat fit .9/-0.03
+RushBalance: 9 authored hat outlines, HUD sprites replaced, full-body hat fit .9/-0.03

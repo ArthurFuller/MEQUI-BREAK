@@ -37,6 +37,9 @@ public sealed class AvatarView : MonoBehaviour
     [Range(0, 11)]
     [SerializeField] private int corNaPrevia;
 
+    [SerializeField, Min(0), Tooltip("Chapéu usado nesta tela quando a opção salva é sem chapéu. Zero preserva a opção sem chapéu.")]
+    private int fallbackHatIndex;
+
     [Header("Reações opcionais")]
     [SerializeField] private Animator animator;
 
@@ -51,6 +54,29 @@ public sealed class AvatarView : MonoBehaviour
         return options != null && optionIndex >= 0 && optionIndex < options.Length
             ? options[optionIndex]
             : null;
+    }
+
+    /// <summary>Mesma arte, cor e contorno para seleção, compra e desbloqueios.</summary>
+    public void ApplyCustomizationIcon(Image image, AvatarCustomizationCategory category, int index)
+    {
+        if (image == null) return;
+        image.sprite = category == AvatarCustomizationCategory.Color ? bodySprite : GetCustomizationSprite(category, index);
+        image.color = category == AvatarCustomizationCategory.Face ? Color.black
+            : category == AvatarCustomizationCategory.Color && TryGetCustomizationColor(index, out Color tint) ? tint : Color.white;
+        StyleCustomizationIcon(image, category);
+    }
+
+    public static void StyleCustomizationIcon(Image image, AvatarCustomizationCategory category)
+    {
+        if (image == null) return;
+        if (category == AvatarCustomizationCategory.Face) image.color = Color.black;
+        image.preserveAspect = true;
+        var outline = image.GetComponent<AvatarSpriteOutline>();
+        if (outline != null) { outline.Thickness = 4f; outline.enabled = category != AvatarCustomizationCategory.Face; }
+        var oldOutline = image.GetComponent<Outline>();
+        if (oldOutline != null) oldOutline.enabled = false;
+        Transform oldBorder = image.transform.Find("ContornoCor");
+        if (oldBorder != null) oldBorder.gameObject.SetActive(false);
     }
 
     public Sprite GetFaceSprite(string spriteName)
@@ -174,8 +200,11 @@ public sealed class AvatarView : MonoBehaviour
 
         ApplyBodyColor(data.ColorIndex);
         ApplyFace(data.FaceIndex);
-        SetSprite(hatImage, hatOptions, data.HatIndex);
-        ApplyItemTransform(hatImage, AvatarCustomizationCategory.Hat, data.HatIndex);
+        int hatIndex = data.HatIndex > 0 ? data.HatIndex : fallbackHatIndex;
+        SetSprite(hatImage, hatOptions, hatIndex);
+        ApplyItemTransform(hatImage, AvatarCustomizationCategory.Hat, hatIndex);
+        EnableOutline(bodyImage);
+        EnableOutline(hatImage);
     }
 
     /// <summary>
@@ -225,6 +254,13 @@ public sealed class AvatarView : MonoBehaviour
 
         target.sprite = selectedSprite;
         target.enabled = selectedSprite != null;
+        target.gameObject.SetActive(selectedSprite != null);
+    }
+
+    private static void EnableOutline(Image image)
+    {
+        AvatarSpriteOutline outline = image != null ? image.GetComponent<AvatarSpriteOutline>() : null;
+        if (outline != null) outline.enabled = true;
     }
 
     private static Color GetColor(Color[] options, int index, Color fallback)

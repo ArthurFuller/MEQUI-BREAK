@@ -19,14 +19,8 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     [Header("Referências")]
     [SerializeField] private CustomizationController controller;
 
-    [Tooltip("Cor do fundo quando esta opção está selecionada.")]
-    [SerializeField] private Color selectedBackgroundColor = new Color(0.24f, 0.20f, 0.04f, 1f);
-
-    [Tooltip("Cor clara usada por todos os cards disponíveis.")]
-    [SerializeField] private Color unlockedBackgroundColor = new Color(0.38f, 0.38f, 0.38f, 1f);
-
-    [Tooltip("Cor usada enquanto o item ainda está bloqueado.")]
-    [SerializeField] private Color lockedBackgroundColor = new Color(0.27f, 0.27f, 0.27f, 1f);
+    [Tooltip("Contorno pré-configurado na Hierarchy. Não altera a arte do slot.")]
+    [SerializeField] private GameObject selectionHighlight;
 
     [SerializeField, Min(0)]
     private int optionIndex;
@@ -46,7 +40,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     [SerializeField, Min(0.01f)] private float pulseHalfDuration = 0.1f;
 
     private Button _button;
-    private Image _backgroundImage;
     private RectTransform _rectTransform;
 
     private Vector3 _originalScale;
@@ -76,7 +69,6 @@ public sealed class AvatarOptionButton : MonoBehaviour,
             return;
 
         _button = GetComponent<Button>();
-        _backgroundImage = GetComponent<Image>();
         _rectTransform = GetComponent<RectTransform>();
 
         _originalScale = _rectTransform.localScale;
@@ -111,7 +103,7 @@ public sealed class AvatarOptionButton : MonoBehaviour,
     {
         CacheReferences();
         _isSelected = isSelected;
-        ApplyBackgroundColor();
+        UpdateSelectionHighlight();
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -200,7 +192,7 @@ public sealed class AvatarOptionButton : MonoBehaviour,
 
     private void SetLockVisuals(bool isLocked, string label)
     {
-        ApplyBackgroundColor();
+        UpdateSelectionHighlight();
 
         if (lockOverlay != null)
             lockOverlay.SetActive(isLocked);
@@ -215,14 +207,10 @@ public sealed class AvatarOptionButton : MonoBehaviour,
             unlockLabel.text = label;
     }
 
-    private void ApplyBackgroundColor()
+    private void UpdateSelectionHighlight()
     {
-        if (_backgroundImage == null)
-            return;
-
-        _backgroundImage.color = _isSelected && !_isLocked
-            ? selectedBackgroundColor
-            : (_isLocked ? lockedBackgroundColor : unlockedBackgroundColor);
+        if (selectionHighlight != null)
+            selectionHighlight.SetActive(_isSelected && !_isLocked);
     }
 
     private void RestoreScale()

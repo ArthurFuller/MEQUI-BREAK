@@ -52,3 +52,471 @@ internal static class EditorSceneUI
         rect.localScale = Vector3.one;
     }
 }
+// Monta e salva os objetos na Hierarchy uma única vez; nenhum visual é criado em runtime.
+[UnityEditor.InitializeOnLoad]
+public static class ResultPopupReferenceLayout
+{
+    private const string Art = "Assets/Art/Characters/Rush Balance e Icons/";
+    private static readonly string[] Paths = {
+        "Assets/Scenes/EnergyStation/EnergyStation.unity",
+        "Assets/Scenes/RushBalance/RushBalance2.unity",
+        "Assets/Scenes/ComboCrew/ComboCrew.unity",
+        "Assets/Scenes/RushBalance/RushBalance.unity"
+    };
+    static ResultPopupReferenceLayout()
+    {
+        if (UnityEditor.AssetDatabase.IsAssetImportWorkerProcess() || Application.isBatchMode) return;
+        UnityEditor.EditorApplication.delayCall += ApplyPending;
+        UnityEditor.EditorApplication.playModeStateChanged += state => {
+            if (state == UnityEditor.PlayModeStateChange.EnteredEditMode)
+                UnityEditor.EditorApplication.delayCall += ApplyPending;
+        };
+    }
+    public static void ApplyPending()
+    {
+        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) return;
+        Scene active = SceneManager.GetActiveScene();
+        string report = "";
+        try
+        {
+            foreach (string path in Paths)
+            {
+                Scene scene = SceneManager.GetSceneByPath(path);
+                bool loaded = scene.IsValid() && scene.isLoaded;
+                if (!loaded) scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(path,
+                    UnityEditor.SceneManagement.OpenSceneMode.Additive);
+                bool changed = false;
+                foreach (GameObject root in scene.GetRootGameObjects())
+                foreach (ResultPopup popup in root.GetComponentsInChildren<ResultPopup>(true))
+                    changed |= Configure(popup, path.Contains("EnergyStation"));
+                if (changed)
+                {
+                    UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+                    bool saved = UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+                    report += path + ": saved=" + saved + "\n";
+                }
+                else report += path + ": already configured\n";
+                if (!loaded) UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
+            }
+        }
+        catch (System.Exception error) { report += error; Debug.LogException(error); }
+        finally
+        {
+            if (active.IsValid() && active.isLoaded) SceneManager.SetActiveScene(active);
+            string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,
+                "../tmp/result-popup-reference"));
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "apply.txt"), report);
+        }
+    }
+    public static bool Configure(ResultPopup popup, bool energy)
+    {
+        var data = new UnityEditor.SerializedObject(popup);
+        if (data.FindProperty("referenceLayoutVersion").intValue >= 1) return false;
+        var panel = data.FindProperty("popupPanel").objectReferenceValue as RectTransform;
+        var title = data.FindProperty("titleLabel").objectReferenceValue as TMPro.TMP_Text;
+        var points = data.FindProperty("pointsLabel").objectReferenceValue as TMPro.TMP_Text;
+        var button = data.FindProperty("continueButton").objectReferenceValue as UnityEngine.UI.Button;
+        if (panel == null || title == null || points == null || button == null)
+            throw new System.InvalidOperationException("Referências incompletas em " + popup.name);
+        var panelSprite = SpriteAt("Assets/Art/EnergyStaion/popup_resultados_painel.png");
+        var buttonSprite = SpriteAt("Assets/Art/EnergyStaion/btn_continuar.png");
+        var pillSprite = SpriteAt(Art + "pilula_pb.png");
+        var coinSprite = SpriteAt("Assets/Art/Group 1 (2).png");
+        var blockSprite = SpriteAt(Art + "bloco_estatistica.png");
+        var deliveredSprite = SpriteAt(Art + "icone_entregue.png");
+        var missedSprite = SpriteAt(Art + "icone_nao_entregue.png");
+        UnityEditor.Undo.RegisterFullObjectHierarchyUndo(popup.gameObject, "Aplicar referência dos resultados");
+        EditorSceneUI.Center(panel, new Vector2(800, energy ? 540 : 776), Vector2.zero);
+        var background = panel.GetComponent<UnityEngine.UI.Image>();
+        if (background != null) { background.sprite = panelSprite; background.color = Color.white; }
+        float topOffset = energy ? -118 : 0;
+        Style(title, title.font, "RESULTADOS", 48, new Color32(242, 183, 5, 255),
+            new Vector2(680, 64), new Vector2(0, 315 + topOffset));
+        var heading = Text("PontosBreakTitulo", panel, title.font, "PONTOS BREAK", 31,
+            Color.white, new Vector2(440, 44), new Vector2(0, 226 + topOffset));
+        var pill = Image("PilulaPB", panel, pillSprite, new Vector2(340, 96),
+            new Vector2(0, 146 + topOffset));
+        Image("IconePB", pill.transform, coinSprite, new Vector2(70, 70), new Vector2(-123, 0));
+        points.transform.SetParent(pill.transform, false);
+        Style(points, title.font, "+48 PB", 40, Color.white,
+            new Vector2(230, 64), new Vector2(40, 0));
+        var legacy = data.FindProperty("ordersSummaryLabel").objectReferenceValue as TMPro.TMP_Text;
+        if (legacy != null) legacy.gameObject.SetActive(false);
+        if (!energy)
+        {
+            RectTransform stats = Node("EstatisticasPedidos", panel, new Vector2(732, 216), new Vector2(0, -42));
+            var deliveredBlock = Image("PedidosEntregues", stats, blockSprite, new Vector2(344, 216), new Vector2(-194, 0));
+            var missedBlock = Image("PedidosNaoEntregues", stats, blockSprite, new Vector2(344, 216), new Vector2(194, 0));
+            var delivered = Statistic(deliveredBlock.transform, deliveredSprite, title.font, "12", "ENTREGUES");
+            var missed = Statistic(missedBlock.transform, missedSprite, title.font, "3", "NÃO ENTREGUES");
+            data.FindProperty("ordersStatistics").objectReferenceValue = stats.gameObject;
+            data.FindProperty("deliveredCountLabel").objectReferenceValue = delivered;
+            data.FindProperty("missedCountLabel").objectReferenceValue = missed;
+        }
+        else
+        {
+            data.FindProperty("ordersStatistics").objectReferenceValue = null;
+            data.FindProperty("deliveredCountLabel").objectReferenceValue = null;
+            data.FindProperty("missedCountLabel").objectReferenceValue = null;
+        }
+        foreach (TMPro.TMP_Text caption in button.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            caption.gameObject.SetActive(false);
+        EditorSceneUI.Center((RectTransform)button.transform, new Vector2(432, 112),
+            new Vector2(0, energy ? -160 : -252));
+        var buttonImage = button.GetComponent<UnityEngine.UI.Image>();
+        if (buttonImage != null) { buttonImage.sprite = buttonSprite; buttonImage.color = Color.white; buttonImage.preserveAspect = true; }
+        button.transition = UnityEngine.UI.Selectable.Transition.None;
+        button.transform.SetAsLastSibling();
+        var group = data.FindProperty("popupCanvasGroup").objectReferenceValue as CanvasGroup;
+        if (group != null) group.alpha = 1;
+        data.FindProperty("referenceLayoutVersion").intValue = 1;
+        data.ApplyModifiedProperties();
+        UnityEditor.EditorUtility.SetDirty(popup);
+        return true;
+    }
+    private static TMPro.TMP_Text Statistic(Transform parent, Sprite icon, TMPro.TMP_FontAsset font,
+        string count, string caption)
+    {
+        Image("Icone", parent, icon, new Vector2(60, 60), new Vector2(0, 60));
+        var number = Text("Quantidade", parent, font, count, 72, Color.white,
+            new Vector2(296, 84), new Vector2(0, -12));
+        var label = Text("Legenda", parent, font, caption, 25, new Color32(192, 199, 201, 255),
+            new Vector2(320, 40), new Vector2(0, -72));
+        label.fontStyle = TMPro.FontStyles.Normal;
+        return number;
+    }
+    private static Sprite SpriteAt(string path)
+    {
+        var sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite == null) throw new System.InvalidOperationException("Sprite não encontrado: " + path);
+        return sprite;
+    }
+    private static RectTransform Node(string name, Transform parent, Vector2 size, Vector2 position)
+    {
+        Transform existing = parent.Find(name);
+        if (existing == null)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            UnityEditor.Undo.RegisterCreatedObjectUndo(go, "Montar resultado na Hierarchy");
+            go.transform.SetParent(parent, false); go.layer = parent.gameObject.layer; existing = go.transform;
+        }
+        var rect = (RectTransform)existing;
+        EditorSceneUI.Center(rect, size, position);
+        return rect;
+    }
+    private static UnityEngine.UI.Image Image(string name, Transform parent, Sprite sprite,
+        Vector2 size, Vector2 position)
+    {
+        var rect = Node(name, parent, size, position);
+        var image = EditorSceneUI.GetOrAdd<UnityEngine.UI.Image>(rect.gameObject);
+        image.sprite = sprite; image.color = Color.white; image.preserveAspect = true; image.raycastTarget = false;
+        return image;
+    }
+    private static TMPro.TMP_Text Text(string name, Transform parent, TMPro.TMP_FontAsset font,
+        string text, float size, Color color, Vector2 area, Vector2 position)
+    {
+        var rect = Node(name, parent, area, position);
+        var label = EditorSceneUI.GetOrAdd<TMPro.TextMeshProUGUI>(rect.gameObject);
+        Style(label, font, text, size, color, area, position); return label;
+    }
+    private static void Style(TMPro.TMP_Text label, TMPro.TMP_FontAsset font, string text,
+        float size, Color color, Vector2 area, Vector2 position)
+    {
+        EditorSceneUI.Center(label.rectTransform, area, position);
+        label.font = font; label.text = text; label.color = color; label.fontSize = size;
+        label.fontStyle = TMPro.FontStyles.Bold; label.enableAutoSizing = true;
+        label.fontSizeMin = size * .7f; label.fontSizeMax = size;
+        label.alignment = TMPro.TextAlignmentOptions.Center; label.margin = Vector4.zero;
+        label.textWrappingMode = TMPro.TextWrappingModes.NoWrap; label.raycastTarget = false;
+    }
+}
+
+// Migração única do level up: reutiliza todos os objetos e vínculos da cena HUB.
+[UnityEditor.InitializeOnLoad]
+public static class LevelUpReferenceLayout
+{
+    static LevelUpReferenceLayout()
+    {
+        if (UnityEditor.AssetDatabase.IsAssetImportWorkerProcess() || Application.isBatchMode) return;
+        UnityEditor.EditorApplication.delayCall += ApplyPending;
+        UnityEditor.EditorApplication.playModeStateChanged += state => {
+            if (state == UnityEditor.PlayModeStateChange.EnteredEditMode)
+                UnityEditor.EditorApplication.delayCall += ApplyPending;
+        };
+    }
+    public static void ApplyPending()
+    {
+        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) return;
+        const string path = "Assets/Scenes/Hub/HUB.unity";
+        Scene active = SceneManager.GetActiveScene();
+        Scene scene = SceneManager.GetSceneByPath(path);
+        bool loaded = scene.IsValid() && scene.isLoaded;
+        string report = "";
+        try
+        {
+            if (!loaded) scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(path,
+                UnityEditor.SceneManagement.OpenSceneMode.Additive);
+            bool changed = false;
+            foreach (GameObject root in scene.GetRootGameObjects())
+            foreach (LevelUpPopupPreview popup in root.GetComponentsInChildren<LevelUpPopupPreview>(true))
+                changed |= Configure(popup);
+            if (changed)
+            {
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+                report = "HUB level up: saved=" + UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+            }
+            else report = "HUB level up: already configured";
+        }
+        catch (System.Exception error) { report = error.ToString(); Debug.LogException(error); }
+        finally
+        {
+            if (!loaded && scene.IsValid() && scene.isLoaded)
+                UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
+            if (active.IsValid() && active.isLoaded) SceneManager.SetActiveScene(active);
+            string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "../tmp/levelup-refresh"));
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "apply.txt"), report);
+        }
+    }
+    public static bool Configure(LevelUpPopupPreview popup)
+    {
+        var data = new UnityEditor.SerializedObject(popup);
+        if (data.FindProperty("referenceLayoutVersion").intValue >= 3) return false;
+        if (data.FindProperty("referenceLayoutVersion").intValue >= 1) return Refine(popup);
+        var panel = Ref<RectTransform>(data, "popupPanel");
+        var medal = Ref<RectTransform>(data, "levelMedal");
+        var button = Ref<UnityEngine.UI.Button>(data, "continueButton");
+        if (panel == null || medal == null || button == null)
+            throw new System.InvalidOperationException("Level up com referências incompletas: " + popup.name);
+        var panelSprite = SpriteAt("Assets/Art/EnergyStaion/popup_resultados_painel.png");
+        var buttonSprite = SpriteAt("Assets/Art/EnergyStaion/btn_continuar.png");
+        var cardSprite = SpriteAt("Assets/Art/Characters/Rush Balance e Icons/bloco_estatistica.png");
+        UnityEditor.Undo.RegisterFullObjectHierarchyUndo(panel.root.gameObject, "Atualizar painel de level up");
+        EditorSceneUI.Center(panel, new Vector2(800, 940), Vector2.zero);
+        SetImage(panel.GetComponent<UnityEngine.UI.Image>(), panelSprite);
+        Style(Ref<TMPro.TMP_Text>(data, "titleText"), "SUBIU DE NÍVEL!", 48,
+            new Color32(242, 183, 5, 255), new Vector2(700, 64), new Vector2(0, 380));
+        EditorSceneUI.Center(medal, new Vector2(130, 130), new Vector2(0, 264));
+        SetImage(medal.GetComponent<UnityEngine.UI.Image>(), SpriteAt("Assets/Art/Hub/badge_nivel.png"));
+        Transform border = panel.parent.Find("PopupBorder");
+        if (border == null) border = panel.Find("PopupBorder");
+        if (border != null) border.gameObject.SetActive(false);
+        var badge = Ref<TMPro.TMP_Text>(data, "levelBadgeText");
+        Style(badge, "2", 64, Color.white, new Vector2(100, 100), Vector2.zero);
+        Transform subtitle = panel.Find("LevelSubtitle");
+        if (subtitle != null) Style(subtitle.GetComponent<TMPro.TMP_Text>(), "PARABÉNS PELO SEU PROGRESSO", 24,
+            new Color32(192, 199, 201, 255), new Vector2(680, 38), new Vector2(0, 158));
+        Style(Ref<TMPro.TMP_Text>(data, "previousLevelText"), "NÍVEL 1", 25, Color.white,
+            new Vector2(180, 36), new Vector2(-230, 104));
+        Style(Ref<TMPro.TMP_Text>(data, "nextLevelText"), "NÍVEL 2", 25,
+            new Color32(242, 183, 5, 255), new Vector2(180, 36), new Vector2(230, 104));
+        var track = Ref<RectTransform>(data, "progressTrack");
+        EditorSceneUI.Center(track, new Vector2(640, 30), new Vector2(0, 62));
+        SetImage(track.GetComponent<UnityEngine.UI.Image>(), SpriteAt("Assets/Art/Hub/barra_xp_trilho.png"));
+        var fill = Ref<UnityEngine.UI.Image>(data, "progressFill");
+        SetImage(fill, SpriteAt("Assets/Art/Hub/barra_xp_preenchimento.png"));
+        fill.type = UnityEngine.UI.Image.Type.Filled; fill.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal; fill.fillOrigin = 0;
+        fill.rectTransform.anchorMin = fill.rectTransform.anchorMax = new Vector2(0, .5f);
+        fill.rectTransform.pivot = new Vector2(0, .5f);
+        fill.rectTransform.anchoredPosition = new Vector2(6, 0);
+        fill.rectTransform.sizeDelta = new Vector2(628, 18);
+        Style(Ref<TMPro.TMP_Text>(data, "rewardHeadingText"), "NOVOS DESBLOQUEIOS", 30, Color.white,
+            new Vector2(700, 44), new Vector2(0, 0));
+        var slots = data.FindProperty("rewardSlots");
+        for (int i = 0; i < slots.arraySize; i++)
+        {
+            var slot = slots.GetArrayElementAtIndex(i);
+            var card = slot.FindPropertyRelative("root").objectReferenceValue as GameObject;
+            var icon = slot.FindPropertyRelative("icon").objectReferenceValue as UnityEngine.UI.Image;
+            var name = slot.FindPropertyRelative("itemName").objectReferenceValue as TMPro.TMP_Text;
+            if (card == null || icon == null || name == null)
+                throw new System.InvalidOperationException("Slot de recompensa incompleto: " + i);
+            EditorSceneUI.Center((RectTransform)card.transform, new Vector2(340, 136),
+                new Vector2(i % 2 == 0 ? -182 : 182, -102 - (i / 2) * 156));
+            SetImage(card.GetComponent<UnityEngine.UI.Image>(), cardSprite);
+            EditorSceneUI.Center(icon.rectTransform, new Vector2(114, 104), new Vector2(-100, 6));
+            icon.preserveAspect = true;
+            string[] previewNames = { "Chapéu de festa", "Chapéu de marinheiro", "Olhos de estrela", "Nova cor" };
+            Style(name, i < previewNames.Length ? previewNames[i] : name.text, 23, Color.white, new Vector2(184, 94), new Vector2(62, 4));
+            name.textWrappingMode = TMPro.TextWrappingModes.Normal;
+            name.fontStyle = TMPro.FontStyles.Normal;
+        }
+        EditorSceneUI.Center((RectTransform)button.transform, new Vector2(432, 112), new Vector2(0, -375));
+        SetImage(button.GetComponent<UnityEngine.UI.Image>(), buttonSprite);
+        button.GetComponent<UnityEngine.UI.Image>().preserveAspect = true;
+        foreach (TMPro.TMP_Text label in button.GetComponentsInChildren<TMPro.TMP_Text>(true))
+            label.gameObject.SetActive(false);
+        button.transition = UnityEngine.UI.Selectable.Transition.None;
+        data.FindProperty("referenceLayoutVersion").intValue = 1;
+        data.ApplyModifiedProperties();
+        Refine(popup);
+        UnityEditor.EditorUtility.SetDirty(popup);
+        return true;
+    }
+    private static bool Refine(LevelUpPopupPreview popup)
+    {
+        var data = new UnityEditor.SerializedObject(popup);
+        var panel = Ref<RectTransform>(data, "popupPanel");
+        panel.sizeDelta = new Vector2(panel.sizeDelta.x, 980);
+        var button = Ref<UnityEngine.UI.Button>(data, "continueButton");
+        button.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -386);
+        var track = Ref<RectTransform>(data, "progressTrack");
+        track.sizeDelta = new Vector2(640, 40);
+        var trackImage = track.GetComponent<UnityEngine.UI.Image>();
+        trackImage.type = UnityEngine.UI.Image.Type.Sliced;
+        trackImage.pixelsPerUnitMultiplier = trackImage.sprite.rect.height / 40f;
+        var fill = Ref<UnityEngine.UI.Image>(data, "progressFill");
+        fill.type = UnityEngine.UI.Image.Type.Sliced;
+        fill.pixelsPerUnitMultiplier = fill.sprite.rect.height / 28f;
+        fill.rectTransform.sizeDelta = new Vector2(628, 28);
+        var avatar = Ref<AvatarView>(data, "avatarView");
+        var slots = data.FindProperty("rewardSlots");
+        for (int i = 0; i < slots.arraySize; i++)
+        {
+            var slot = slots.GetArrayElementAtIndex(i);
+            var card = slot.FindPropertyRelative("root").objectReferenceValue as GameObject;
+            var icon = slot.FindPropertyRelative("icon").objectReferenceValue as UnityEngine.UI.Image;
+            EditorSceneUI.Center((RectTransform)card.transform, new Vector2(340, 112), new Vector2(i % 2 == 0 ? -182 : 182, -96 - (i / 2) * 128));
+            EditorSceneUI.Center(icon.rectTransform, new Vector2(100, 92), new Vector2(-100, 4));
+            slot.FindPropertyRelative("iconCenter").vector2Value = new Vector2(-100, 4);
+            slot.FindPropertyRelative("iconArea").vector2Value = new Vector2(86, 79.12f);
+            var outline = icon.GetComponent<AvatarSpriteOutline>() ?? UnityEditor.Undo.AddComponent<AvatarSpriteOutline>(icon.gameObject);
+            outline.Thickness = 4;
+            var category = i < 2 ? AvatarCustomizationCategory.Hat : i == 2 ? AvatarCustomizationCategory.Face : AvatarCustomizationCategory.Color;
+            if (avatar != null) avatar.ApplyCustomizationIcon(icon, category, i == 0 || i == 2 ? 8 : i == 1 ? 17 : 0);
+            var name = slot.FindPropertyRelative("itemName").objectReferenceValue as TMPro.TMP_Text;
+            name.rectTransform.sizeDelta = new Vector2(184, 88);
+        }
+        data.FindProperty("referenceLayoutVersion").intValue = 3;
+        data.ApplyModifiedProperties();
+        popup.ShowEditorPreview();
+        return true;
+    }
+    private static T Ref<T>(UnityEditor.SerializedObject data, string field) where T : UnityEngine.Object =>
+        data.FindProperty(field).objectReferenceValue as T;
+    private static Sprite SpriteAt(string path)
+    {
+        var sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite == null) throw new System.InvalidOperationException("Sprite não encontrado: " + path);
+        return sprite;
+    }
+    private static void SetImage(UnityEngine.UI.Image image, Sprite sprite)
+    {
+        if (image == null) throw new System.InvalidOperationException("Image ausente no level up");
+        image.sprite = sprite; image.color = Color.white;
+        image.type = UnityEngine.UI.Image.Type.Simple; image.preserveAspect = false;
+    }
+    private static void Style(TMPro.TMP_Text label, string text, float size, Color color, Vector2 area, Vector2 position)
+    {
+        if (label == null) return;
+        EditorSceneUI.Center(label.rectTransform, area, position);
+        label.text = text; label.color = color; label.fontSize = size; label.fontStyle = TMPro.FontStyles.Bold;
+        label.enableAutoSizing = true; label.fontSizeMin = size * .75f; label.fontSizeMax = size;
+        label.alignment = TMPro.TextAlignmentOptions.Center; label.margin = Vector4.zero;
+        label.textWrappingMode = TMPro.TextWrappingModes.NoWrap; label.raycastTarget = false;
+    }
+}
+
+[UnityEditor.InitializeOnLoad]
+public static class RushVisualHierarchyRepair
+{
+    private static readonly string[] Paths = { "Assets/Scenes/RushBalance/RushBalance2.unity", "Assets/Scenes/RushBalance/RushBalance.unity" };
+    static RushVisualHierarchyRepair()
+    {
+        if (UnityEditor.AssetDatabase.IsAssetImportWorkerProcess() || Application.isBatchMode) return;
+        UnityEditor.EditorApplication.delayCall += ApplyPending;
+        UnityEditor.EditorApplication.playModeStateChanged += state => {
+            if (state == UnityEditor.PlayModeStateChange.EnteredEditMode) UnityEditor.EditorApplication.delayCall += ApplyPending;
+        };
+    }
+    public static void ApplyPending()
+    {
+        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) return;
+        Scene active = SceneManager.GetActiveScene(); string report = "";
+        foreach (string path in Paths)
+        {
+            Scene scene = SceneManager.GetSceneByPath(path); bool loaded = scene.IsValid() && scene.isLoaded;
+            try
+            {
+                if (!loaded) scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(path, UnityEditor.SceneManagement.OpenSceneMode.Additive);
+                bool changed = false;
+                foreach (GameObject root in scene.GetRootGameObjects())
+                foreach (RushBalanceController controller in root.GetComponentsInChildren<RushBalanceController>(true)) changed |= Configure(controller);
+                if (changed) { UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene); report += path + ": saved=" + UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene) + "\n"; }
+                else report += path + ": already configured\n";
+            }
+            catch (System.Exception e) { report += e; Debug.LogException(e); }
+            finally { if (!loaded && scene.IsValid() && scene.isLoaded) UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true); }
+        }
+        if (active.IsValid() && active.isLoaded) SceneManager.SetActiveScene(active);
+        string dir = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "../tmp/rush-visual-repair"));
+        System.IO.Directory.CreateDirectory(dir); System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "apply.txt"), report);
+    }
+    public static bool Configure(RushBalanceController controller)
+    {
+        var data = new UnityEditor.SerializedObject(controller);
+        if (data.FindProperty("visualLayoutVersion").intValue >= 2) return false;
+        Scene scene = controller.gameObject.scene;
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            UnityEditor.Undo.RegisterFullObjectHierarchyUndo(root, "Atualizar visuais do Rush Balance");
+            foreach (RushCustomerView customer in root.GetComponentsInChildren<RushCustomerView>(true))
+            {
+                var entry = new UnityEditor.SerializedObject(customer);
+                entry.FindProperty("fullBodyHatScale").floatValue = .9f;
+                entry.FindProperty("fullBodyHatOffset").vector2Value = new Vector2(0, -.03f);
+                ImageOutline(entry.FindProperty("hatImage").objectReferenceValue as UnityEngine.UI.Image);
+                entry.ApplyModifiedProperties();
+            }
+            foreach (RushOrderView order in root.GetComponentsInChildren<RushOrderView>(true))
+            {
+                var entry = new UnityEditor.SerializedObject(order);
+                ImageOutline(entry.FindProperty("customerHat").objectReferenceValue as UnityEngine.UI.Image);
+                var face = entry.FindProperty("customerFace").objectReferenceValue as UnityEngine.UI.Image;
+                if (face != null) AvatarView.StyleCustomizationIcon(face, AvatarCustomizationCategory.Face);
+            }
+            foreach (UnityEngine.UI.Image image in root.GetComponentsInChildren<UnityEngine.UI.Image>(true))
+            {
+                if (image.name == "Voltar")
+                {
+                    image.sprite = SpriteAt("Assets/Art/Characters/Combo crew/HUD/seta voltar.png"); image.color = Color.white; image.preserveAspect = true;
+                    foreach (TMPro.TMP_Text old in image.GetComponentsInChildren<TMPro.TMP_Text>(true)) old.gameObject.SetActive(false);
+                    var border = image.GetComponent<UnityEngine.UI.Outline>(); if (border != null) border.enabled = false;
+                    var button = image.GetComponent<UnityEngine.UI.Button>(); if (button != null) button.transition = UnityEngine.UI.Selectable.Transition.None;
+                }
+                if (image.name == "TempoPill")
+                {
+                    image.sprite = SpriteAt("Assets/Art/Characters/Combo crew/HUD/relogio jogo.png"); image.color = Color.white;
+                    image.rectTransform.sizeDelta = new Vector2(180, 70);
+                    Vector2 position = image.rectTransform.anchoredPosition;
+                    foreach (TMPro.TMP_Text label in root.GetComponentsInChildren<TMPro.TMP_Text>(true)) if (label.name == "Tempo")
+                    {
+                        label.rectTransform.sizeDelta = new Vector2(120, 54); label.rectTransform.anchoredPosition = position + new Vector2(28, 0);
+                        label.fontSize = 26; label.enableAutoSizing = true; label.fontSizeMin = 20; label.fontSizeMax = 26;
+                        label.alignment = TMPro.TextAlignmentOptions.Center; label.margin = Vector4.zero; label.color = new Color32(255, 199, 44, 255);
+                    }
+                }
+            }
+        }
+        var offsets = data.FindProperty("rushHatAdjustments");
+        int[] indices = { 5, 8, 9, 10, 11 }; float[] drops = { .035f, .045f, .03f, .015f, .035f };
+        for (int i = 0; i < indices.Length; i++) if (indices[i] < offsets.arraySize)
+        { var offset = offsets.GetArrayElementAtIndex(indices[i]).FindPropertyRelative("Offset"); offset.vector2Value += Vector2.down * drops[i]; }
+        data.FindProperty("visualLayoutVersion").intValue = 2; data.ApplyModifiedProperties();
+        typeof(RushBalanceController).GetMethod("ApplyHatPreviewInEditor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.Invoke(controller, null);
+        return true;
+    }
+    private static void ImageOutline(UnityEngine.UI.Image image)
+    {
+        if (image == null) return;
+        var outline = image.GetComponent<AvatarSpriteOutline>() ?? UnityEditor.Undo.AddComponent<AvatarSpriteOutline>(image.gameObject);
+        outline.Thickness = 4; AvatarView.StyleCustomizationIcon(image, AvatarCustomizationCategory.Hat);
+    }
+    private static Sprite SpriteAt(string path)
+    {
+        var sprite = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite == null) throw new System.InvalidOperationException("Sprite não encontrado: " + path);
+        return sprite;
+    }
+}

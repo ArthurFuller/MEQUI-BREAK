@@ -20,6 +20,8 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     private float progressBarInset = 1f;
     [SerializeField] private Image highlight;
     [SerializeField] private Image stationVisual;
+    [SerializeField, Tooltip("Camada dos personagens: acima das barras, atrás das frentes das bancadas.")]
+    private Transform movementLayer;
     [SerializeField] private RectTransform[] pulseParts;
     [SerializeField] private Shader dropOutlineShader;
     [SerializeField] private TMP_Text status;
@@ -73,7 +75,7 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     private ComboCrewStationParticles particles;
     public RectTransform WorkAnchor => workAnchor;
     public RectTransform HandoffAnchor => handoffAnchor;
-    public Transform ForegroundLayer => stationVisual != null ? stationVisual.transform.parent : null;
+    public Transform ForegroundLayer => movementLayer;
     public bool Configured => workAnchor != null && progressFill != null && highlight != null
         && stationVisual != null
         && handoffAnchor != null && status != null && trayOnCounter != null;
