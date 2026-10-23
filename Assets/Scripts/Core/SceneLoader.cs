@@ -299,7 +299,6 @@ public sealed class SceneLoader : MonoBehaviour
         return IsScene(currentScene, "Customization")
             || IsScene(currentScene, "Settings")
             || IsScene(currentScene, "EnergyStation")
-            || IsScene(currentScene, "RushBalance")
             || IsScene(currentScene, "RushBalance2")
             || IsScene(currentScene, "ComboCrew");
     }

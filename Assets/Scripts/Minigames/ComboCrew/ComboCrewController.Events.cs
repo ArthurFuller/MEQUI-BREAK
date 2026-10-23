@@ -331,6 +331,7 @@ public sealed partial class ComboCrewController
             stationTimers[station] = repairWarningSeconds;
             stationRepairDurations[station] = duration;
             stations[station].SetAlert(ComboCrewStationView.Alert.Warning);
+            AudioManager.Instance?.PlayIncident();
             ShowMessage($"{StationNames[station]}: ajuste em breve", 2.5f);
             EventLogger.Instance?.RecordActivityEvent($"combo_failure_warning_{station}");
             return true;
@@ -384,7 +385,7 @@ public sealed partial class ComboCrewController
         }
         workerReadyAt[worker] = turnElapsed + Mathf.Max(0f, turnProfile.workerCooldown);
         ShowMessage("Pessoa da equipe voltou", 1.5f);
-        AudioManager.Instance?.PlayReady();
+        AudioManager.Instance?.PlayWorkerReturn();
         EventLogger.Instance?.RecordActivityEvent("combo_worker_returned");
         RefreshHud();
         TryFinish();

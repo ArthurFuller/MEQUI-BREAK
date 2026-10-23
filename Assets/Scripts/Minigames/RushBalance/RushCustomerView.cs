@@ -79,6 +79,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     private Vector3 characterBaseScale;
     private Vector3 balloonBaseScale;
     private float patienceDisplayed = 1f;
+    private static readonly Color HealthyPatience = new Color(.34f, .72f, .39f);
     private RectTransform balloonRect;
     private float patienceTarget = 1f;
     private float patienceSecondsRemaining;
@@ -140,6 +141,7 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         patienceFill.fillOrigin = circularPatience ? (int)Image.Origin360.Top : (int)Image.OriginHorizontal.Left;
         patienceFill.fillClockwise = true;
         patienceFill.fillAmount = 1f;
+        patienceFill.color = HealthyPatience;
 
         for (int i = 0; i < faces.Length; i++)
         {
@@ -193,7 +195,11 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         character.localScale = characterBaseScale;
         if (balloonRect != null) balloonRect.localScale = balloonBaseScale;
         patienceDisplayed = 1f;
-        if (patienceFill != null) patienceFill.fillAmount = 1f;
+        if (patienceFill != null)
+        {
+            patienceFill.fillAmount = 1f;
+            patienceFill.color = HealthyPatience;
+        }
         patienceTarget = 1f;
         patienceSecondsRemaining = 0f;
         patienceRunning = false;
@@ -258,6 +264,10 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
         departing = false;
         balloonHovered = false;
         balloonPressed = false;
+        patienceFill.enabled = true;
+        patienceFill.fillAmount = 1f;
+        patienceFill.color = HealthyPatience;
+        patienceFill.transform.SetAsLastSibling();
         gameObject.SetActive(true);
         character.gameObject.SetActive(true);
         character.localScale = characterBaseScale;

@@ -20,7 +20,7 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     private float progressBarInset = 1f;
     [SerializeField] private Image highlight;
     [SerializeField] private Image stationVisual;
-    [SerializeField, Tooltip("Camada dos personagens: acima das barras, atrás das frentes das bancadas.")]
+    [SerializeField, Tooltip("Camada de trânsito dos personagens, acima das frentes e placas das bancadas.")]
     private Transform movementLayer;
     [SerializeField] private RectTransform[] pulseParts;
     [SerializeField] private Shader dropOutlineShader;
@@ -28,14 +28,17 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     [SerializeField] private Image statusIcon;
     [SerializeField] private Sprite[] statusSprites;
     [SerializeField] private GameObject trayOnCounter;
+    [Header("Balão fixo desta bancada") ]
+    [SerializeField] private GameObject speechBubble;
+    [SerializeField] private TMP_Text speechText;
+    [SerializeField] private Vector3 speechOffset;
+    private ComboCrewWorkerView speaker;
+    public TMP_Text SpeechText => speechText;
 
     [Header("Animação e feedback da estação")]
     [SerializeField, Min(1f)] private float barSmoothing = 10f;
     [SerializeField, Min(.01f)] private float completionFlashSeconds = .16f;
     [SerializeField] private Color completionFlashColor = new Color(1f, .87f, .43f);
-    [SerializeField, Min(.01f)] private float brokenStatusPulseSeconds = .38f;
-    [SerializeField, Range(1f, 1.2f)] private float brokenStatusScale = 1.08f;
-    [SerializeField] private Ease brokenStatusPulseEase = Ease.InOutSine;
     [SerializeField] private Color warningStatusColor = new Color(1f, .78f, .25f);
     [SerializeField] private Color brokenStatusColor = new Color(1f, .36f, .24f);
     [SerializeField] private Color repairingStatusColor = new Color(.45f, .86f, 1f);
@@ -78,10 +81,13 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     public Transform ForegroundLayer => movementLayer;
     public bool Configured => workAnchor != null && progressFill != null && highlight != null
         && stationVisual != null
-        && handoffAnchor != null && status != null && trayOnCounter != null;
+        && handoffAnchor != null && status != null && trayOnCounter != null
+        && speechBubble != null && speechText != null;
 
     public void Bind(ComboCrewController controller, int stationIndex)
     {
+        if (speechBubble != null) speechBubble.SetActive(false);
+        speaker = null;
         owner = controller;
         index = stationIndex;
         shown = 0f;
@@ -175,6 +181,47 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         dropOutlineMaterial.SetVector("_SampleStep", new Vector4(ux * radius, uy * radius));
     }
 
+    public void ShowSpeech(ComboCrewWorkerView worker, string message)
+    {
+        if (speechBubble == null || speechText == null) return;
+        speaker = worker;
+        PositionSpeech();
+        speechText.text = message;
+        speechBubble.SetActive(true);
+    }
+
+    private void PositionSpeech()
+    {
+        if (speechBubble != null && workAnchor != null)
+            speechBubble.transform.position = workAnchor.TransformPoint(speechOffset);
+    }
+
+    public void HideSpeech(ComboCrewWorkerView worker)
+    {
+        if (speaker != worker) return;
+        speaker = null;
+        if (speechBubble != null) speechBubble.SetActive(false);
+    }
+
+#if UNITY_EDITOR
+    public void SetSpeechPreview(bool visible)
+    {
+        if (Application.isPlaying || speechBubble == null) return;
+        if (UnityEditor.Selection.activeTransform == speechBubble.transform && workAnchor != null)
+        {
+            Vector3 editedOffset = workAnchor.InverseTransformPoint(speechBubble.transform.position);
+            if ((editedOffset - speechOffset).sqrMagnitude > .001f)
+            {
+                UnityEditor.Undo.RecordObject(this, "Posicionar balão da bancada");
+                speechOffset = editedOffset;
+                UnityEditor.EditorUtility.SetDirty(this);
+            }
+        }
+        PositionSpeech();
+        speechBubble.SetActive(visible);
+    }
+#endif
+
     public void SetProgressVisible(bool visible)
     {
         if (progressRoot != null) progressRoot.SetActive(visible);
@@ -182,6 +229,7 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
 
     public void Refresh(float progress, string message, bool hasTray, bool washingAtSink = false)
     {
+        if (speechBubble != null && speechBubble.activeSelf) PositionSpeech();
         SyncOutlineSource();
         float blend = 1f - Mathf.Exp(-barSmoothing * Time.unscaledDeltaTime);
         shown = progress >= 1f ? 1f : Mathf.Lerp(shown, Mathf.Clamp01(progress), blend);
@@ -304,16 +352,10 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         if (stationVisual != null)
             stationVisual.rectTransform.anchoredPosition = stationVisualPosition;
         RefreshHighlight();
-        if (level == Alert.Broken)
+        if (level == Alert.Warning || level == Alert.Broken)
         {
-            float beat = brokenStatusPulseSeconds * .25f;
-            statusPulse = DOTween.Sequence().SetTarget(this)
-                .Append(stationVisual.rectTransform.DOAnchorPosX(stationVisualPosition.x + 3f, beat))
-                .Join(status.rectTransform.DOScale(statusScale * brokenStatusScale, beat))
-                .Append(stationVisual.rectTransform.DOAnchorPosX(stationVisualPosition.x - 3f, beat))
-                .Append(stationVisual.rectTransform.DOAnchorPosX(stationVisualPosition.x, beat))
-                .Join(status.rectTransform.DOScale(statusScale, beat).SetEase(brokenStatusPulseEase))
-                .AppendInterval(1.8f).SetLoops(-1);
+            statusPulse = status.rectTransform.DOScale(statusScale * 1.04f, .65f)
+                .SetEase(Ease.InOutSine).SetLoops(-1, LoopType.Yoyo).SetTarget(this);
         }
     }
 
@@ -376,6 +418,8 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
 
     private void OnDisable()
     {
+        speaker = null;
+        if (speechBubble != null) speechBubble.SetActive(false);
         if (progressFill != null)
         {
             progressFill.DOKill();

@@ -35,6 +35,24 @@ public sealed class AudioManager : MonoBehaviour
     [SerializeField] private AudioClip stationBreakClip;
     [SerializeField] private AudioClip stationReadyClip;
 
+    [Header("Efeitos por evento")]
+    [SerializeField] private AudioClip sessionStartClip;
+    [SerializeField] private AudioClip queueAcceptedClip;
+    [SerializeField] private AudioClip queueReorderedClip;
+    [SerializeField] private AudioClip deliveryClip;
+    [SerializeField] private AudioClip orderFailedClip;
+    [SerializeField] private AudioClip workerAssignedClip;
+    [SerializeField] private AudioClip workerReturnClip;
+    [SerializeField] private AudioClip workStageClip;
+    [SerializeField] private AudioClip washedClip;
+    [SerializeField] private AudioClip breakTickClip;
+    [Header("Trilhas dos minigames")]
+    [SerializeField] private AudioClip energyMusic;
+    [SerializeField] private AudioClip rushMusic;
+    [SerializeField] private AudioClip comboMusic;
+    [SerializeField, Range(0f, 1f)] private float gameplayMusicVolume = .22f;
+    private float nextBreakTickTime;
+
     [Header("Volumes")]
     [SerializeField, Range(0f, 1f)] private float musicVolume = 0.9f;
     [SerializeField, Range(0f, 1f)] private float sfxVolume = 1f;
@@ -73,6 +91,7 @@ public sealed class AudioManager : MonoBehaviour
     {
         KeepOnlyPersistentListener();
         BindButtons(SceneManager.GetActiveScene());
+        PlaySceneMusic(SceneManager.GetActiveScene().name);
     }
 
     private void OnDisable() => SceneManager.sceneLoaded -= HandleSceneLoaded;
@@ -87,6 +106,7 @@ public sealed class AudioManager : MonoBehaviour
     {
         KeepOnlyPersistentListener();
         BindButtons(scene);
+        PlaySceneMusic(scene.name);
     }
 
     private void ConfigureListener()
@@ -150,7 +170,7 @@ public sealed class AudioManager : MonoBehaviour
         if (musicSource != null)
         {
             musicSource.mute = !musicEnabled;
-            musicSource.volume = musicVolume;
+            musicSource.volume = musicSource.loop ? gameplayMusicVolume : musicVolume;
             if (!musicEnabled)
                 musicSource.Stop();
         }
@@ -192,13 +212,50 @@ public sealed class AudioManager : MonoBehaviour
     public void PlayStationReady() => PlayEffect(stationReadyClip != null ? stationReadyClip
         : readyClip != null ? readyClip : confirmClip, .7f);
 
+    public void PlaySessionStart() => PlayEffect(sessionStartClip);
+    public void PlayQueueAccepted() => PlayEffect(queueAcceptedClip);
+    public void PlayQueueReordered() => PlayEffect(queueReorderedClip);
+    public void PlayDelivery() => PlayEffect(deliveryClip);
+    public void PlayOrderFailed() => PlayEffect(orderFailedClip);
+    public void PlayWorkerAssigned() => PlayEffect(workerAssignedClip);
+    public void PlayWorkerReturn() => PlayEffect(workerReturnClip);
+    public void PlayWorkStage() => PlayEffect(workStageClip, .65f);
+    public void PlayWashed() => PlayEffect(washedClip);
+    public void PlayBreakTick()
+    {
+        if (Time.unscaledTime < nextBreakTickTime) return;
+        nextBreakTickTime = Time.unscaledTime + .12f;
+        PlayEffect(breakTickClip);
+    }
+
+    private void PlaySceneMusic(string sceneName)
+    {
+        if (musicSource == null) return;
+        AudioClip next = sceneName == "EnergyStation" ? energyMusic
+            : sceneName == "RushBalance2" ? rushMusic
+            : sceneName == "ComboCrew" ? comboMusic : null;
+        if (next == null)
+        {
+            // Um jingle curto pode terminar no HUB; uma trilha do jogo deve parar.
+            if (musicSource.loop) { musicSource.Stop(); musicSource.clip = null; musicSource.loop = false; }
+            return;
+        }
+        if (musicSource.clip != next)
+        {
+            musicSource.Stop(); musicSource.clip = next;
+        }
+        musicSource.loop = true;
+        musicSource.volume = gameplayMusicVolume;
+        musicSource.mute = !musicEnabled;
+        if (musicEnabled && !musicSource.isPlaying) musicSource.Play();
+    }
+
     public void PlayLoginJingle()
     {
         if (musicSource == null || loginJingleClip == null)
             return;
 
-        // O jingle confirma um login válido e deve tocar mesmo se uma preferência
-        // antiga tiver deixado a música desativada durante os testes no Editor.
+        if (!musicEnabled) return;
         musicSource.enabled = true;
         musicSource.mute = false;
         musicSource.volume = musicVolume;
@@ -215,9 +272,9 @@ public sealed class AudioManager : MonoBehaviour
             return;
 
         musicSource.mute = !enabled;
-        musicSource.volume = musicVolume;
-        if (!enabled)
-            musicSource.Stop();
+        musicSource.volume = musicSource.loop ? gameplayMusicVolume : musicVolume;
+        if (!enabled) musicSource.Stop();
+        else if (musicSource.loop && musicSource.clip != null && !musicSource.isPlaying) musicSource.Play();
     }
 
     public void SetSFXEnabled(bool enabled)

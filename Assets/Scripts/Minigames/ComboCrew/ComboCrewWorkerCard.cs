@@ -176,7 +176,7 @@ public sealed class ComboCrewWorkerCard : HierarchyDragHandle, IPointerClickHand
     {
         RectTransform details = (RectTransform)cardDetails.transform;
         details.sizeDelta = new Vector2(width, height);
-        float portraitSize = compact ? 88f : 112f;
+        float portraitSize = compact ? 68f : 84f;
         float portraitY = compact ? 24f : 50f;
         foreach (string part in new[] { "CorpoMiniatura", "RostoMiniatura" })
         {
@@ -216,6 +216,7 @@ public sealed class ComboCrewWorkerCard : HierarchyDragHandle, IPointerClickHand
         }
         if (DragVisual.Find("FaixaCard") is RectTransform stripe)
             stripe.gameObject.SetActive(false);
+        RefreshPortrait();
     }
 
     private void EnsureAssignedOverlay()

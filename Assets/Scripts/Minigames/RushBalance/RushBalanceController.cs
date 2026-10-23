@@ -11,16 +11,6 @@ using UnityEngine.InputSystem;
 [DisallowMultipleComponent]
 public sealed class RushBalanceController : MonoBehaviour
 {
-    [System.Serializable]
-    public sealed class RushHatVisualAdjustment
-    {
-        [Tooltip("Ajuste adicional normalizado somente para o Rush.")]
-        public Vector2 Offset;
-        [Tooltip("Multiplicador adicional sobre a escala da Customization.")]
-        [Min(.1f)] public float ScaleMultiplier = 1f;
-        [Tooltip("Rotação adicional somente para o Rush.")]
-        public float Rotation;
-    }
 
     public enum AppearanceMode { BorderedClothes, FullBody }
 
@@ -136,7 +126,7 @@ public sealed class RushBalanceController : MonoBehaviour
     [SerializeField] private bool avoidRepeatedHats = true;
     [SerializeField] private bool avoidRepeatedTorsos = true;
     [SerializeField] private bool avoidRepeatedColors = true;
-    [SerializeField] private RushHatVisualAdjustment[] rushHatAdjustments;
+    [SerializeField] private AvatarHatVisualAdjustment[] rushHatAdjustments;
 
     [Header("Prévia dos chapéus no Rush — Editor")]
     [SerializeField] private RushCustomerView hatPreviewCustomer;
@@ -232,6 +222,9 @@ public sealed class RushBalanceController : MonoBehaviour
 
     private void OnDisable()
     {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.delayCall -= ApplyHatPreviewInEditor;
+#endif
         SelectQueueCard(-1);
         arrowHint?.Kill();
         if (QueueControlsEnabled) queueButtons.transform.localScale = arrowBaseScale;
@@ -425,7 +418,7 @@ public sealed class RushBalanceController : MonoBehaviour
         Sprite hat = npcHatOptions[hatIndex];
         AvatarCustomizationItem catalogAdjustment = customizationCatalog.GetItem(
             AvatarCustomizationCategory.Hat, hatIndex);
-        RushHatVisualAdjustment rushAdjustment = rushHatAdjustments != null
+        AvatarHatVisualAdjustment rushAdjustment = rushHatAdjustments != null
             && hatIndex < rushHatAdjustments.Length ? rushHatAdjustments[hatIndex] : null;
         Vector2 baseOffset = catalogAdjustment != null
             ? catalogAdjustment.DeslocamentoNoAvatar : Vector2.zero;
@@ -474,7 +467,7 @@ public sealed class RushBalanceController : MonoBehaviour
         if (!session.IsPlaying || ending || !round.Enqueue(id)) return;
         TouchQueueControls();
         EventLogger.Instance?.RecordUserAction("rush_select_request");
-        AudioManager.Instance?.PlayConfirm();
+        AudioManager.Instance?.PlayQueueAccepted();
         MequiHaptics.Selection();
         Refresh();
     }
@@ -485,7 +478,7 @@ public sealed class RushBalanceController : MonoBehaviour
         TouchQueueControls();
         session.RecordReorder();
         EventLogger.Instance?.RecordActivityEvent("rush_order_reordered:" + telemetryOrderIds[id] + ":" + rank);
-        AudioManager.Instance?.PlayConfirm();
+        AudioManager.Instance?.PlayQueueReordered();
         MequiHaptics.Selection();
         Refresh();
     }
@@ -1002,6 +995,10 @@ public sealed class RushBalanceController : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    private int appliedHatPreviewIndex = -1;
+    public RectTransform HatPreviewTransform => hatPreviewCustomer != null && hatPreviewCustomer.HatImage != null
+        ? hatPreviewCustomer.HatImage.rectTransform : null;
+
     private void OnValidate()
     {
         UnityEditor.EditorApplication.delayCall -= ApplyHatPreviewInEditor;
@@ -1011,7 +1008,7 @@ public sealed class RushBalanceController : MonoBehaviour
     private void OnDrawGizmos()
     {
         if (Application.isPlaying) return;
-        if (!editHatDirectlyInScene || hatPreviewCustomer == null
+        if (!previewHatInEditor || !editHatDirectlyInScene || hatPreviewCustomer == null
             || hatPreviewCustomer.HatImage == null
             || UnityEditor.Selection.activeGameObject != hatPreviewCustomer.HatImage.gameObject)
             return;
@@ -1019,7 +1016,7 @@ public sealed class RushBalanceController : MonoBehaviour
         SaveRushHatAdjustment();
     }
 
-    private void ApplyHatPreviewInEditor()
+    public void ApplyHatPreviewInEditor()
     {
         UnityEditor.EditorApplication.delayCall -= ApplyHatPreviewInEditor;
         if (this == null || Application.isPlaying) return;
@@ -1033,6 +1030,8 @@ public sealed class RushBalanceController : MonoBehaviour
         colorPreviewIndex = Mathf.Clamp(colorPreviewIndex, 0, npcColorOptions.Length - 1);
         hatPreviewCustomer.gameObject.SetActive(true);
         hatPreviewCustomer.ApplyAppearance(BuildAppearance(hatPreviewIndex, colorPreviewIndex, 0));
+        appliedHatPreviewIndex = hatPreviewIndex;
+        UnityEditor.SceneView.RepaintAll();
     }
 
     private void ApplyHatPreviewVisibilityInEditor()
@@ -1046,14 +1045,15 @@ public sealed class RushBalanceController : MonoBehaviour
         }
     }
 
-    private void SaveRushHatAdjustment()
+    public void SaveRushHatAdjustment()
     {
-        if (npcHatOptions == null || npcHatOptions.Length == 0
+        if (Application.isPlaying || !previewHatInEditor || appliedHatPreviewIndex != hatPreviewIndex
+            || npcHatOptions == null || npcHatOptions.Length == 0
             || customizationCatalog == null || hatPreviewCustomer == null
             || hatPreviewCustomer.HatImage == null) return;
         int index = Mathf.Clamp(hatPreviewIndex, 0, npcHatOptions.Length - 1);
         if (rushHatAdjustments == null || index >= rushHatAdjustments.Length) return;
-        RushHatVisualAdjustment adjustment = rushHatAdjustments[index];
+        AvatarHatVisualAdjustment adjustment = rushHatAdjustments[index];
         if (adjustment == null) return;
 
         RectTransform target = hatPreviewCustomer.HatImage.rectTransform;
@@ -1081,6 +1081,7 @@ public sealed class RushBalanceController : MonoBehaviour
             && Mathf.Abs(adjustment.ScaleMultiplier - nextScale) < .0001f
             && Mathf.Abs(adjustment.Rotation - nextRotation) < .001f) return;
 
+        UnityEditor.Undo.RecordObject(this, "Posicionar chapéu no Rush Balance");
         adjustment.Offset = nextOffset;
         adjustment.ScaleMultiplier = nextScale;
         adjustment.Rotation = nextRotation;

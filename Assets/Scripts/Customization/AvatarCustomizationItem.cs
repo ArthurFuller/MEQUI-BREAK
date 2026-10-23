@@ -30,3 +30,12 @@ public sealed class AvatarCustomizationItem
     [Tooltip("Rotação individual deste item, em graus.")]
     public float RotacaoNoAvatar;
 }
+
+/// <summary>Ajuste individual sobre o catálogo, reutilizado pelos dois minigames.</summary>
+[System.Serializable]
+public class AvatarHatVisualAdjustment
+{
+    public Vector2 Offset;
+    [Min(.1f)] public float ScaleMultiplier = 1f;
+    public float Rotation;
+}

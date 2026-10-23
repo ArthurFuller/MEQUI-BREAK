@@ -38,6 +38,7 @@ public sealed class SettingsController : MonoBehaviour
     private float workPanelExpandedHeight;
     private Sequence workPanelSequence;
     private bool isWorkPanelOpen;
+    private readonly Vector3[] contentCorners = new Vector3[4];
 
     private void Start()
     {
@@ -189,8 +190,22 @@ public sealed class SettingsController : MonoBehaviour
         if (settingsContent == null)
             return;
 
-        Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(settingsContent);
+        // Os blocos são posicionados manualmente. O Content deve conter os
+        // controles, inclusive quando a seção do funcionário abre ou fecha.
+        float bottom = 0f;
+        foreach (Transform child in settingsContent)
+        {
+            if (!(child is RectTransform rect) || !child.gameObject.activeSelf) continue;
+            // Header e fundos esticados não definem a altura rolável.
+            if (rect.anchorMax.y - rect.anchorMin.y > .99f) continue;
+            rect.GetWorldCorners(contentCorners);
+            for (int i = 0; i < contentCorners.Length; i++)
+                bottom = Mathf.Max(bottom, -settingsContent.InverseTransformPoint(contentCorners[i]).y);
+        }
+        float viewportHeight = settingsContent.parent is RectTransform viewport ? viewport.rect.height : 0f;
+        settingsContent.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,
+            Mathf.Max(viewportHeight, bottom + 40f));
     }
 
     public void SetMusic(bool enabled) => SettingsManager.Instance?.SetMusicEnabled(enabled);

@@ -30,17 +30,11 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     private float breakDurationMultiplier = 1f;
     [Header("Pausa")]
     [SerializeField] private Image breakRing;
+    [SerializeField] private RectTransform breakWarningRoot;
     [SerializeField] private Animator breakWarningAnimator;
-    [SerializeField, Range(0f, 1f)] private float breakAlertFraction = .3f;
-    private static readonly int ClockProgressId = Animator.StringToHash("ClockProgress");
+    [SerializeField, Range(0f, 1f)] private float breakAlertFraction = .6f;
+    private int lastBreakTick = -1;
     private static readonly int ClockUrgentId = Animator.StringToHash("Urgent");
-    [SerializeField] private GameObject breakBubble;
-    [SerializeField] private TMP_Text breakBubbleText;
-    [SerializeField, Tooltip("Balão à direita do ator. Mova este objeto diretamente na cena.")]
-    private GameObject breakBubbleRight;
-    [SerializeField] private TMP_Text breakBubbleRightText;
-    [SerializeField] private Sprite bubblePointingLeft;
-    [SerializeField] private Sprite bubblePointingRight;
     [SerializeField, Tooltip("Camada à frente das bancadas usada durante o aviso e a pausa.")]
     private Transform pauseForegroundLayer;
     [SerializeField] private Image face;
@@ -59,17 +53,16 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     private Sprite savedFace;
     private bool problemShown;
     private bool flowBlocked;
-    private TMP_Text attentionMark;
+    private bool waitingForTray;
+    [SerializeField] private TMP_Text attentionMark;
     private Tween attentionPulse;
-    private Tween bubbleTween;
-    private bool bubbleOnRight;
-    private GameObject ActiveBubble => bubbleOnRight && breakBubbleRight != null
-        ? breakBubbleRight : breakBubble;
-    private TMP_Text ActiveBubbleText => bubbleOnRight && breakBubbleRightText != null
-        ? breakBubbleRightText : breakBubbleText;
-    private Vector2 attentionHome;
-    private Vector3 attentionActorScale;
-    private bool attentionScaleCached;
+    [SerializeField] private RectTransform headIndicators;
+    private RectTransform headBody;
+    private readonly Vector3[] headCorners = new Vector3[4];
+    private ComboCrewStationView speechStation;
+    private TMP_Text ActiveBubbleText => speechStation != null ? speechStation.SpeechText : null;
+    private Transform restingLayer;
+    private int restingSibling;
     private Transform deliveryHomeParent;
     private int deliveryHomeSibling;
     private bool restoreLayerWhenActive;
@@ -77,7 +70,19 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     public bool Busy => route != null && route.IsActive();
     public bool WashingAtSink { get; private set; }
     public float WashProgress { get; private set; }
-    public bool Dragging => actor != null && actor.GetComponent<ComboCrewWorkerStationDrag>()?.IsDragging == true;
+    private ComboCrewWorkerStationDrag stationDrag;
+    private void Awake()
+    {
+        if (actor != null) stationDrag = actor.GetComponent<ComboCrewWorkerStationDrag>();
+        if (actor != null)
+        {
+            restingLayer = actor.parent;
+            restingSibling = actor.GetSiblingIndex();
+            headBody = actor.Find("Corpo") as RectTransform;
+        }
+        PositionHeadIndicators();
+    }
+    public bool Dragging => stationDrag != null && stationDrag.IsDragging;
     public float RouteProgress => Busy ? route.ElapsedPercentage(false) : 0f;
     public bool Configured => actor != null && carriedTray != null;
     public string DisplayName => displayName;
@@ -122,6 +127,7 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         {
             portraitFace.sprite = face.sprite;
             portraitFace.color = Color.black;
+            CopyPortraitTransform(face, portraitFace, actorBody, body);
         }
         if (hat != null)
         {
@@ -132,9 +138,29 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
                 hat.sprite = actorHat.sprite;
                 hat.color = actorHat.color;
                 CopyPortraitOutline(actorHat, hat);
+                CopyPortraitTransform(actorHat, hat, actorBody, body);
             }
         }
     }
+    private static void CopyPortraitTransform(Image source, Image target, Image sourceBody, Image targetBody)
+    {
+        if (source == null || target == null || sourceBody == null || targetBody == null) return;
+        RectTransform original = source.rectTransform;
+        RectTransform originalBody = sourceBody.rectTransform;
+        RectTransform portrait = target.rectTransform;
+        float bodySize = Mathf.Min(originalBody.rect.width, originalBody.rect.height);
+        float ratio = Mathf.Min(targetBody.rectTransform.rect.width, targetBody.rectTransform.rect.height)
+            / Mathf.Max(1f, bodySize);
+        portrait.anchorMin = portrait.anchorMax = Vector2.one * .5f;
+        portrait.pivot = original.pivot;
+        portrait.sizeDelta = original.rect.size * ratio;
+        portrait.anchoredPosition = targetBody.rectTransform.anchoredPosition
+            + (original.anchoredPosition - originalBody.anchoredPosition) * ratio;
+        portrait.localScale = original.localScale;
+        portrait.localRotation = original.localRotation;
+        target.preserveAspect = true;
+    }
+
     private static void CopyPortraitOutline(Image source, Image target)
     {
         AvatarSpriteOutline outline = target.GetComponent<AvatarSpriteOutline>();
@@ -272,13 +298,18 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         if (breakRing == null) return;
         float remaining = Mathf.Clamp01(remainingFraction);
         bool visible = remaining > 0f;
-        breakRing.gameObject.SetActive(visible);
-
-        // Os clipes controlam a imagem e o pulso; o jogo apenas informa o tempo.
-        if (visible && breakWarningAnimator != null)
-        {
-            breakWarningAnimator.SetFloat(ClockProgressId, 1f - remaining);
+        GameObject root = breakWarningRoot != null ? breakWarningRoot.gameObject : breakRing.gameObject;
+        root.SetActive(visible);
+        PositionHeadIndicators();
+        if (!visible) { lastBreakTick = -1; return; }
+        breakRing.fillAmount = remaining;
+        if (breakWarningAnimator != null)
             breakWarningAnimator.SetBool(ClockUrgentId, remaining <= breakAlertFraction);
+        int seconds = Mathf.CeilToInt(remaining * 5f);
+        if (seconds <= 3 && seconds != lastBreakTick)
+        {
+            lastBreakTick = seconds;
+            AudioManager.Instance?.PlayBreakTick();
         }
     }
 
@@ -286,33 +317,33 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     {
         if (problemShown == visible) return;
         problemShown = visible;
-        if (visible)
-        {
-            if (face != null && problemFace != null)
-            {
-                savedFace = face.sprite;
-                face.sprite = problemFace;
-            }
-            ShowBubble(ProblemPhrase);
-        }
-        else
-        {
-            if (face != null && savedFace != null) face.sprite = savedFace;
-            savedFace = null;
-            // A fala de pausa tem prioridade se o funcionário sair nesse instante.
-            if (ActiveBubble != null && ActiveBubbleText != null
-                && ActiveBubbleText.text == ProblemPhrase) HideBubble();
-        }
-        RefreshAttention();
+        RefreshComplaint();
     }
 
-    public void ShowFlowBlocked(bool visible)
+    public void ShowFlowBlocked(bool visible, bool needsTray = false)
     {
-        if (flowBlocked == visible) return;
+        if (flowBlocked == visible && waitingForTray == (visible && needsTray)) return;
         flowBlocked = visible;
-        if (visible && !problemShown) ShowBubble("Aguardando!");
-        else if (!visible && !problemShown && ActiveBubbleText != null
-            && ActiveBubbleText.text == "Aguardando!") HideBubble();
+        waitingForTray = visible && needsTray;
+        RefreshComplaint();
+    }
+
+    private void RefreshComplaint()
+    {
+        bool visible = problemShown || flowBlocked;
+        if (face != null)
+        {
+            if (visible && problemFace != null)
+            {
+                if (savedFace == null) savedFace = face.sprite;
+                face.sprite = problemFace;
+            }
+            else if (savedFace != null) { face.sprite = savedFace; savedFace = null; }
+        }
+        if (visible) ShowBubble(problemShown ? ProblemPhrase
+            : waitingForTray ? "Preciso de bandeja!" : "Aguardando!");
+        else if (ActiveBubbleText != null && (ActiveBubbleText.text == ProblemPhrase
+            || ActiveBubbleText.text == "Aguardando!" || ActiveBubbleText.text == "Preciso de bandeja!")) HideBubble();
         RefreshAttention();
     }
 
@@ -323,58 +354,30 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         {
             attentionPulse?.Kill();
             attentionPulse = null;
-            if (actor != null && attentionScaleCached)
-            {
-                actor.localScale = attentionActorScale;
-                attentionScaleCached = false;
-            }
             if (attentionMark != null)
             {
                 attentionMark.gameObject.SetActive(false);
-                attentionMark.rectTransform.anchoredPosition = attentionHome;
                 attentionMark.rectTransform.localScale = Vector3.one;
             }
+            PositionHeadIndicators();
             return;
         }
 
-        if (attentionMark == null)
-        {
-            GameObject marker = new GameObject("AvisoDoFuncionario", typeof(RectTransform),
-                typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-            RectTransform rect = (RectTransform)marker.transform;
-            rect.SetParent(actor, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
-            rect.sizeDelta = new Vector2(46f, 56f);
-            attentionHome = new Vector2(0f, 59f);
-            rect.anchoredPosition = attentionHome;
-            attentionMark = marker.GetComponent<TMP_Text>();
-            attentionMark.font = breakBubbleText != null
-                ? breakBubbleText.font : TMP_Settings.defaultFontAsset;
-            attentionMark.text = "!";
-            attentionMark.fontSize = 52f;
-            attentionMark.fontStyle = FontStyles.Bold;
-            attentionMark.alignment = TextAlignmentOptions.Center;
-            attentionMark.outlineColor = Color.black;
-            attentionMark.outlineWidth = .22f;
-            attentionMark.raycastTarget = false;
-        }
+        // Os avisos são objetos serializados e editáveis na cena.
+        if (attentionMark == null) return;
 
         attentionMark.color = problemShown
             ? new Color32(255, 75, 65, 255) : new Color32(255, 207, 70, 255);
         attentionMark.gameObject.SetActive(true);
+        PositionHeadIndicators();
         if (attentionPulse != null && attentionPulse.IsActive()) return;
-        attentionActorScale = actor.localScale;
-        attentionScaleCached = true;
         RectTransform target = attentionMark.rectTransform;
-        attentionPulse = DOTween.Sequence().SetTarget(this)
-            .Append(target.DOAnchorPosX(attentionHome.x + 3f, .07f))
-            .Join(target.DOScale(1.14f, .07f))
-            .Join(actor.DOScale(attentionActorScale * 1.04f, .07f))
-            .Append(target.DOAnchorPosX(attentionHome.x - 3f, .07f))
-            .Append(target.DOAnchorPosX(attentionHome.x, .07f))
-            .Join(target.DOScale(1f, .07f))
-            .Join(actor.DOScale(attentionActorScale, .07f))
-            .AppendInterval(1.7f).SetLoops(-1);
+        Sequence pulse = DOTween.Sequence().SetTarget(this)
+            .Append(target.DOScale(1.18f, .24f).SetEase(Ease.InOutSine))
+            .Join(attentionMark.DOFade(.5f, .24f))
+            .Append(target.DOScale(1f, .24f).SetEase(Ease.InOutSine))
+            .Join(attentionMark.DOFade(1f, .24f));
+        attentionPulse = pulse.AppendInterval(.55f).SetLoops(-1);
     }
 
     public bool TakeBreak(float seconds, Action returned)
@@ -476,92 +479,79 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     {
         if (anchor == null || actor == null) return;
         home = anchor;
-        UpdateBubbleSide(anchor);
+        ComboCrewStationView nextStation = anchor.GetComponentInParent<ComboCrewStationView>();
+        if (speechStation != nextStation)
+        {
+            ShowStationProblem(false);
+            ShowFlowBlocked(false);
+            HideBubbleImmediately();
+        }
+        speechStation = nextStation;
         if (Busy) return;
         if (!gameObject.activeSelf) gameObject.SetActive(true);
         if (!actor.gameObject.activeSelf) actor.gameObject.SetActive(true);
         actor.DOKill();
-        if (instant) actor.position = anchor.position;
-        else actor.DOMove(anchor.position, travelSeconds).SetEase(Ease.OutCubic).SetTarget(this);
+        if (instant) { RestoreDeliveryLayer(); actor.position = anchor.position; }
+        else
+        {
+            MoveToForeground(speechStation != null ? speechStation.ForegroundLayer : pauseForegroundLayer);
+            actor.DOMove(anchor.position, travelSeconds).SetEase(Ease.OutCubic).SetTarget(this)
+                .OnComplete(RestoreDeliveryLayer);
+        }
+        PositionHeadIndicators();
     }
 
 #if UNITY_EDITOR
+    public void HideEditorPreview()
+    {
+        if (actor != null) actor.gameObject.SetActive(false);
+        if (headIndicators != null) headIndicators.gameObject.SetActive(false);
+    }
+
     public void PreviewAt(RectTransform anchor, bool showBubble, bool showTray, bool showRing)
     {
         if (Application.isPlaying || anchor == null || actor == null) return;
         if (!actor.gameObject.activeSelf) actor.gameObject.SetActive(true);
         if (actor.position != anchor.position) actor.position = anchor.position;
-        bubbleOnRight = anchor.GetComponentInParent<ComboCrewStationView>()
-            ?.transform.localPosition.x < -1f;
-        GameObject visibleBubble = ActiveBubble;
-        if (breakBubble != null && breakBubble != visibleBubble)
-            breakBubble.SetActive(false);
-        if (breakBubbleRight != null && breakBubbleRight != visibleBubble)
-            breakBubbleRight.SetActive(false);
-        if (visibleBubble != null)
-        {
-            visibleBubble.SetActive(showBubble);
-            var group = visibleBubble.GetComponent<CanvasGroup>();
-            if (group != null && group.alpha != 1f) group.alpha = 1f;
-            if (visibleBubble.transform.localScale != Vector3.one)
-                visibleBubble.transform.localScale = Vector3.one;
-        }
+        speechStation = anchor.GetComponentInParent<ComboCrewStationView>();
+        speechStation?.SetSpeechPreview(showBubble);
         if (carriedTray != null) carriedTray.SetActive(showTray);
         if (breakRing != null)
         {
-            breakRing.gameObject.SetActive(showRing);
+            (breakWarningRoot != null ? breakWarningRoot.gameObject : breakRing.gameObject).SetActive(showRing);
             if (showRing && breakRing.fillAmount <= 0f) breakRing.fillAmount = .65f;
         }
+        PositionHeadIndicators();
     }
 #endif
 
-    private void UpdateBubbleSide(RectTransform anchor)
-    {
-        var station = anchor.GetComponentInParent<ComboCrewStationView>();
-        bool nextSide = station != null && station.transform.localPosition.x < -1f;
-        if (nextSide == bubbleOnRight) return;
-        HideBubbleImmediately();
-        bubbleOnRight = nextSide;
-    }
+    private void ShowBubble(string message) => speechStation?.ShowSpeech(this, message);
+    private void HideBubble() => speechStation?.HideSpeech(this);
+    private void HideBubbleImmediately() => speechStation?.HideSpeech(this);
 
-    private void ShowBubble(string message)
+    private void PositionHeadIndicators()
     {
-        GameObject bubble = ActiveBubble;
-        TMP_Text bubbleText = ActiveBubbleText;
-        if (bubble == null || bubbleText == null) return;
-        bubbleTween?.Kill();
-        bubbleText.text = message;
-        bubble.SetActive(true);
-        var rect = bubble.transform as RectTransform;
-        var group = bubble.GetComponent<CanvasGroup>();
-        if (rect == null || group == null) return;
-        rect.localScale = new Vector3(.15f, .85f, 1f);
-        group.alpha = 0f;
-        bubbleTween = DOTween.Sequence().SetTarget(this).SetUpdate(true)
-            .Join(rect.DOScale(Vector3.one, .23f).SetEase(Ease.OutBack))
-            .Join(group.DOFade(1f, .16f));
-    }
-
-    private void HideBubble()
-    {
-        GameObject bubble = ActiveBubble;
-        if (bubble == null || !bubble.activeSelf) return;
-        bubbleTween?.Kill();
-        var rect = bubble.transform as RectTransform;
-        var group = bubble.GetComponent<CanvasGroup>();
-        if (rect == null || group == null) { bubble.SetActive(false); return; }
-        bubbleTween = DOTween.Sequence().SetTarget(this).SetUpdate(true)
-            .Join(rect.DOScale(new Vector3(.2f, .85f, 1f), .13f).SetEase(Ease.InCubic))
-            .Join(group.DOFade(0f, .13f))
-            .OnComplete(() => { if (bubble != null) bubble.SetActive(false); });
-    }
-
-    private void HideBubbleImmediately()
-    {
-        bubbleTween?.Kill();
-        bubbleTween = null;
-        if (breakBubble != null) breakBubble.SetActive(false);
-        if (breakBubbleRight != null) breakBubbleRight.SetActive(false);
+        if (headIndicators == null || actor == null || headIndicators.parent == null) return;
+        if (headBody == null) headBody = actor.Find("Corpo") as RectTransform;
+        if (headBody == null) return;
+        headBody.GetWorldCorners(headCorners);
+        float top = headCorners[1].y;
+        Vector3 center = headBody.TransformPoint(headBody.rect.center);
+        // O topo da cabeça usa o corpo; margens transparentes dos chapéus não deslocam o aviso.
+        // A ordem de desenho mantém o relógio e a exclamação à frente de qualquer chapéu.
+        headIndicators.position = new Vector3(center.x, top + 8f * Mathf.Abs(actor.lossyScale.y), actor.position.z);
+        Vector3 parentScale = headIndicators.parent.lossyScale;
+        Vector3 actorScale = actor.lossyScale;
+        if (Mathf.Abs(parentScale.x) > .0001f && Mathf.Abs(parentScale.y) > .0001f)
+            headIndicators.localScale = new Vector3(actorScale.x / parentScale.x, actorScale.y / parentScale.y, 1f);
+        if (!headIndicators.gameObject.activeSelf) headIndicators.gameObject.SetActive(true);
+        if (attentionMark != null) attentionMark.rectTransform.anchoredPosition = Vector2.zero;
+        if (breakWarningRoot != null)
+        {
+            float offset = attentionMark != null && attentionMark.gameObject.activeSelf
+                ? attentionMark.rectTransform.rect.height + 8f : 0f;
+            breakWarningRoot.anchoredPosition = new Vector2(0f, offset);
+        }
     }
 
     public void ReturnToReserveAfterBreak()
@@ -617,8 +607,8 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         if (foregroundLayer == null || actor == null) return;
         if (deliveryHomeParent == null)
         {
-            deliveryHomeParent = actor.parent;
-            deliveryHomeSibling = actor.GetSiblingIndex();
+            deliveryHomeParent = restingLayer != null ? restingLayer : actor.parent;
+            deliveryHomeSibling = restingLayer != null ? restingSibling : actor.GetSiblingIndex();
         }
         if (actor.parent != foregroundLayer) actor.SetParent(foregroundLayer, true);
         actor.SetAsLastSibling();
@@ -635,6 +625,9 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (actor != null && actor.gameObject.activeInHierarchy && headIndicators != null
+            && ((attentionMark != null && attentionMark.gameObject.activeSelf)
+                || (breakWarningRoot != null && breakWarningRoot.gameObject.activeSelf))) PositionHeadIndicators();
         if (restoreLayerWhenActive && actor != null && actor.gameObject.activeInHierarchy
             && deliveryHomeParent != null && deliveryHomeParent.gameObject.activeInHierarchy)
             RestoreDeliveryLayer();
@@ -696,8 +689,6 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
 
     private void OnDisable()
     {
-        bubbleTween?.Kill();
-        bubbleTween = null;
         // A Unity pode chamar OnDisable enquanto o pai ainda está sendo desativado.
         // Mudar a hierarquia nesse callback gera erro; a restauração fica para LateUpdate.
         restoreLayerWhenActive = deliveryHomeParent != null;
@@ -712,10 +703,11 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         HideBubbleImmediately();
         if (breakRing != null)
         {
-            breakRing.gameObject.SetActive(false);
+            (breakWarningRoot != null ? breakWarningRoot.gameObject : breakRing.gameObject).SetActive(false);
         }
         SetTrayItems(0);
         if (actorGroup != null) actorGroup.blocksRaycasts = originalRaycasts;
+        if (headIndicators != null) headIndicators.gameObject.SetActive(false);
         if (actor != null && home != null) actor.position = home.position;
     }
 }

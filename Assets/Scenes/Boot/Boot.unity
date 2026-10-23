@@ -352,6 +352,23 @@ MonoBehaviour:
   repairClip: {fileID: 8300000, guid: 4d0bc7b12a764955adf9e1885290a314, type: 3}
   stationBreakClip: {fileID: 8300000, guid: 63605be7948247f29f2ac62d8ab95fe8, type: 3}
   stationReadyClip: {fileID: 8300000, guid: f93748d3671c4e2eac746dc20074f995, type: 3}
+  errorClip: {fileID: 8300000, guid: 0a52cf9645b783b7c09a616769136d3b, type: 3}
+  readyClip: {fileID: 8300000, guid: db7fbc9da435273b970b4b8a0d4550d8, type: 3}
+  incidentClip: {fileID: 8300000, guid: 9e8b1b7a98c3443bbcac25b41a257eaf, type: 3}
+  sessionStartClip: {fileID: 8300000, guid: 7005bfe9fadfddc932f775155f6fd563, type: 3}
+  queueAcceptedClip: {fileID: 8300000, guid: 7d0a7c873460211649949ca99e55589c, type: 3}
+  queueReorderedClip: {fileID: 8300000, guid: 2a8b31636fc9f5038fbe454c17d49746, type: 3}
+  deliveryClip: {fileID: 8300000, guid: 704cb29e91b05530761be53baba7e7f0, type: 3}
+  orderFailedClip: {fileID: 8300000, guid: 71518c42fb32943599fb2b0294d9ee5f, type: 3}
+  workerAssignedClip: {fileID: 8300000, guid: 71b5dd94351bdead2eaa76b8424d80ab, type: 3}
+  workerReturnClip: {fileID: 8300000, guid: 8fb9c9e691c580afc3f0b67fea0f5508, type: 3}
+  workStageClip: {fileID: 8300000, guid: dd4948d584ef208a1959bf685b084c6a, type: 3}
+  washedClip: {fileID: 8300000, guid: 1c9305fce5b58aab737bb433367d83b2, type: 3}
+  breakTickClip: {fileID: 8300000, guid: 9e2985436e459fd58cfa8828de4269d5, type: 3}
+  energyMusic: {fileID: 8300000, guid: 1a2f7da2e06d36c2b4bfc3fa1327b38a, type: 3}
+  rushMusic: {fileID: 8300000, guid: 1b3a4fd021f30c398224fdea0f29e912, type: 3}
+  comboMusic: {fileID: 8300000, guid: ff52a08976a28ea4f49f07618038fc4a, type: 3}
+  gameplayMusicVolume: 0.22
   musicVolume: 0.695
   sfxVolume: 0.776
   clickCooldown: 0.04

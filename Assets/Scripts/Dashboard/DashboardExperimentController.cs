@@ -42,8 +42,9 @@ public sealed class DashboardExperimentController : MonoBehaviour
     private readonly GameObject[] tabSections = new GameObject[4];
     private bool tabsInitialized;
     private RectTransform pagesContainer;
-    private CanvasGroup pagesGroup;
-    private Vector2 pagesBasePosition;
+    private readonly Vector2[] tabBasePositions = new Vector2[5];
+    private readonly CanvasGroup[] tabGroups = new CanvasGroup[5];
+    private GameObject actionsTab;
     private Sequence tabTransition;
     private const float TabTransitionDuration = 0.34f;
     private const float TabTransitionDistance = 64f;
@@ -66,9 +67,6 @@ public sealed class DashboardExperimentController : MonoBehaviour
         layout = layoutObject.transform;
         pagesContainer = (RectTransform)Find(layout, "Pages");
         if (pagesContainer == null) { enabled = false; return; }
-        pagesGroup = pagesContainer.GetComponent<CanvasGroup>();
-        if (pagesGroup == null) pagesGroup = pagesContainer.gameObject.AddComponent<CanvasGroup>();
-        pagesBasePosition = pagesContainer.anchoredPosition;
         summaryPage = Find(layout, "Pages/SummaryPage");
         tabs = Find(layout, "Tabs");
         periodOptions = Find(layout, "PeriodOptions");
@@ -84,6 +82,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
         BuildNavigation();
         BuildPeriodMenu();
         BuildPages();
+        CacheTabAnimations();
         BuildGlobalFilters();
         WireEnergyFilters();
         ShowTab(0);
@@ -93,6 +92,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
     private void OnEnable()
     {
         FirebaseSessionSync.ReadyChanged += StartCloudData;
+        if (tabsInitialized && summaryPage != null) FinishTabTransition(selectedTab);
         StartCloudData();
     }
 
@@ -109,9 +109,10 @@ public sealed class DashboardExperimentController : MonoBehaviour
         FirebaseSessionSync.ReadyChanged -= StartCloudData;
         cloud?.Dispose();
         cloud = null;
-        tabTransition?.Kill();
-        if (pagesContainer != null) pagesContainer.anchoredPosition = pagesBasePosition;
-        if (pagesGroup != null) { pagesGroup.alpha = 1f; pagesGroup.blocksRaycasts = true; }
+        // Desativar também ocorre durante o unload, quando a UI pode já ter sido destruída.
+        // Aqui apenas cancelamos os tweens; a restauração visual pertence ao OnEnable.
+        tabTransition?.Kill(false);
+        tabTransition = null;
         foreach (View view in views) view?.DonutTween?.Kill();
     }
 
@@ -450,27 +451,28 @@ public sealed class DashboardExperimentController : MonoBehaviour
         Refresh();
     }
 
+    private GameObject TabRoot(int tab) => tab < tabSections.Length ? tabSections[tab] : actionsTab;
+
+    private void CacheTabAnimations()
+    {
+        actionsTab = Find(layout, "Pages/ActionsPage").gameObject;
+        for (int i = 0; i < nav.Length; i++)
+        {
+            GameObject root = TabRoot(i);
+            tabBasePositions[i] = ((RectTransform)root.transform).anchoredPosition;
+            tabGroups[i] = root.GetComponent<CanvasGroup>();
+            if (tabGroups[i] == null) tabGroups[i] = root.AddComponent<CanvasGroup>();
+        }
+    }
+
     private void ShowTab(int tab)
     {
-        if (tab < 0 || tab >= nav.Length) return;
-        if (tabsInitialized && selectedTab == tab) return;
+        if (tab < 0 || tab >= nav.Length || (tabsInitialized && selectedTab == tab)) return;
         int previous = selectedTab;
         bool animate = tabsInitialized;
         tabTransition?.Kill();
         tabTransition = null;
-        pagesContainer.anchoredPosition = pagesBasePosition;
-        pagesGroup.alpha = 1f;
-        pagesGroup.blocksRaycasts = false;
-        for (int i = 0; i < tabSections.Length; i++)
-        {
-            RectTransform rect = (RectTransform)tabSections[i].transform;
-            CanvasGroup group = tabSections[i].GetComponent<CanvasGroup>();
-            rect.anchoredPosition = Vector2.zero;
-            group.alpha = 1f;
-            group.interactable = false;
-            group.blocksRaycasts = false;
-            tabSections[i].SetActive(i == tab);
-        }
+        if (animate) FinishTabTransition(previous);
 
         selectedTab = tab;
         selectedCategory = -1;
@@ -482,37 +484,52 @@ public sealed class DashboardExperimentController : MonoBehaviour
         Find(layout, "ShiftFilterLabel").gameObject.SetActive(showFilters);
         legacy.ShowPageImmediate(tab == 4 ? 2 : 0);
 
+        // O viewport permanece imóvel. Apenas as seções deslizam dentro dele;
+        // assim os ScrollRects dos jogos não deslocam a máscara da transição.
+        summaryPage.gameObject.SetActive(tab != 4 || (animate && previous != 4));
         for (int i = 0; i < nav.Length; i++)
         {
             bool active = i == tab;
+            GameObject section = TabRoot(i);
+            section.SetActive(active || (animate && i == previous));
+            ((RectTransform)section.transform).anchoredPosition = tabBasePositions[i];
+            tabGroups[i].alpha = 1f;
+            tabGroups[i].interactable = active;
+            tabGroups[i].blocksRaycasts = active && !animate;
             nav[i].GetComponent<Image>().color = active ? Gold : Inactive;
             Text label = nav[i].GetComponentInChildren<Text>(true);
             label.color = active ? new Color32(0x25, 0x20, 0x15, 0xff) : new Color32(0xcc, 0xcc, 0xcc, 0xff);
         }
         Refresh();
         tabsInitialized = true;
-
-        if (tab < tabSections.Length)
-        {
-            CanvasGroup visible = tabSections[tab].GetComponent<CanvasGroup>();
-            visible.interactable = true;
-            visible.blocksRaycasts = true;
-        }
-        if (animate) AnimateTabEntry(tab > previous ? 1f : -1f);
-        else pagesGroup.blocksRaycasts = true;
+        Canvas.ForceUpdateCanvases();
+        if (animate) AnimateTabEntry(previous, tab, tab > previous ? 1f : -1f);
+        else FinishTabTransition(tab);
     }
 
-    private void AnimateTabEntry(float direction)
+    private void AnimateTabEntry(int previous, int next, float direction)
     {
-        pagesContainer.anchoredPosition = pagesBasePosition + Vector2.right * (TabTransitionDistance * direction);
-        pagesGroup.alpha = 0.55f;
+        // A mesma entrada horizontal para todas as abas, sem alterar a opacidade.
+        TabRoot(previous).SetActive(false);
+        RectTransform incoming = (RectTransform)TabRoot(next).transform;
+        incoming.anchoredPosition = tabBasePositions[next] + Vector2.right * (TabTransitionDistance * direction);
         tabTransition = DOTween.Sequence().SetUpdate(UpdateType.Normal, UIMotionDefaults.UseUnscaledTime);
-        tabTransition.Append(pagesContainer.DOAnchorPos(pagesBasePosition, TabTransitionDuration).SetEase(Ease.OutCubic));
-        tabTransition.Join(pagesGroup.DOFade(1f, TabTransitionDuration).SetEase(Ease.OutCubic));
-        tabTransition.OnComplete(() => {
-            pagesGroup.blocksRaycasts = true;
-            tabTransition = null;
-        });
+        tabTransition.Append(incoming.DOAnchorPos(tabBasePositions[next], TabTransitionDuration).SetEase(Ease.OutCubic));
+        tabTransition.OnComplete(() => { FinishTabTransition(next); tabTransition = null; });
+    }
+
+    private void FinishTabTransition(int visible)
+    {
+        for (int i = 0; i < nav.Length; i++)
+        {
+            if (TabRoot(i) == null || tabGroups[i] == null) continue;
+            ((RectTransform)TabRoot(i).transform).anchoredPosition = tabBasePositions[i];
+            tabGroups[i].alpha = 1f;
+            tabGroups[i].interactable = i == visible;
+            tabGroups[i].blocksRaycasts = i == visible;
+            TabRoot(i).SetActive(i == visible);
+        }
+        if (summaryPage != null) summaryPage.gameObject.SetActive(visible != 4);
     }
 
     private void Refresh()

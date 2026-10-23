@@ -14,6 +14,11 @@ public sealed class AvatarView : MonoBehaviour
     [FormerlySerializedAs("catalog")]
     [SerializeField] private AvatarCustomizationCatalog catalogoDeAjustes;
 
+    [Header("Ajustes por chapéu nesta cena")]
+    [SerializeField] private bool usarAjustesDeChapeuDaCena;
+    [SerializeField] private AvatarHatVisualAdjustment[] ajustesDosChapeusNaCena;
+    [SerializeField] private AvatarHatPreviewOption chapeuNaPrevia;
+
     [Header("Camadas do avatar")]
     [SerializeField] private Image bodyImage;
     [SerializeField] private Image faceImage;
@@ -44,6 +49,8 @@ public sealed class AvatarView : MonoBehaviour
     [SerializeField] private Animator animator;
 
     public AvatarCustomizationCatalog Catalog => catalogoDeAjustes;
+    public int HatPreviewIndex => usarAjustesDeChapeuDaCena ? (int)chapeuNaPrevia
+        : catalogoDeAjustes != null ? catalogoDeAjustes.ChapeuMostradoNaPrevia : 0;
 
     public Sprite GetCustomizationSprite(AvatarCustomizationCategory category, int optionIndex)
     {
@@ -101,6 +108,10 @@ public sealed class AvatarView : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    private int appliedPreviewIndex = -1;
+    public RectTransform HatPreviewTransform => hatImage != null ? hatImage.rectTransform : null;
+    public void SaveHatEditorTransform() => SalvarTransformacaoVisualDoChapeu();
+
     private void OnEnable()
     {
         AgendarPreviaNoEditor();
@@ -151,10 +162,11 @@ public sealed class AvatarView : MonoBehaviour
 
         Apply(new AvatarCustomizationData
         {
-            HatIndex = catalogoDeAjustes != null ? catalogoDeAjustes.ChapeuMostradoNaPrevia : 0,
+            HatIndex = HatPreviewIndex,
             FaceIndex = rostoNaPrevia,
             ColorIndex = corNaPrevia
         });
+        appliedPreviewIndex = HatPreviewIndex;
     }
 
     public bool UsaCatalogo(AvatarCustomizationCatalog catalogo)
@@ -164,7 +176,8 @@ public sealed class AvatarView : MonoBehaviour
 
     private void SalvarTransformacaoVisualDoChapeu()
     {
-        int optionIndex = catalogoDeAjustes.ChapeuMostradoNaPrevia;
+        int optionIndex = HatPreviewIndex;
+        if (appliedPreviewIndex != optionIndex) return;
         AvatarCustomizationItem item = catalogoDeAjustes.GetItem(
             AvatarCustomizationCategory.Hat,
             optionIndex);
@@ -173,23 +186,42 @@ public sealed class AvatarView : MonoBehaviour
         if (item == null || target.rect.width <= 0f || target.rect.height <= 0f)
             return;
 
-        Vector2 offset = new Vector2(
-            target.anchoredPosition.x / target.rect.width,
-            target.anchoredPosition.y / target.rect.height);
+        Vector2 position = target.anchoredPosition;
+        if (bodyImage != null && target.parent == bodyImage.transform.parent)
+            position -= bodyImage.rectTransform.anchoredPosition;
+        Vector2 offset = new Vector2(position.x / target.rect.width, position.y / target.rect.height);
         float scale = Mathf.Max(0.1f, (Mathf.Abs(target.localScale.x) + Mathf.Abs(target.localScale.y)) * 0.5f);
         float rotation = target.localEulerAngles.z;
         if (rotation > 180f)
             rotation -= 360f;
 
-        if (Vector2.SqrMagnitude(item.DeslocamentoNoAvatar - offset) < 0.0000001f
-            && Mathf.Abs(item.EscalaNoAvatar - scale) < 0.0001f
-            && Mathf.Abs(item.RotacaoNoAvatar - rotation) < 0.001f)
-            return;
-
-        item.DeslocamentoNoAvatar = offset;
-        item.EscalaNoAvatar = scale;
-        item.RotacaoNoAvatar = rotation;
-        UnityEditor.EditorUtility.SetDirty(catalogoDeAjustes);
+        if (usarAjustesDeChapeuDaCena)
+        {
+            if (ajustesDosChapeusNaCena == null || optionIndex >= ajustesDosChapeusNaCena.Length) return;
+            AvatarHatVisualAdjustment adjustment = ajustesDosChapeusNaCena[optionIndex];
+            if (adjustment == null) return;
+            Vector2 localOffset = offset - item.DeslocamentoNoAvatar;
+            float localScale = scale / Mathf.Max(.1f, item.EscalaNoAvatar);
+            float localRotation = Mathf.DeltaAngle(item.RotacaoNoAvatar, rotation);
+            if (Vector2.SqrMagnitude(adjustment.Offset - localOffset) < .0000001f
+                && Mathf.Abs(adjustment.ScaleMultiplier - localScale) < .0001f
+                && Mathf.Abs(Mathf.DeltaAngle(adjustment.Rotation, localRotation)) < .001f) return;
+            UnityEditor.Undo.RecordObject(this, "Posicionar chapéu na cena");
+            adjustment.Offset = localOffset; adjustment.ScaleMultiplier = localScale; adjustment.Rotation = localRotation;
+            UnityEditor.EditorUtility.SetDirty(this);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+        else
+        {
+            if (Vector2.SqrMagnitude(item.DeslocamentoNoAvatar - offset) < .0000001f
+                && Mathf.Abs(item.EscalaNoAvatar - scale) < .0001f
+                && Mathf.Abs(Mathf.DeltaAngle(item.RotacaoNoAvatar, rotation)) < .001f) return;
+            UnityEditor.Undo.RecordObject(catalogoDeAjustes, "Posicionar chapéu no catálogo");
+            item.DeslocamentoNoAvatar = offset;
+            item.EscalaNoAvatar = scale;
+            item.RotacaoNoAvatar = rotation;
+            UnityEditor.EditorUtility.SetDirty(catalogoDeAjustes);
+        }
     }
 #endif
 
@@ -277,7 +309,16 @@ public sealed class AvatarView : MonoBehaviour
             ? catalogoDeAjustes.GetItem(category, optionIndex)
             : null;
 
-        ApplyCatalogItemTransform(image, item);
+        AvatarHatVisualAdjustment adjustment = category == AvatarCustomizationCategory.Hat
+            && usarAjustesDeChapeuDaCena && ajustesDosChapeusNaCena != null
+            && optionIndex >= 0 && optionIndex < ajustesDosChapeusNaCena.Length
+                ? ajustesDosChapeusNaCena[optionIndex] : null;
+        ApplyCatalogItemTransform(image, item, 1f, adjustment);
+        // Em cenas como Combo Crew, o corpo pode ter um deslocamento próprio.
+        // As camadas irmãs devem usar o centro desse corpo como origem.
+        if (image != null && bodyImage != null && image != bodyImage
+            && image.transform.parent == bodyImage.transform.parent)
+            image.rectTransform.anchoredPosition += bodyImage.rectTransform.anchoredPosition;
     }
 
     /// <summary>
@@ -287,12 +328,19 @@ public sealed class AvatarView : MonoBehaviour
     public static void ApplyCatalogItemTransform(
         Image image,
         AvatarCustomizationItem item,
-        float scaleMultiplier = 1f)
+        float scaleMultiplier = 1f,
+        AvatarHatVisualAdjustment adjustment = null)
     {
         Vector2 offset = item != null ? item.DeslocamentoNoAvatar : Vector2.zero;
         float scale = item != null && item.EscalaNoAvatar > 0f ? item.EscalaNoAvatar : 1f;
         float rotation = item != null ? item.RotacaoNoAvatar : 0f;
 
+        if (adjustment != null)
+        {
+            offset += adjustment.Offset;
+            scale *= Mathf.Max(.1f, adjustment.ScaleMultiplier);
+            rotation += adjustment.Rotation;
+        }
         ApplyNormalizedTransform(image, offset, scale * scaleMultiplier, rotation);
     }
 

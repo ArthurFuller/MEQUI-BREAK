@@ -1,8 +1,6 @@
 using System;
 using DG.Tweening;
-using TMPro;
 using UnityEngine;
-using UnityEngine.Sprites;
 using UnityEngine.UI;
 
 /// <summary>Card reutilizável; paciência diminui conforme o estado real do pedido.</summary>
@@ -15,10 +13,7 @@ public sealed class ComboCrewOrderView : MonoBehaviour
     [SerializeField, Range(0f, 6f), Tooltip("Recuo do preenchimento sob o contorno preto da barra.")]
     private float patienceBarInset = 1f;
     [SerializeField] private GameObject[] itemIcons;
-    [SerializeField] private GameObject completedMark;
-    [SerializeField] private GameObject failedMark;
     [SerializeField] private Image resultFlash;
-    [SerializeField] private Shader resultOutlineShader;
     [Header("Animação do card")]
     [SerializeField, Range(.5f, 1f)] private float showStartScale = .94f;
     [SerializeField, Min(.01f)] private float showSeconds = .2f;
@@ -31,21 +26,18 @@ public sealed class ComboCrewOrderView : MonoBehaviour
     [SerializeField, Min(.01f)] private float queueMoveSeconds = .24f;
     [SerializeField] private Ease queueMoveEase = Ease.OutCubic;
     [Header("Feedback ao concluir pedido")]
-    [SerializeField, Min(0f)] private float resolvePunchStrength = .06f;
-    [SerializeField, Min(.01f)] private float resolvePunchSeconds = .18f;
-    [SerializeField, Min(0f)] private float resultFlashAlpha = .9f;
-    [SerializeField, Min(.01f)] private float resultFlashSeconds = .12f;
-    [SerializeField, Min(0f)] private float resolveHoldSeconds = .18f;
+    [SerializeField, Min(0f)] private float resultFlashAlpha = .28f;
+    [SerializeField, Min(.01f)] private float resultFlashSeconds = .2f;
+    [SerializeField, Min(0f)] private float resolveHoldSeconds = .24f;
     [SerializeField, Range(.1f, 1f)] private float exitScale = .85f;
     [SerializeField, Min(.05f)] private float exitSeconds = .3f;
     [SerializeField] private Ease exitEase = Ease.InCubic;
     private Sequence exit;
-    private Material resultOutlineMaterial;
     private float shown = 1f;
     public bool Configured => card != null && canvasGroup != null && patienceFill != null
         && itemIcons != null && itemIcons.Length == 3 && itemIcons[0] != null
         && itemIcons[1] != null && itemIcons[2] != null
-        && completedMark != null && failedMark != null;
+        && resultFlash != null;
 
     public void Show(int items, RectTransform anchor, Sprite[] sprites = null)
     {
@@ -55,12 +47,10 @@ public sealed class ComboCrewOrderView : MonoBehaviour
         card.localScale = Vector3.one;
         canvasGroup.alpha = 1f;
         gameObject.SetActive(true);
-        completedMark.SetActive(false);
-        failedMark.SetActive(false);
         ArrangeItems(items, sprites);
         if (resultFlash != null)
         {
-            PrepareResultOutline();
+            PrepareResultFlash();
             Color color = resultFlash.color;
             color.a = 0f;
             resultFlash.color = color;
@@ -78,22 +68,15 @@ public sealed class ComboCrewOrderView : MonoBehaviour
                     .SetDelay(itemPunchStartDelay + i * itemPunchStagger).SetTarget(this);
     }
 
-    private void PrepareResultOutline()
+    private void PrepareResultFlash()
     {
         Image background = card != null ? card.GetComponent<Image>() : null;
         if (background == null || background.sprite == null) return;
         resultFlash.sprite = background.sprite;
         resultFlash.type = background.type;
         resultFlash.preserveAspect = background.preserveAspect;
-        if (resultOutlineShader == null || !resultOutlineShader.isSupported) return;
-        if (resultOutlineMaterial == null)
-            resultOutlineMaterial = new Material(resultOutlineShader);
-        Vector4 uv = DataUtility.GetOuterUV(background.sprite);
-        resultOutlineMaterial.SetVector("_SourceUV", uv);
-        resultOutlineMaterial.SetVector("_SampleStep", new Vector4(
-            (uv.z - uv.x) * 3f / Mathf.Max(1f, card.rect.width),
-            (uv.w - uv.y) * 3f / Mathf.Max(1f, card.rect.height), 0f, 0f));
-        resultFlash.material = resultOutlineMaterial;
+        resultFlash.material = null;
+        resultFlash.fillCenter = true;
     }
 
     private void ArrangeItems(int items, Sprite[] sprites)
@@ -157,8 +140,6 @@ public sealed class ComboCrewOrderView : MonoBehaviour
 
     public void Resolve(bool delivered, Action completed)
     {
-        if (delivered) completedMark.SetActive(true);
-        else failedMark.SetActive(true);
         exit?.Kill();
         card.DOKill();
         if (resultFlash != null)
@@ -167,19 +148,15 @@ public sealed class ComboCrewOrderView : MonoBehaviour
             resultFlash.color = delivered
                 ? new Color(.38f, .86f, .55f, 0f) : new Color(1f, .35f, .28f, 0f);
         }
-        exit = DOTween.Sequence().SetTarget(this)
-            .Append(card.DOPunchScale(Vector3.one * resolvePunchStrength, resolvePunchSeconds, 1));
-        if (resultFlash != null) exit.Join(resultFlash.DOFade(resultFlashAlpha, resultFlashSeconds));
+        PrepareResultFlash();
+        exit = DOTween.Sequence().SetTarget(this);
+        exit.Append(resultFlash.DOFade(resultFlashAlpha, resultFlashSeconds));
         exit
             .AppendInterval(resolveHoldSeconds)
             .Append(canvasGroup.DOFade(0f, exitSeconds))
-            .Append(card.DOScale(exitScale, exitSeconds).SetEase(exitEase))
+            .Join(card.DOScale(exitScale, exitSeconds).SetEase(exitEase))
             .OnComplete(() => { exit = null; gameObject.SetActive(false); completed?.Invoke(); });
     }
 
     private void OnDisable() { exit?.Kill(); card?.DOKill(); DOTween.Kill(this); }
-    private void OnDestroy()
-    {
-        if (resultOutlineMaterial != null) Destroy(resultOutlineMaterial);
-    }
 }

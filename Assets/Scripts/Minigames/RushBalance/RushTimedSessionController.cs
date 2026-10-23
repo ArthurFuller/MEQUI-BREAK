@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -15,8 +16,6 @@ public sealed class RushTimedSessionController : MonoBehaviour
     [SerializeField, Min(0)] private int pointsPerDelivery = 4;
 
     [Header("Objetos existentes na Hierarchy")]
-    [SerializeField] private GameObject startPanel;
-    [SerializeField] private Button startButton;
     [SerializeField] private Button backButton;
     [SerializeField] private TMP_Text timerLabel;
     [SerializeField] private TMP_Text scoreLabel;
@@ -50,26 +49,25 @@ public sealed class RushTimedSessionController : MonoBehaviour
 
     private void Awake()
     {
-        if (startButton != null) startButton.onClick.AddListener(StartMatch);
         if (backButton != null) backButton.onClick.AddListener(BackToHub);
         SetInput(false);
-        if (startPanel != null) startPanel.SetActive(true);
         RefreshHud();
     }
 
     private void OnEnable() => SceneLoader.SceneLeaving += HandleSceneLeaving;
 
-    private void Start()
+    private IEnumerator Start()
     {
         DeviceScreen.orientation = ScreenOrientation.Portrait;
         if (!ValidateSetup())
         {
-            if (timerLabel != null) timerLabel.text = "Verifique o Console";
-            return;
+            Debug.LogError("Rush Balance: configuração de partida incompleta.", this);
+            yield break;
         }
 
-        remaining = matchSeconds;
-        RefreshHud();
+        // A cena entra sem consumir tempo nem aceitar comandos durante o slide.
+        while (SceneLoader.IsTransitionInProgress) yield return null;
+        if (!leaving) StartMatch();
     }
 
     private void Update()
@@ -89,13 +87,12 @@ public sealed class RushTimedSessionController : MonoBehaviour
         missed = 0;
         remaining = matchSeconds;
         playing = true;
-        startPanel.SetActive(false);
         SetInput(true);
         EventLogger.Instance.BeginSession(activityId);
         logged = true;
         EventLogger.Instance.RecordUserAction("rush_start");
         RefreshHud();
-        AudioManager.Instance?.PlayConfirm();
+        AudioManager.Instance?.PlaySessionStart();
         MequiHaptics.Confirm();
         MatchStarted?.Invoke();
     }
@@ -183,8 +180,12 @@ public sealed class RushTimedSessionController : MonoBehaviour
     {
         if (timerLabel != null)
         {
-            int seconds = Mathf.CeilToInt(Mathf.Max(0f, remaining));
-            timerLabel.SetText("{0}:{1:00}", seconds / 60, seconds % 60);
+            if (!playing && !settled) timerLabel.text = string.Empty;
+            else
+            {
+                int seconds = Mathf.CeilToInt(Mathf.Max(0f, remaining));
+                timerLabel.SetText("{0}:{1:00}", seconds / 60, seconds % 60);
+            }
         }
         if (scoreLabel != null)
             scoreLabel.SetText("Entregues: {0}", delivered);
@@ -201,8 +202,8 @@ public sealed class RushTimedSessionController : MonoBehaviour
     {
         return !(matchSeconds <= 0f)
             && !string.IsNullOrWhiteSpace(activityId)
-            && startPanel != null && startButton != null && backButton != null
-            && timerLabel != null && scoreLabel != null && gameplayInput != null
+            && backButton != null
+            && timerLabel != null && gameplayInput != null
             && resultPopup != null && sceneLoader != null
             && gameplayControllers == 1 && gameplayConfigured
             && EventLogger.Instance != null && PointsService.Instance != null
@@ -219,7 +220,6 @@ public sealed class RushTimedSessionController : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (startButton != null) startButton.onClick.RemoveListener(StartMatch);
         if (backButton != null) backButton.onClick.RemoveListener(BackToHub);
     }
 }

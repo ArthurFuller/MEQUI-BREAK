@@ -27,8 +27,9 @@ public sealed class ComboCrewScenePreview : MonoBehaviour
         if (!showInEditor)
         {
             foreach (ComboCrewWorkerView worker in workers)
-                if (worker != null && worker.PreviewActor != null)
-                    worker.PreviewActor.gameObject.SetActive(false);
+                if (worker != null) worker.HideEditorPreview();
+            foreach (ComboCrewStationView station in stations)
+                if (station != null) station.SetSpeechPreview(false);
             previousAnchorPositions = null;
             previousActorPositions = null;
             return;

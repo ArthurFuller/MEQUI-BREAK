@@ -60,8 +60,7 @@ public static class ResultPopupReferenceLayout
     private static readonly string[] Paths = {
         "Assets/Scenes/EnergyStation/EnergyStation.unity",
         "Assets/Scenes/RushBalance/RushBalance2.unity",
-        "Assets/Scenes/ComboCrew/ComboCrew.unity",
-        "Assets/Scenes/RushBalance/RushBalance.unity"
+        "Assets/Scenes/ComboCrew/ComboCrew.unity"
     };
     static ResultPopupReferenceLayout()
     {
@@ -421,7 +420,7 @@ public static class LevelUpReferenceLayout
 [UnityEditor.InitializeOnLoad]
 public static class RushVisualHierarchyRepair
 {
-    private static readonly string[] Paths = { "Assets/Scenes/RushBalance/RushBalance2.unity", "Assets/Scenes/RushBalance/RushBalance.unity" };
+    private static readonly string[] Paths = { "Assets/Scenes/RushBalance/RushBalance2.unity" };
     static RushVisualHierarchyRepair()
     {
         if (UnityEditor.AssetDatabase.IsAssetImportWorkerProcess() || Application.isBatchMode) return;

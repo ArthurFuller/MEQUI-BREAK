@@ -468,3 +468,162 @@ internal static class RushBalanceScenePolish
         }
     }
 }
+
+// Reutiliza os ajustes serializados da cena: cada escolha mantém sua própria transformação.
+[CustomEditor(typeof(RushBalanceController))]
+internal sealed class RushBalanceControllerEditor : Editor
+{
+    private RushBalanceController Controller => (RushBalanceController)target;
+
+    private void OnEnable()
+    {
+        Undo.undoRedoPerformed += RefreshPreview;
+        Controller.ApplyHatPreviewInEditor();
+    }
+
+    private void OnDisable()
+    {
+        Undo.undoRedoPerformed -= RefreshPreview;
+    }
+
+    private void RefreshPreview()
+    {
+        if (target == null || Application.isPlaying) return;
+        serializedObject.Update();
+        Controller.ApplyHatPreviewInEditor();
+        Repaint();
+    }
+
+    public override void OnInspectorGUI()
+    {
+        serializedObject.Update();
+        EditorGUILayout.LabelField("POSICIONAR CADA CHAPÉU — RUSH BALANCE", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Escolha um chapéu e ajuste sua posição, tamanho e rotação abaixo ou na Scene View (W/E/R). Cada chapéu guarda seu próprio ajuste nesta cena. Salve a cena com Ctrl+S.", MessageType.Info);
+        using (new EditorGUI.DisabledScope(Application.isPlaying))
+        {
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("previewHatInEditor"), new GUIContent("Mostrar prévia"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("editHatDirectlyInScene"), new GUIContent("Editar na Scene View"));
+            SerializedProperty hats = serializedObject.FindProperty("npcHatOptions");
+            SerializedProperty chosen = serializedObject.FindProperty("hatPreviewIndex");
+            if (hats.arraySize > 0)
+            {
+                var labels = new string[hats.arraySize];
+                for (int i = 0; i < labels.Length; i++)
+                {
+                    var sprite = hats.GetArrayElementAtIndex(i).objectReferenceValue as Sprite;
+                    var catalog = serializedObject.FindProperty("customizationCatalog").objectReferenceValue as AvatarCustomizationCatalog;
+                    var item = catalog != null ? catalog.GetItem(AvatarCustomizationCategory.Hat, i) : null;
+                    labels[i] = i + " — " + (item != null ? item.DisplayName : sprite != null ? ObjectNames.NicifyVariableName(sprite.name) : "Sem chapéu");
+                }
+                chosen.intValue = EditorGUILayout.Popup("Chapéu mostrado na prévia", Mathf.Clamp(chosen.intValue, 0, labels.Length - 1), labels);
+                SerializedProperty adjustments = serializedObject.FindProperty("rushHatAdjustments");
+                if (chosen.intValue > 0 && chosen.intValue < adjustments.arraySize)
+                {
+                    SerializedProperty adjustment = adjustments.GetArrayElementAtIndex(chosen.intValue);
+                    EditorGUILayout.PropertyField(adjustment.FindPropertyRelative("Offset"), new GUIContent("Deslocamento no Rush"));
+                    EditorGUILayout.PropertyField(adjustment.FindPropertyRelative("ScaleMultiplier"), new GUIContent("Escala no Rush"));
+                    EditorGUILayout.PropertyField(adjustment.FindPropertyRelative("Rotation"), new GUIContent("Rotação no Rush"));
+                }
+            }
+            if (serializedObject.ApplyModifiedProperties()) Controller.ApplyHatPreviewInEditor();
+            if (GUILayout.Button("Enquadrar chapéu na Scene View"))
+            {
+                Controller.ApplyHatPreviewInEditor();
+                RectTransform hat = Controller.HatPreviewTransform;
+                if (hat != null && SceneView.lastActiveSceneView != null)
+                {
+                    Vector3[] corners = new Vector3[4];
+                    hat.GetWorldCorners(corners);
+                    Bounds bounds = new Bounds(corners[0], Vector3.zero);
+                    for (int i = 1; i < corners.Length; i++) bounds.Encapsulate(corners[i]);
+                    SceneView.lastActiveSceneView.Frame(bounds, false);
+                }
+            }
+        }
+        EditorGUILayout.Space();
+        DrawPropertiesExcluding(serializedObject, "rushHatAdjustments", "hatPreviewIndex", "previewHatInEditor", "editHatDirectlyInScene");
+        if (serializedObject.ApplyModifiedProperties()) Controller.ApplyHatPreviewInEditor();
+    }
+
+    private void OnSceneGUI()
+    {
+        if (Application.isPlaying) return;
+        serializedObject.Update();
+        if (!serializedObject.FindProperty("previewHatInEditor").boolValue
+            || !serializedObject.FindProperty("editHatDirectlyInScene").boolValue
+            || serializedObject.FindProperty("hatPreviewIndex").intValue == 0) return;
+        RectTransform hat = Controller.HatPreviewTransform;
+        if (hat == null) return;
+
+        EditorGUI.BeginChangeCheck();
+        Vector3 position = hat.position;
+        Quaternion rotation = hat.rotation;
+        Vector3 scale = hat.localScale;
+        if (Tools.current == Tool.Move || Tools.current == Tool.Rect)
+            position = Handles.PositionHandle(position, hat.parent != null ? hat.parent.rotation : Quaternion.identity);
+        else if (Tools.current == Tool.Rotate)
+            rotation = Handles.RotationHandle(rotation, position);
+        else if (Tools.current == Tool.Scale)
+            scale = Handles.ScaleHandle(scale, position, rotation, HandleUtility.GetHandleSize(position));
+        if (!EditorGUI.EndChangeCheck()) return;
+
+        Undo.RecordObject(hat, "Posicionar chapéu no Rush Balance");
+        hat.position = position;
+        if (hat.parent != null) hat.localPosition = new Vector3(hat.localPosition.x, hat.localPosition.y, 0f);
+        hat.rotation = rotation;
+        hat.localRotation = Quaternion.Euler(0f, 0f, hat.localEulerAngles.z);
+        float uniformScale = !Mathf.Approximately(scale.x, hat.localScale.x) ? scale.x : scale.y;
+        hat.localScale = new Vector3(Mathf.Max(.01f, uniformScale), Mathf.Max(.01f, uniformScale), 1f);
+        Controller.SaveRushHatAdjustment();
+        Controller.ApplyHatPreviewInEditor();
+        Repaint();
+    }
+}
+
+[CustomEditor(typeof(AvatarView))]
+internal sealed class AvatarViewEditor : Editor
+{
+    private AvatarView Avatar => (AvatarView)target;
+    private void OnEnable() { Undo.undoRedoPerformed += Refresh; }
+    private void OnDisable() { Undo.undoRedoPerformed -= Refresh; }
+    private void Refresh()
+    {
+        if (target == null || Application.isPlaying) return;
+        serializedObject.Update(); Avatar.AtualizarPreviaNoEditor();
+        SceneView.RepaintAll(); Repaint();
+    }
+    public override void OnInspectorGUI()
+    {
+        serializedObject.Update();
+        if (!serializedObject.FindProperty("usarAjustesDeChapeuDaCena").boolValue)
+        {
+            DrawDefaultInspector(); return;
+        }
+        EditorGUILayout.LabelField("POSICIONAR CADA CHAPÉU — NESTA CENA", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Os 22 chapéus usam o encaixe do catálogo mais um ajuste individual nesta cena. O rosto usa o centro do corpo. Salve a cena após editar.", MessageType.Info);
+        using (new EditorGUI.DisabledScope(Application.isPlaying))
+        {
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("chapeuNaPrevia"), new GUIContent("Chapéu mostrado na prévia"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("editarChapeuDiretamenteNaScene"), new GUIContent("Editar na Scene View"));
+            int index = serializedObject.FindProperty("chapeuNaPrevia").enumValueIndex;
+            SerializedProperty adjustments = serializedObject.FindProperty("ajustesDosChapeusNaCena");
+            if (index > 0 && index < adjustments.arraySize)
+            {
+                SerializedProperty item = adjustments.GetArrayElementAtIndex(index);
+                EditorGUILayout.PropertyField(item.FindPropertyRelative("Offset"), new GUIContent("Deslocamento nesta cena"));
+                EditorGUILayout.PropertyField(item.FindPropertyRelative("ScaleMultiplier"), new GUIContent("Escala nesta cena"));
+                EditorGUILayout.PropertyField(item.FindPropertyRelative("Rotation"), new GUIContent("Rotação nesta cena"));
+            }
+            if (serializedObject.ApplyModifiedProperties()) Refresh();
+            if (GUILayout.Button("Selecionar chapéu para mover na Scene View"))
+            {
+                Avatar.AtualizarPreviaNoEditor();
+                if (Avatar.HatPreviewTransform != null)
+                    Selection.activeGameObject = Avatar.HatPreviewTransform.gameObject;
+            }
+        }
+        EditorGUILayout.Space();
+        DrawPropertiesExcluding(serializedObject, "chapeuNaPrevia", "ajustesDosChapeusNaCena", "editarChapeuDiretamenteNaScene");
+        if (serializedObject.ApplyModifiedProperties()) Refresh();
+    }
+}

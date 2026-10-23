@@ -28,6 +28,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
     [SerializeField] private SceneLoader sceneLoader;
     [SerializeField] private ResultPopup resultPopup;
     [SerializeField] private Button startButton;
+    [SerializeField] private CanvasGroup startButtonGroup;
     [SerializeField] private Button backButton;
     [SerializeField] private GameObject preparationPanel;
     [SerializeField] private TMP_Text timerLabel;
@@ -86,6 +87,13 @@ public sealed partial class ComboCrewController : MonoBehaviour
     private int activeDeliveries;
     private bool washCounterReserved;
     private bool breakReorganizationLogged;
+    private int hudSeconds = int.MinValue, hudCleanTrays = int.MinValue, hudDirtyTrays = int.MinValue;
+    private Tween startButtonLight;
+    private Sequence startButtonPulse;
+    private RectTransform startButtonRect;
+    private Vector2 startButtonPosition;
+    private Vector3 startButtonScale;
+    private int startButtonState = -1;
     private Tween clipboardPulse;
     private RectTransform clipboardHandle;
     private Vector2 clipboardHandlePosition;
@@ -127,7 +135,15 @@ public sealed partial class ComboCrewController : MonoBehaviour
     private void Awake()
     {
         HideLegacyTutorialOverlay();
-        if (startButton != null) startButton.onClick.AddListener(StartMatch);
+        if (timerLabel != null) timerLabel.text = string.Empty;
+        if (startButton != null)
+        {
+            startButton.onClick.AddListener(StartMatch);
+            startButtonRect = (RectTransform)startButton.transform;
+            startButtonPosition = startButtonRect.anchoredPosition;
+            startButtonScale = startButtonRect.localScale;
+            RefreshStartButton(0, true);
+        }
         if (backButton != null) backButton.onClick.AddListener(BackToHub);
         if (closeProfileButton != null) closeProfileButton.onClick.AddListener(CloseProfile);
         if (messageLabel != null) messageLabel.gameObject.SetActive(false);
@@ -339,6 +355,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
     {
         if (!preparing || orders == null || leaving || !crewFeasible || !ReadyToStart()) return;
         preparing = false;
+        StopStartButtonFeedback();
         playing = true;
         activeDeliveries = 0;
         if (clipboard.IsOpen) clipboard.Toggle();
@@ -366,7 +383,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
         }
         EventLogger.Instance.RecordActivityEvent("combo_initial_specialists:" + specialistPlacements + ":" + specialists);
         TrySpawn();
-        AudioManager.Instance?.PlayConfirm();
+        AudioManager.Instance?.PlaySessionStart();
         RefreshHud();
     }
 
@@ -483,7 +500,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
             order.ReadyHold = 0f;
             order.State = OrderState.Working;
             stations[stage].ResetProgress();
-            AudioManager.Instance?.PlayConfirm();
+            AudioManager.Instance?.PlayWorkStage();
         }, () => { moving[employee] = false; interruptTransport[employee] = null; });
     }
 
@@ -548,7 +565,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
                 savedWashProgress = 0f;
                 washCollected = false;
                 stations[WashStation].ResetProgress();
-                AudioManager.Instance?.PlayReady();
+                AudioManager.Instance?.PlayWashed();
                 RefreshHud();
                 TryFinish();
             }, savedWashProgress, washCollected))
@@ -586,8 +603,8 @@ public sealed partial class ComboCrewController : MonoBehaviour
         Order order = orders[id];
         if (order.State == OrderState.Free || order.State == OrderState.Resolving) return;
         order.State = OrderState.Resolving;
-        if (success) { delivered++; if (trayReturned) dirtyTrays++; AudioManager.Instance?.PlayConfirm(); }
-        else { missed++; if (order.HasTray) dirtyTrays++; AudioManager.Instance?.PlayError(); }
+        if (success) { delivered++; if (trayReturned) dirtyTrays++; AudioManager.Instance?.PlayDelivery(); }
+        else { missed++; if (order.HasTray) dirtyTrays++; AudioManager.Instance?.PlayOrderFailed(); }
         EventLogger.Instance?.RecordActivityEvent(success ? "combo_order_delivered" : "combo_order_missed");
         orderCards[id].Resolve(success, () =>
         {
@@ -643,7 +660,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
             breakReorganizationLogged = true;
             EventLogger.Instance?.RecordActivityEvent("combo_break_reorganized");
         }
-        AudioManager.Instance?.PlayConfirm();
+        AudioManager.Instance?.PlayWorkerAssigned();
         MequiHaptics.Selection();
         HighlightStations(false);
         return true;
@@ -718,15 +735,12 @@ public sealed partial class ComboCrewController : MonoBehaviour
 
     private void RefreshHud()
     {
-        if (timerLabel != null)
+        int seconds = playing && !preparing ? Mathf.CeilToInt(matchRemaining) : -1;
+        if (timerLabel != null && seconds != hudSeconds)
         {
-            if (preparing) timerLabel.text = string.Empty;
-            else if (playing)
-            {
-                int seconds = Mathf.CeilToInt(matchRemaining);
-                timerLabel.SetText("{0}:{1:00}", seconds / 60, seconds % 60);
-            }
-            else timerLabel.text = string.Empty;
+            hudSeconds = seconds;
+            if (seconds < 0) timerLabel.text = string.Empty;
+            else timerLabel.SetText("{0}:{1:00}", seconds / 60, seconds % 60);
         }
         if (preparing)
         {
@@ -735,10 +749,18 @@ public sealed partial class ComboCrewController : MonoBehaviour
             if (preparationHint != null)
                 preparationHint.text = crewFeasible ? "POSICIONE AO MENOS 1 PERSONAGEM"
                     : "TURNO INVIÁVEL: REVISE OS PERFIS";
-            if (startButton != null) startButton.interactable = staffed > 0 && crewFeasible;
+            RefreshStartButton(staffed);
         }
-        if (cleanTrayLabel != null) cleanTrayLabel.SetText("LIMPAS {0}/{1}", cleanTrays, initialTrays);
-        if (dirtyTrayLabel != null) dirtyTrayLabel.SetText("SUJAS {0}", dirtyTrays);
+        if (cleanTrayLabel != null && hudCleanTrays != cleanTrays)
+        {
+            hudCleanTrays = cleanTrays;
+            cleanTrayLabel.SetText("LIMPAS {0}/{1}", cleanTrays, initialTrays);
+        }
+        if (dirtyTrayLabel != null && hudDirtyTrays != dirtyTrays)
+        {
+            hudDirtyTrays = dirtyTrays;
+            dirtyTrayLabel.SetText("SUJAS {0}", dirtyTrays);
+        }
         if (orders == null) return;
         UpdateProblemWorker();
         for (int i = 0; i < orders.Length; i++)
@@ -775,6 +797,42 @@ public sealed partial class ComboCrewController : MonoBehaviour
         }
     }
 
+    private void RefreshStartButton(int staffed, bool immediate = false)
+    {
+        if (startButton == null) return;
+        bool enabled = staffed > 0 && crewFeasible;
+        bool allPlaced = enabled && workerAvailable != null && staffed >= AvailableWorkerCount();
+        int state = !enabled ? 0 : allPlaced ? 2 : 1;
+        startButton.interactable = enabled;
+        if (state == startButtonState) return;
+        startButtonState = state;
+        StopStartButtonFeedback();
+        if (startButtonGroup != null)
+        {
+            float alpha = enabled ? 1f : .45f;
+            if (immediate) startButtonGroup.alpha = alpha;
+            else startButtonLight = startButtonGroup.DOFade(alpha, .18f).SetTarget(this);
+        }
+        if (!allPlaced || startButtonRect == null) return;
+        startButtonPulse = DOTween.Sequence().SetTarget(this);
+        startButtonPulse.Append(startButtonRect.DOAnchorPosY(startButtonPosition.y + 8f, .65f).SetEase(Ease.InOutSine));
+        startButtonPulse.Join(startButtonRect.DOScale(startButtonScale * 1.05f, .65f).SetEase(Ease.InOutSine));
+        startButtonPulse.Append(startButtonRect.DOAnchorPosY(startButtonPosition.y, .65f).SetEase(Ease.InOutSine));
+        startButtonPulse.Join(startButtonRect.DOScale(startButtonScale, .65f).SetEase(Ease.InOutSine));
+        startButtonPulse.SetLoops(-1);
+    }
+
+    private void StopStartButtonFeedback()
+    {
+        startButtonLight?.Kill();
+        startButtonLight = null;
+        startButtonPulse?.Kill();
+        startButtonPulse = null;
+        if (startButtonRect == null) return;
+        startButtonRect.anchoredPosition = startButtonPosition;
+        startButtonRect.localScale = startButtonScale;
+    }
+
     private void UpdateProblemWorker()
     {
         for (int worker = 0; worker < workers.Length; worker++)
@@ -785,8 +843,9 @@ public sealed partial class ComboCrewController : MonoBehaviour
             bool broken = present && stationIncidents[station] == Incident.Broken;
             int order = present && station < MainStationCount - 1
                 ? FirstAtStage(station) : -1;
-            bool waiting = order >= 0 && stationIncidents[station] == Incident.None
-                && orders[order].Progress >= 1f && StageOccupied(station + 1, order);
+            bool lacksTray = order >= 0 && station == 0 && !orders[order].HasTray && cleanTrays < 1;
+            bool ready = order >= 0 && stationIncidents[station] == Incident.None && orders[order].Progress >= 1f;
+            bool waiting = ready && (lacksTray || StageOccupied(station + 1, order));
             if (waiting)
             {
                 if (workerWaitStarted[worker] < 0f) workerWaitStarted[worker] = Time.time;
@@ -794,7 +853,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
             else workerWaitStarted[worker] = -1f;
             workers[worker].ShowStationProblem(broken);
             workers[worker].ShowFlowBlocked(waiting
-                && Time.time - workerWaitStarted[worker] >= 2.5f);
+                && (lacksTray || Time.time - workerWaitStarted[worker] >= 2.5f), lacksTray);
         }
     }
 
@@ -1005,6 +1064,8 @@ public sealed partial class ComboCrewController : MonoBehaviour
     {
         if (scene != gameObject.scene) return;
         leaving = true;
+        if (turnIntro != null) turnIntro.Hide();
+        StopStartButtonFeedback();
         Abandon();
     }
 
@@ -1020,6 +1081,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
         SceneLoader.SceneLeaving -= SceneLeaving;
         leaving = true;
         Abandon();
+        StopStartButtonFeedback();
         DOTween.Kill(this);
         SetClipboardPulse(false);
         profileTween?.Kill();
