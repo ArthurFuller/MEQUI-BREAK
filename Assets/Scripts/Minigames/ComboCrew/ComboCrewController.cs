@@ -630,6 +630,8 @@ public sealed partial class ComboCrewController : MonoBehaviour
         if ((!preparing && !playing) || worker < 0 || worker >= workers.Length
             || IsUnavailable(worker) || station < 0 || station >= stations.Length
             || !CanMoveWorker(worker)) return false;
+        if (!CanReceiveWorker(worker, station))
+        { ShowMessage("Esta bancada já tem alguém retornando ou indisponível."); return false; }
         int old = assigned[worker];
         if (old == station) return true;
         int occupant = stationWorker[station];
@@ -688,6 +690,7 @@ public sealed partial class ComboCrewController : MonoBehaviour
         if (worker < 0 || worker >= workers.Length || station < 0
             || station >= stationWorker.Length || !CanMoveWorker(worker)) return false;
         int occupant = stationWorker[station];
+        if (occupant >= 0 && workers[occupant].ReturningFromBreak) return false;
         if (occupant < 0 || occupant == worker || workerAway[occupant]) return true;
         return assigned[worker] >= 0 && !IsUnavailable(occupant)
             && CanMoveWorker(occupant) && !WorkerDragging(occupant);

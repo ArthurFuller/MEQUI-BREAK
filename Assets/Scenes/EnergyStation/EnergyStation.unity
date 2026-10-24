@@ -2600,7 +2600,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 3
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 10002
@@ -3336,6 +3336,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AvatarView
   catalogoDeAjustes: {fileID: 11400000, guid: ce09cd21b18a6f84cb9a071607e22375, type: 2}
+  usarAjustesDeChapeuDaCena: 0
+  ajustesDosChapeusNaCena: []
+  chapeuNaPrevia: 0
   bodyImage: {fileID: 1998008787}
   faceImage: {fileID: 9401000003}
   hatImage: {fileID: 9401000013}
@@ -4959,7 +4962,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -335, y: 545}
-  m_SizeDelta: {x: 82, y: 82}
+  m_SizeDelta: {x: 130, y: 130}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &3100002502
 MonoBehaviour:
@@ -5025,7 +5028,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 5277236519839031005, guid: ca038d34bacd4414d871eed47930c551, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 03d422c0bfe1459418004d4917e7a40e, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
@@ -71,6 +72,78 @@ public sealed class AvatarView : MonoBehaviour
         image.color = category == AvatarCustomizationCategory.Face ? Color.black
             : category == AvatarCustomizationCategory.Color && TryGetCustomizationColor(index, out Color tint) ? tint : Color.white;
         StyleCustomizationIcon(image, category);
+    }
+
+    private static readonly Dictionary<Sprite, Rect> visibleIconBounds = new Dictionary<Sprite, Rect>();
+
+    public static void FitCustomizationIcon(Image image, Vector2 center, Vector2 area)
+    {
+        if (image == null) return;
+        RectTransform rect = image.rectTransform;
+        Sprite sprite = image.sprite;
+        if (sprite == null) return;
+        Rect bounds = GetVisibleIconBounds(sprite);
+        Vector2 min = bounds.min;
+        Vector2 max = bounds.max;
+        Vector2 visibleSize = max - min;
+        if (visibleSize.x <= 0f || visibleSize.y <= 0f) return;
+        float scale = Mathf.Min(area.x / visibleSize.x, area.y / visibleSize.y);
+        Vector2 fullSize = sprite.rect.size * scale;
+        Vector2 visibleCenter = (min + max) * .5f;
+        rect.pivot = Vector2.one * .5f;
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, fullSize.x);
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, fullSize.y);
+        rect.anchoredPosition = center + (sprite.rect.size * .5f - visibleCenter) * scale;
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
+    }
+
+    // Lê a transparência uma única vez por sprite, inclusive quando o importador usa Full Rect.
+    // As Images continuam sendo as referências existentes da Hierarchy.
+    private static Rect GetVisibleIconBounds(Sprite sprite)
+    {
+        if (visibleIconBounds.TryGetValue(sprite, out Rect cached)) return cached;
+        Rect source = sprite.textureRect;
+        int width = Mathf.RoundToInt(source.width), height = Mathf.RoundToInt(source.height);
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture temporary = RenderTexture.GetTemporary(sprite.texture.width,
+            sprite.texture.height, 0, RenderTextureFormat.ARGB32);
+        Texture2D readable = null;
+        Rect bounds = new Rect(Vector2.zero, sprite.rect.size);
+        try
+        {
+            Graphics.Blit(sprite.texture, temporary);
+            RenderTexture.active = temporary;
+            readable = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            readable.ReadPixels(source, 0, 0);
+            Color32[] pixels = readable.GetPixels32();
+            int minX = width, minY = height, maxX = -1, maxY = -1;
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    if (pixels[y * width + x].a < 16) continue;
+                    minX = Mathf.Min(minX, x); minY = Mathf.Min(minY, y);
+                    maxX = Mathf.Max(maxX, x); maxY = Mathf.Max(maxY, y);
+                }
+            if (maxX >= minX && maxY >= minY)
+            {
+                Vector2 offset = sprite.textureRectOffset;
+                bounds = Rect.MinMaxRect(minX + offset.x, minY + offset.y,
+                    maxX + 1 + offset.x, maxY + 1 + offset.y);
+            }
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(temporary);
+            if (readable != null)
+            {
+                if (Application.isPlaying) Destroy(readable);
+                else DestroyImmediate(readable);
+            }
+        }
+        visibleIconBounds[sprite] = bounds;
+        return bounds;
     }
 
     public static void StyleCustomizationIcon(Image image, AvatarCustomizationCategory category)

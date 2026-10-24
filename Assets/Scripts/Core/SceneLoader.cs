@@ -208,15 +208,53 @@ public sealed class SceneLoader : MonoBehaviour
         while (loadOperation.progress < 0.9f)
             yield return null;
 
-        // O AudioManager persistente mantém o listener durante a transição.
-        loadOperation.allowSceneActivation = true;
+        // Uma câmera de entrada não pode apagar o Canvas ligado à câmera de saída.
+        // A interface Overlay de destino permanece visível durante o slide.
+        List<Camera> deferredCameras = new();
+        void PreserveOutgoingImage(Scene loaded, LoadSceneMode mode)
+        {
+            if (!string.Equals(loaded.name, targetSceneName, StringComparison.OrdinalIgnoreCase)
+                || !outgoingRoots.Exists(root => root != null
+                    && root.GetComponentInParent<Canvas>().renderMode == RenderMode.ScreenSpaceCamera))
+                return;
 
-        while (!loadOperation.isDone)
-            yield return null;
+            GameObject[] incomingObjects = loaded.GetRootGameObjects();
+            foreach (GameObject incomingObject in incomingObjects)
+                foreach (Canvas canvas in incomingObject.GetComponentsInChildren<Canvas>(true))
+                    if (canvas.isActiveAndEnabled && canvas.rootCanvas == canvas
+                        && canvas.renderMode != RenderMode.ScreenSpaceOverlay) return;
+
+            foreach (GameObject incomingObject in incomingObjects)
+                foreach (Camera camera in incomingObject.GetComponentsInChildren<Camera>())
+                    if (camera.enabled && camera.targetTexture == null)
+                    {
+                        deferredCameras.Add(camera);
+                        camera.enabled = false;
+                    }
+        }
+        void RestoreIncomingCameras()
+        {
+            foreach (Camera camera in deferredCameras)
+                if (camera != null) camera.enabled = true;
+        }
+
+        // Intercepta a ativação antes do primeiro render da cena de destino.
+        SceneManager.sceneLoaded += PreserveOutgoingImage;
+        try
+        {
+            loadOperation.allowSceneActivation = true;
+            while (!loadOperation.isDone)
+                yield return null;
+        }
+        finally
+        {
+            SceneManager.sceneLoaded -= PreserveOutgoingImage;
+        }
 
         Scene incomingScene = FindLoadedScene(targetSceneName);
         if (!incomingScene.IsValid() || !incomingScene.isLoaded)
         {
+            RestoreIncomingCameras();
             SetEventSystemsEnabled(currentScene, true);
             isTransitioning = false;
             yield break;
@@ -261,6 +299,7 @@ public sealed class SceneLoader : MonoBehaviour
         yield return transition.WaitForCompletion();
 
         ResetRoots(incomingRoots);
+        RestoreIncomingCameras();
         SceneManager.SetActiveScene(incomingScene);
         SetEventSystemsEnabled(incomingScene, true);
 
@@ -415,7 +454,7 @@ public sealed class SceneLoader : MonoBehaviour
 
         // O contêiner mantém o layout original de todos os elementos da cena.
         while (canvas.transform.childCount > 1)
-            canvas.transform.GetChild(1).SetParent(root, false);
+            canvas.transform.GetChild(1).SetParent(root, true);
 
         return root;
     }

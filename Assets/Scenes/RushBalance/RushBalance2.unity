@@ -259,7 +259,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 25
+  m_AdditionalShaderChannelsFlag: 27
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
@@ -915,14 +915,14 @@ RectTransform:
   m_GameObject: {fileID: 30035}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 1.16, y: 1.16, z: 1.16}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 30015}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 410, y: 744}
+  m_AnchoredPosition: {x: 370, y: 850}
   m_SizeDelta: {x: 180, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &30037
@@ -990,14 +990,14 @@ RectTransform:
   m_GameObject: {fileID: 30039}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 1.16, y: 1.16, z: 1.16}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 30015}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 438, y: 744}
+  m_AnchoredPosition: {x: 390, y: 850}
   m_SizeDelta: {x: 120, y: 54}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &30041
@@ -1028,7 +1028,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text:
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c52d3fa8b7414d2e8c9a6f0100000002, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: c52d3fa8b7414d2e8c9a6f0100000002, type: 2}
@@ -12157,6 +12157,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 0b5dae9c160a48a5af01d5f193a07e4c, type: 3}
   - {fileID: 21300000, guid: 0ef3d09a6777448284ed6f0d74520890, type: 3}
   - {fileID: 21300000, guid: 65fd87e7ecb5448099f3cd358b9e1148, type: 3}
+  excludedNpcHat: {fileID: 21300000, guid: d31327733b3b1e1dc553fd6e11d6063c, type: 3}
   npcTorsoOptions:
   - {fileID: -5368785485212384260, guid: fe6b465f281e9f64cb39beba9973401d, type: 3}
   - {fileID: 7725282525762034964, guid: d13dfe4d7c33abe41b6514d5b4a2559e, type: 3}

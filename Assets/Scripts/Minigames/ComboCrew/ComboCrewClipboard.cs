@@ -47,10 +47,11 @@ public sealed class ComboCrewClipboard : MonoBehaviour
         if (card != null && card == draggedCard) draggedCardPosition = card.position;
     }
 
-    public void OpenAfterDrag()
+    public void OpenAfterDrag(RectTransform card)
     {
-        if (!Configured) return;
+        if (draggedCard != card) return;
         draggedCard = null;
+        if (!Configured || !gameObject.activeInHierarchy) return;
         SetOpen(true);
         handleButton.interactable = false;
         movement.OnComplete(() =>

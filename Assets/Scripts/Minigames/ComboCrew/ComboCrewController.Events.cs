@@ -40,6 +40,7 @@ public sealed partial class ComboCrewController
             int template = 1 + i % (original - 1);
             ComboCrewWorkerView worker = Instantiate(workers[template], workers[template].transform.parent);
             worker.name = "Funcionario_" + index + "_Ator";
+            worker.CloneHeadIndicators();
             worker.ApplyProfile(extra[i]);
             worker.GetComponent<ComboCrewWorkerStationDrag>()?.SetWorkerIndex(index);
             worker.gameObject.SetActive(false);

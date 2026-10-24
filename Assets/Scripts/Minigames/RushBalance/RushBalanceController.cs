@@ -118,6 +118,8 @@ public sealed class RushBalanceController : MonoBehaviour
     [SerializeField] private AvatarCustomizationCatalog customizationCatalog;
     [Tooltip("Índice 0 deve representar a opção sem chapéu.")]
     [SerializeField] private Sprite[] npcHatOptions;
+    [SerializeField, Tooltip("Chapéu excluído apenas do sorteio dos clientes; mantém o índice e a customização.")]
+    private Sprite excludedNpcHat;
     [SerializeField] private Sprite[] npcTorsoOptions;
     [SerializeField] private Sprite[] orderFoodOptions;
     [SerializeField] private Color[] npcColorOptions;
@@ -445,7 +447,11 @@ public sealed class RushBalanceController : MonoBehaviour
     private int PickHatIndex()
     {
         if (allowNoHat && Random.value < noHatChance) return 0;
-        return npcHatOptions.Length > 1 ? Random.Range(1, npcHatOptions.Length) : 0;
+        int excluded = System.Array.IndexOf(npcHatOptions, excludedNpcHat);
+        int count = npcHatOptions.Length - 1 - (excluded > 0 ? 1 : 0);
+        if (count <= 0) return 0;
+        int selected = Random.Range(1, count + 1);
+        return excluded > 0 && selected >= excluded ? selected + 1 : selected;
     }
 
     private bool AppearanceIsAvailable(int customerIndex, int hatIndex, int torsoIndex, int colorIndex)

@@ -108,6 +108,7 @@ public sealed partial class CustomizationController : MonoBehaviour
 
     private RectTransform _purchasePanelRect;
     private CanvasGroup _purchasePanelCanvasGroup;
+    private Vector2 purchaseItemSize, purchaseItemPosition;
     private CanvasGroup _feedbackCanvasGroup;
     private Sequence _purchasePanelSequence;
 
@@ -140,6 +141,11 @@ public sealed partial class CustomizationController : MonoBehaviour
         _feedbackCanvasGroup = feedbackCanvasGroup;
         _purchasePanelRect = purchasePanelRect;
         _purchasePanelCanvasGroup = purchasePanelCanvasGroup;
+        if (purchaseConfirmItem != null)
+        {
+            purchaseItemSize = purchaseConfirmItem.rectTransform.rect.size;
+            purchaseItemPosition = purchaseConfirmItem.rectTransform.anchoredPosition;
+        }
     }
 
     private void Start()
@@ -719,6 +725,19 @@ public sealed partial class CustomizationController : MonoBehaviour
         AvatarSpriteOutline outline = purchaseConfirmItem.GetComponent<AvatarSpriteOutline>();
         if (outline != null) outline.enabled = item.Category != AvatarCustomizationCategory.Face;
         AvatarView.StyleCustomizationIcon(purchaseConfirmItem, item.Category);
+        RectTransform iconRect = purchaseConfirmItem.rectTransform;
+        if (item.Category == AvatarCustomizationCategory.Color)
+        {
+            iconRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, purchaseItemSize.x);
+            iconRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, purchaseItemSize.y);
+            iconRect.anchoredPosition = purchaseItemPosition;
+        }
+        else if (purchaseConfirmSlot != null)
+        {
+            // O desenho ocupa o slot com margem para o contorno, ignorando a transparência da PNG.
+            Vector2 area = purchaseConfirmSlot.rectTransform.rect.size - Vector2.one * 16f;
+            AvatarView.FitCustomizationIcon(purchaseConfirmItem, Vector2.zero, area);
+        }
     }
 
     private static string DisplayNameOrFallback(AvatarCustomizationItem item)

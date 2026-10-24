@@ -58,6 +58,8 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
     private Tween attentionPulse;
     [SerializeField] private RectTransform headIndicators;
     private RectTransform headBody;
+    private bool ownsHeadIndicators;
+    public bool ReturningFromBreak { get; private set; }
     private readonly Vector3[] headCorners = new Vector3[4];
     private ComboCrewStationView speechStation;
     private TMP_Text ActiveBubbleText => speechStation != null ? speechStation.SpeechText : null;
@@ -89,6 +91,29 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
 #if UNITY_EDITOR
     public RectTransform PreviewActor => actor;
 #endif
+    public void CloneHeadIndicators()
+    {
+        if (headIndicators == null) return;
+        string clockName = breakWarningRoot.name;
+        string ringName = breakRing.name;
+        string markName = attentionMark.name;
+        headIndicators = Instantiate(headIndicators, headIndicators.parent);
+        headIndicators.name = name + "_Indicadores";
+        breakWarningRoot = headIndicators.Find(clockName) as RectTransform;
+        breakRing = breakWarningRoot.Find(ringName).GetComponent<Image>();
+        breakWarningAnimator = breakWarningRoot.GetComponent<Animator>();
+        attentionMark = headIndicators.Find(markName).GetComponent<TMP_Text>();
+        ownsHeadIndicators = true;
+        breakWarningRoot.gameObject.SetActive(false);
+        attentionMark.gameObject.SetActive(false);
+        headIndicators.gameObject.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        if (ownsHeadIndicators && headIndicators != null) Destroy(headIndicators.gameObject);
+    }
+
     public void ApplyProfile(ComboCrewWorkerProfile profile)
     {
         if (profile == null) return;
@@ -400,7 +425,8 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
             .AppendInterval(seconds)
             .OnComplete(() =>
             {
-                // A estação pode ter mudado enquanto o funcionário estava fora.
+                ReturningFromBreak = true;
+                // A bancada fica reservada até a chegada; trocas anteriores já atualizaram home.
                 RectTransform returnAnchor = home != null ? home : exit;
                 route = DOTween.Sequence().SetTarget(this)
                     .Append(actor.DOMove(returnAnchor.position, 1.1f).SetEase(Ease.InOutSine))
@@ -408,6 +434,7 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
                         actor.position = home != null ? home.position : exit.position;
                         RestoreDeliveryLayer();
                         route = null;
+                        ReturningFromBreak = false;
                         SetRaycasts(true);
                         returned?.Invoke();
                     });
@@ -656,10 +683,10 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
             carriedTray.SetActive(true);
             route.Append(actor.DOMove(home.position, travelSeconds).SetEase(Ease.InOutCubic));
         }
-        route.AppendCallback(() => WashingAtSink = true)
+        route.AppendCallback(() => { RestoreDeliveryLayer(); WashingAtSink = true; })
             .Append(DOTween.To(() => WashProgress, value => WashProgress = value,
                 1f, Mathf.Max(.01f, secondsPerTray * count * (1f - WashProgress))).SetEase(Ease.Linear))
-            .AppendCallback(() => WashingAtSink = false)
+            .AppendCallback(() => { WashingAtSink = false; MoveToForeground(pauseForegroundLayer); })
             .Append(actor.DOMove(firstStation.position, travelSeconds + count * .08f).SetEase(Ease.InOutCubic))
             .AppendCallback(() => carriedTray.SetActive(false))
             .Append(actor.DOMove(home.position, travelSeconds).SetEase(Ease.InOutCubic))
@@ -692,6 +719,7 @@ public sealed class ComboCrewWorkerView : MonoBehaviour
         // A Unity pode chamar OnDisable enquanto o pai ainda está sendo desativado.
         // Mudar a hierarquia nesse callback gera erro; a restauração fica para LateUpdate.
         restoreLayerWhenActive = deliveryHomeParent != null;
+        ReturningFromBreak = false;
         WashingAtSink = false;
         ShowStationProblem(false);
         ShowFlowBlocked(false);

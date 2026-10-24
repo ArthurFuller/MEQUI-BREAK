@@ -316,6 +316,12 @@ public sealed class ComboCrewWorkerCard : HierarchyDragHandle, IPointerClickHand
             transform.SetAsLastSibling();
             clipboard.CloseForDrag(DragVisual);
         }
+        else
+        {
+            // Cancelamento e soltura encerram o mesmo arraste da prancheta.
+            MoveHome(true);
+            clipboard?.OpenAfterDrag(DragVisual);
+        }
     }
 
     protected override void HighlightTargets(bool visible) => owner?.HighlightStations(visible, workerIndex);
@@ -330,10 +336,7 @@ public sealed class ComboCrewWorkerCard : HierarchyDragHandle, IPointerClickHand
             accepted = owner != null && owner.AssignWorker(workerIndex, hoveredStation);
         hoveredStation = -1;
         if (!accepted) { AudioManager.Instance?.PlayError(); MequiHaptics.Reject(); }
-        // O card volta à sua âncora local antes de a prancheta subir.
-        // Assim não há tween para a posição fora da tela nem salto ao final.
         MoveHome(true);
-        clipboard.OpenAfterDrag();
     }
 
     protected override void OnDisable()
