@@ -26,7 +26,6 @@ public sealed class SettingsController : MonoBehaviour
     [SerializeField] private TMP_Text feedbackText;
 
     [Header("Demo")]
-    [SerializeField] private Button tutorialResetButton;
     [SerializeField] private Button energyStationResetButton;
 
     [Header("Animação da área de trabalho")]
@@ -76,7 +75,6 @@ public sealed class SettingsController : MonoBehaviour
         if (endOfShiftReminderToggle != null) endOfShiftReminderToggle.onValueChanged.AddListener(SetEndOfShiftReminder);
         if (workSettingsButton != null) workSettingsButton.onClick.AddListener(ToggleWorkSettingsPanel);
         if (storeInput != null) storeInput.onEndEdit.AddListener(SetStore);
-        if (tutorialResetButton != null) tutorialResetButton.onClick.AddListener(ResetTutorial);
         if (energyStationResetButton != null) energyStationResetButton.onClick.AddListener(ResetEnergyStation);
     }
 
@@ -88,7 +86,6 @@ public sealed class SettingsController : MonoBehaviour
         if (endOfShiftReminderToggle != null) endOfShiftReminderToggle.onValueChanged.RemoveListener(SetEndOfShiftReminder);
         if (workSettingsButton != null) workSettingsButton.onClick.RemoveListener(ToggleWorkSettingsPanel);
         if (storeInput != null) storeInput.onEndEdit.RemoveListener(SetStore);
-        if (tutorialResetButton != null) tutorialResetButton.onClick.RemoveListener(ResetTutorial);
         if (energyStationResetButton != null) energyStationResetButton.onClick.RemoveListener(ResetEnergyStation);
     }
 
@@ -294,14 +291,6 @@ public sealed class SettingsController : MonoBehaviour
     {
         if (endOfShiftReminderToggle != null)
             endOfShiftReminderToggle.interactable = notificationsToggle == null || notificationsToggle.isOn;
-    }
-
-    public void ResetTutorial()
-    {
-        bool reset = PlayerManager.Instance?.ResetTutorial() == true;
-        SetFeedback(reset ? "Tutorial resetado." : "Não foi possível resetar o tutorial.");
-        if (reset)
-            AudioManager.Instance?.PlayConfirm();
     }
 
     public void ResetEnergyStation()

@@ -15,6 +15,9 @@ public sealed class PlayerProfileData
     /// </summary>
     public int OnboardingStep;
 
+    /// <summary>Indica que a dica inicial dos balões do Rush já foi apresentada.</summary>
+    public bool RushBalanceHintShown;
+
     /// <summary>Nome utilizado pelas interfaces do aplicativo.</summary>
     public string DisplayName;
 

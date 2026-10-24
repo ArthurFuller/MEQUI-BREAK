@@ -443,6 +443,17 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     }
 #endif
 
+    public bool PulseStartHint()
+    {
+        if (!showingOrder || departing || balloonRect == null || !balloon.activeInHierarchy
+            || !orderButton.IsInteractable() || BubbleAnimating || balloonHovered || balloonPressed
+            || (balloonFeedback != null && balloonFeedback.IsActive())) return false;
+        balloonFeedback = DOTween.Sequence().SetUpdate(true).SetTarget(this)
+            .Append(balloonRect.DOScale(balloonBaseScale * 1.08f, .32f).SetEase(Ease.InOutSine))
+            .Append(balloonRect.DOScale(balloonBaseScale, .32f).SetEase(Ease.InOutSine));
+        return true;
+    }
+
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (!orderButton.interactable || BubbleAnimating || balloonRect == null) return;

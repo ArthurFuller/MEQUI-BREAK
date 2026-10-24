@@ -12,7 +12,7 @@ public sealed class FirstRunGuideController : MonoBehaviour
     private const int HubStep = 0;
     private const int EnergyStationStep = 2;
     private const int CompletedStep = 3;
-    private const int TotalSteps = 2;
+    private const int TotalSteps = 1;
 
     private const string HubSceneName = "HUB";
     private const string EnergyStationSceneName = "EnergyStation";
@@ -68,6 +68,7 @@ public sealed class FirstRunGuideController : MonoBehaviour
             // Os destaques ficam ativos na Hierarchy para edição manual, mas
             // precisam começar ocultos caso o guia já tenha sido concluído.
             FindSceneComponent<FirstRunGuideSceneView>(scene)?.Hide();
+            if (scene.name == EnergyStationSceneName) return;
             searchRoutine = StartCoroutine(WaitForManualView(scene));
         }
     }
@@ -124,6 +125,7 @@ public sealed class FirstRunGuideController : MonoBehaviour
 
     private bool CanShow(FirstRunGuideSceneView view, int requestedStep)
     {
+        if (requestedStep == EnergyStationStep) return false;
         PlayerManager player = PlayerManager.Instance;
         PlayerProfileData profile = player?.Profile;
         if (player == null || profile == null || !player.HasValidRegistration)
@@ -202,7 +204,7 @@ public sealed class FirstRunGuideController : MonoBehaviour
 
         if (completedStep == HubStep
             && (profile.OnboardingStep == HubStep || profile.OnboardingStep == 1))
-            profile.OnboardingStep = EnergyStationStep;
+            profile.OnboardingStep = CompletedStep;
         else
             return;
 

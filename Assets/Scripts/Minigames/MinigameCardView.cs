@@ -1,3 +1,5 @@
+using System.Collections;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,6 +10,12 @@ public sealed class MinigameCardView : MonoBehaviour
     [Header("Configuração da cena")]
     [SerializeField] private MinigameDefinition definition;
     [SerializeField] private SceneLoader sceneLoader;
+    [SerializeField, Min(0)] private int idleAnimationOrder;
+
+    private Coroutine idleRoutine;
+    private Tween idleHop;
+    private RectTransform idleRect;
+    private Vector2 idleHome;
 
     public MinigameDefinition Definition => definition;
 
@@ -22,6 +30,7 @@ public sealed class MinigameCardView : MonoBehaviour
         ApplyListener();
         if (PlayerManager.Instance != null)
             PlayerManager.Instance.EnergyStationAvailabilityChanged += RefreshAvailability;
+        idleRoutine = StartCoroutine(AnimateAvailableCard());
     }
 
     public void Bind(MinigameDefinition data, SceneLoader loader)
@@ -63,6 +72,33 @@ public sealed class MinigameCardView : MonoBehaviour
         button.interactable = sceneAvailable && (!isEnergyStation
             || PlayerManager.Instance == null
             || PlayerManager.Instance.CanPlayEnergyStation);
+        if (!button.interactable) StopIdleHop();
+    }
+
+    private IEnumerator AnimateAvailableCard()
+    {
+        while (SceneLoader.IsTransitionInProgress) yield return null;
+        yield return new WaitForSecondsRealtime(3.5f + idleAnimationOrder * .5f);
+        while (true)
+        {
+            if (!SceneLoader.IsTransitionInProgress && button != null && button.IsInteractable())
+            {
+                idleRect = (RectTransform)transform;
+                idleHome = idleRect.anchoredPosition;
+                idleHop = DOTween.Sequence().SetUpdate(true).SetTarget(this)
+                    .Append(idleRect.DOAnchorPosY(idleHome.y + 10f, .17f).SetEase(Ease.OutQuad))
+                    .Append(idleRect.DOAnchorPosY(idleHome.y, .23f).SetEase(Ease.InQuad))
+                    .OnComplete(() => idleHop = null);
+            }
+            yield return new WaitForSecondsRealtime(6.22f);
+        }
+    }
+
+    private void StopIdleHop()
+    {
+        idleHop?.Kill();
+        idleHop = null;
+        if (idleRect != null) idleRect.anchoredPosition = idleHome;
     }
 
     private void Play()
@@ -74,11 +110,15 @@ public sealed class MinigameCardView : MonoBehaviour
             || !Application.CanStreamedLevelBeLoaded(definition.SceneName))
             return;
 
+        StopIdleHop();
         sceneLoader.Load(definition.SceneName);
     }
 
     private void OnDisable()
     {
+        if (idleRoutine != null) StopCoroutine(idleRoutine);
+        idleRoutine = null;
+        StopIdleHop();
         if (PlayerManager.Instance != null)
             PlayerManager.Instance.EnergyStationAvailabilityChanged -= RefreshAvailability;
     }

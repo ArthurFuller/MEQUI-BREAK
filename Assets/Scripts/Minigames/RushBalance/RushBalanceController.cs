@@ -186,6 +186,9 @@ public sealed class RushBalanceController : MonoBehaviour
     private bool finalCycle;
     private bool configured;
     private bool ending;
+    private bool firstEntryHint;
+    private int nextHintCustomer;
+    private float nextHintTime;
 
     private void Awake()
     {
@@ -224,6 +227,7 @@ public sealed class RushBalanceController : MonoBehaviour
 
     private void OnDisable()
     {
+        firstEntryHint = false;
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.delayCall -= ApplyHatPreviewInEditor;
 #endif
@@ -244,6 +248,15 @@ public sealed class RushBalanceController : MonoBehaviour
 
     private void BeginMatch()
     {
+        PlayerManager player = PlayerManager.Instance;
+        firstEntryHint = player?.Profile != null && !player.Profile.RushBalanceHintShown;
+        if (firstEntryHint)
+        {
+            player.Profile.RushBalanceHintShown = true;
+            player.SaveProfile();
+        }
+        nextHintCustomer = 0;
+        nextHintTime = Time.unscaledTime + .8f;
         replacementSequence?.Kill();
         replacementSequence = null;
         ending = false;
@@ -299,9 +312,25 @@ public sealed class RushBalanceController : MonoBehaviour
             }
         }
         Refresh();
+        UpdateFirstEntryHint();
 
         if (feedback != null && feedbackClock > 0f && (feedbackClock -= Time.deltaTime) <= 0f)
             feedback.text = string.Empty;
+    }
+
+    private void UpdateFirstEntryHint()
+    {
+        if (!firstEntryHint || Time.unscaledTime < nextHintTime) return;
+        for (int offset = 0; offset < customers.Length; offset++)
+        {
+            int index = (nextHintCustomer + offset) % customers.Length;
+            RushCustomerView customer = customers[index];
+            int id = customer.OrderId;
+            if (id < 0 || round.Orders[id].State != RushRound.Status.Waiting || !customer.PulseStartHint()) continue;
+            nextHintCustomer = (index + 1) % customers.Length;
+            nextHintTime = Time.unscaledTime + .9f;
+            break;
+        }
     }
 
     private void ActivateOrder(int id, int customerIndex, RectTransform target, bool instant)
@@ -471,6 +500,7 @@ public sealed class RushBalanceController : MonoBehaviour
     public void Queue(int id)
     {
         if (!session.IsPlaying || ending || !round.Enqueue(id)) return;
+        firstEntryHint = false;
         TouchQueueControls();
         EventLogger.Instance?.RecordUserAction("rush_select_request");
         AudioManager.Instance?.PlayQueueAccepted();

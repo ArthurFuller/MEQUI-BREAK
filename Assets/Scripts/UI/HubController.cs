@@ -13,18 +13,17 @@ public sealed class HubController : MonoBehaviour
     [SerializeField] private TMP_Text pointsText;
     [SerializeField] private AvatarView avatarView;
     [Header("Progresso de nível")]
-    [SerializeField] private Sprite levelTrackSprite;
-    [SerializeField] private Sprite levelFillSprite;
+    [SerializeField] private Image levelTrackImage;
+    [SerializeField] private Image levelFillImage;
     [Header("Prévia de level up")]
     [SerializeField] private LevelUpPopupPreview levelUpPopupPreview;
 
     private RectTransform levelTrackRect;
-    private Image levelFillImage;
     private PlayerManager observedPlayer;
 
     private IEnumerator Start()
     {
-        CreateLevelBar();
+        levelTrackRect = levelTrackImage != null ? levelTrackImage.rectTransform : null;
         Refresh();
         levelUpPopupPreview?.Initialize(avatarView);
 
@@ -55,45 +54,20 @@ public sealed class HubController : MonoBehaviour
         Refresh();
     }
 
-    private void CreateLevelBar()
-    {
-        if (levelText == null || levelTrackSprite == null || levelFillSprite == null)
-            return;
-
-        RectTransform stats = levelText.rectTransform.parent as RectTransform;
-        if (stats == null) return;
-
-        GameObject trackObject = new GameObject("LevelProgressTrack", typeof(RectTransform),
-            typeof(CanvasRenderer), typeof(Image));
-        levelTrackRect = (RectTransform)trackObject.transform;
-        levelTrackRect.SetParent(stats, false);
-        levelTrackRect.anchorMin = levelTrackRect.anchorMax = new Vector2(.5f, .5f);
-        levelTrackRect.sizeDelta = new Vector2(398f, 16f);
-        levelTrackRect.anchoredPosition = new Vector2(0f, -58f);
-        Image trackImage = trackObject.GetComponent<Image>();
-        trackImage.sprite = levelTrackSprite;
-        trackImage.raycastTarget = false;
-
-        GameObject fillObject = new GameObject("LevelProgressFill", typeof(RectTransform),
-            typeof(CanvasRenderer), typeof(Image));
-        RectTransform fillRect = (RectTransform)fillObject.transform;
-        fillRect.SetParent(levelTrackRect, false);
-        fillRect.anchorMin = fillRect.anchorMax = new Vector2(0f, .5f);
-        fillRect.pivot = new Vector2(0f, .5f);
-        fillRect.anchoredPosition = new Vector2(3f, 0f);
-        fillRect.sizeDelta = new Vector2(0f, 10f);
-        levelFillImage = fillObject.GetComponent<Image>();
-        levelFillImage.sprite = levelFillSprite;
-        levelFillImage.raycastTarget = false;
-    }
-
     private void RefreshLevelBar(PlayerManager player)
     {
         if (levelFillImage == null || levelTrackRect == null) return;
         player.TryGetLevelProgress(out float fraction);
         RectTransform fill = levelFillImage.rectTransform;
-        fill.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,
-            (levelTrackRect.rect.width - 6f) * fraction);
+        if (levelTrackImage.sprite != null && levelTrackRect.rect.height > 0f)
+            levelTrackImage.pixelsPerUnitMultiplier = levelTrackImage.sprite.rect.height
+                / (levelTrackRect.rect.height * levelTrackImage.pixelsPerUnit);
+        if (levelFillImage.sprite != null && fill.rect.height > 0f)
+            levelFillImage.pixelsPerUnitMultiplier = levelFillImage.sprite.rect.height
+                / (fill.rect.height * levelFillImage.pixelsPerUnit);
+        float availableWidth = Mathf.Max(0f, levelTrackRect.rect.width - 6f);
+        float width = Mathf.Min(availableWidth, Mathf.Max(fill.rect.height, availableWidth * Mathf.Clamp01(fraction)));
+        fill.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         levelFillImage.enabled = fraction > 0f;
     }
 
