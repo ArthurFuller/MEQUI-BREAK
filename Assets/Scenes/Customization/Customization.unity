@@ -3782,6 +3782,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AvatarView
   catalogoDeAjustes: {fileID: 11400000, guid: ce09cd21b18a6f84cb9a071607e22375, type: 2}
+  usarAjustesDeChapeuDaCena: 0
+  ajustesDosChapeusNaCena: []
+  chapeuNaPrevia: 0
   bodyImage: {fileID: 2058525012}
   faceImage: {fileID: 1821482590}
   hatImage: {fileID: 1656567107}
@@ -14223,7 +14226,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 25
+  m_AdditionalShaderChannelsFlag: 27
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0

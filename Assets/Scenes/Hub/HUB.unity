@@ -1144,8 +1144,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 40.014442}
-  m_SizeDelta: {x: 0, y: 80.03112}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &381160726
 MonoBehaviour:
@@ -8616,10 +8616,6 @@ PrefabInstance:
     m_TransformParent: {fileID: 930000000111}
     m_Modifications:
     - target: {fileID: -3390230580442647410, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
-      propertyPath: idleAnimationOrder
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -3390230580442647410, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
       propertyPath: definition
       value: 
       objectReference: {fileID: 11400000, guid: 520697b2626251845a139767f9298072, type: 2}
@@ -8627,6 +8623,10 @@ PrefabInstance:
       propertyPath: sceneLoader
       value: 
       objectReference: {fileID: 1767664847}
+    - target: {fileID: -3390230580442647410, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
+      propertyPath: idleAnimationOrder
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1438669922522061005, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
       propertyPath: m_Sprite
       value: 
@@ -8712,13 +8712,13 @@ PrefabInstance:
     m_TransformParent: {fileID: 930000000101}
     m_Modifications:
     - target: {fileID: -3390230580442647410, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
-      propertyPath: idleAnimationOrder
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: -3390230580442647410, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
       propertyPath: sceneLoader
       value: 
       objectReference: {fileID: 1767664847}
+    - target: {fileID: -3390230580442647410, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
+      propertyPath: idleAnimationOrder
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 2021125547665097325, guid: c14eb34e3aa253d44813e675487c870b, type: 3}
       propertyPath: m_Name
       value: ComboCrewCard
@@ -8968,7 +8968,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -9043,7 +9043,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -9118,7 +9118,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}

@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+#if UNITY_WEBGL && !UNITY_EDITOR
+using UnityEngine;
+#else
 using Firebase.Firestore;
+#endif
 
 public sealed class DashboardCloudData : IDisposable
 {
@@ -9,7 +13,12 @@ public sealed class DashboardCloudData : IDisposable
     private readonly Dictionary<string, DashboardSessionData.Snapshot> values =
         new Dictionary<string, DashboardSessionData.Snapshot>();
     private readonly HashSet<string> received = new HashSet<string>();
+#if UNITY_WEBGL && !UNITY_EDITOR
+    private readonly List<int> listeners = new List<int>();
+    private static readonly string[] MetricNames = { "sessions", "completed", "delivered", "missed", "impatientOrders", "impatientMissed", "reorders", "assignments", "breaks", "breakReorganizations", "stationProblems", "stationRepairs", "specialistPlacements", "specialistOpportunities", "choice0", "choice1", "choice2", "choice3" };
+#else
     private readonly List<ListenerRegistration> listeners = new List<ListenerRegistration>();
+#endif
     private readonly Action changed;
 
     public bool IsReady => received.Count == ExpectedDocuments;
@@ -17,8 +26,10 @@ public sealed class DashboardCloudData : IDisposable
     public DashboardCloudData(string store, DateTime currentMonth, Action onChanged)
     {
         changed = onChanged;
+        if (!FirebaseSessionSync.IsReady || string.IsNullOrWhiteSpace(store)) return;
+#if !UNITY_WEBGL || UNITY_EDITOR
         FirebaseFirestore database = FirebaseSessionSync.Database;
-        if (database == null || string.IsNullOrWhiteSpace(store)) return;
+#endif
 
         string storeKey = FirebaseSessionSync.StoreKey(store);
         for (int age = 0; age < 3; age++)
@@ -30,10 +41,27 @@ public sealed class DashboardCloudData : IDisposable
                 foreach (string activity in Activities)
                 {
                     string key = Key(month, shift, activity);
-                    DocumentReference reference = database.Document(
-                        "stores/" + storeKey + "/months/" + month +
-                        "/shifts/" + shiftKey + "/games/" + activity);
-                    listeners.Add(reference.Listen(snapshot => Receive(key, snapshot)));
+                    string documentPath = "stores/" + storeKey + "/months/" + month +
+                        "/shifts/" + shiftKey + "/games/" + activity;
+#if UNITY_WEBGL && !UNITY_EDITOR
+                    listeners.Add(FirebaseWebBridge.Listen(documentPath, response =>
+                    {
+                        if (!string.IsNullOrEmpty(response.error))
+                        {
+                            received.Remove(key);
+                            changed?.Invoke();
+                            Debug.LogWarning("Firebase dashboard: " + response.error);
+                            return;
+                        }
+                        var fields = new Dictionary<string, object>();
+                        for (int i = 0; i < MetricNames.Length && i < (response.metrics?.Length ?? 0); i++)
+                            fields[MetricNames[i]] = response.metrics[i];
+                        Receive(key, fields);
+                    }));
+#else
+                    listeners.Add(database.Document(documentPath).Listen(snapshot =>
+                        Receive(key, snapshot.Exists ? snapshot.ToDictionary() : null)));
+#endif
                 }
             }
         }
@@ -46,9 +74,9 @@ public sealed class DashboardCloudData : IDisposable
             ? value : new DashboardSessionData.Snapshot();
     }
 
-    private void Receive(string key, DocumentSnapshot document)
+    private void Receive(string key, Dictionary<string, object> fields)
     {
-        values[key] = FromDocument(document);
+        values[key] = FromFields(fields);
         received.Add(key);
         if (IsReady) changed?.Invoke();
     }
@@ -58,11 +86,10 @@ public sealed class DashboardCloudData : IDisposable
         return month + "/" + FirebaseSessionSync.ShiftKey(shift) + "/" + activity;
     }
 
-    private static DashboardSessionData.Snapshot FromDocument(DocumentSnapshot document)
+    private static DashboardSessionData.Snapshot FromFields(Dictionary<string, object> fields)
     {
         var result = new DashboardSessionData.Snapshot();
-        if (document == null || !document.Exists) return result;
-        Dictionary<string, object> fields = document.ToDictionary();
+        if (fields == null) return result;
         result.Sessions = Number(fields, "sessions");
         result.Completed = Number(fields, "completed");
         result.Delivered = Number(fields, "delivered");
@@ -91,7 +118,11 @@ public sealed class DashboardCloudData : IDisposable
 
     public void Dispose()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        foreach (int listener in listeners) FirebaseWebBridge.Stop(listener);
+#else
         foreach (ListenerRegistration listener in listeners) listener.Stop();
+#endif
         listeners.Clear();
         received.Clear();
         values.Clear();

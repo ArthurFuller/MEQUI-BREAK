@@ -98,7 +98,7 @@ public sealed class DashboardExperimentController : MonoBehaviour
 
     private void StartCloudData()
     {
-        if (!isActiveAndEnabled || layout == null || cloud != null || FirebaseSessionSync.Database == null)
+        if (!isActiveAndEnabled || layout == null || cloud != null || !FirebaseSessionSync.IsReady)
             return;
         cloud = new DashboardCloudData(PlayerManager.Instance?.StoreId, DateTime.Now, Refresh);
         Refresh();

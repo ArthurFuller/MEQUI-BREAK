@@ -6,9 +6,11 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+#if !UNITY_WEBGL || UNITY_EDITOR
 using Firebase;
 using Firebase.Auth;
 using Firebase.Firestore;
+#endif
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -19,13 +21,23 @@ public sealed class FirebaseSessionSync : MonoBehaviour
     private const string SyncFileName = "firebase-synced.json";
     private const float RetrySeconds = 20f;
     private readonly HashSet<string> synced = new HashSet<string>();
+#if UNITY_WEBGL && !UNITY_EDITOR
+    private bool webReady;
+    private string webUid;
+#else
     private FirebaseFirestore database;
     private FirebaseAuth auth;
+#endif
     private bool syncRequested = true;
 
     public static FirebaseSessionSync Instance { get; private set; }
     public static event Action ReadyChanged;
+#if UNITY_WEBGL && !UNITY_EDITOR
+    public static object Database => Instance != null && Instance.webReady ? Instance : null;
+#else
     public static FirebaseFirestore Database => Instance != null ? Instance.database : null;
+#endif
+    public static bool IsReady => Database != null;
     public static string LastError { get; private set; }
 
     private string SyncPath => Path.Combine(Application.persistentDataPath, SyncFileName);
@@ -58,9 +70,9 @@ public sealed class FirebaseSessionSync : MonoBehaviour
     {
         while (isActiveAndEnabled)
         {
-            if (database == null)
+            if (!IsReady)
                 yield return Initialize();
-            if (database != null)
+            if (IsReady)
                 yield return UploadPending();
 
             float deadline = Time.realtimeSinceStartup + RetrySeconds;
@@ -89,6 +101,18 @@ public sealed class FirebaseSessionSync : MonoBehaviour
 
     private IEnumerator Initialize()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        var initialization = FirebaseWebBridge.Call("initialize");
+        yield return new WaitUntil(() => initialization.IsCompleted);
+        if (initialization.IsFaulted || initialization.IsCanceled)
+        {
+            LastError = "Firebase web indisponível: " + initialization.Exception?.GetBaseException().Message;
+            Debug.LogWarning(LastError);
+            yield break;
+        }
+        webUid = initialization.Result.value;
+        webReady = true;
+#else
         var dependencies = FirebaseApp.CheckAndFixDependenciesAsync();
         yield return new WaitUntil(() => dependencies.IsCompleted);
         if (dependencies.IsFaulted || dependencies.IsCanceled ||
@@ -108,6 +132,7 @@ public sealed class FirebaseSessionSync : MonoBehaviour
         }
 
         database = FirebaseFirestore.DefaultInstance;
+#endif
         LastError = null;
         ReadyChanged?.Invoke();
     }
@@ -115,19 +140,30 @@ public sealed class FirebaseSessionSync : MonoBehaviour
     private IEnumerator UploadPending()
     {
         LocalStorage storage = FindFirstObjectByType<LocalStorage>();
+#if UNITY_WEBGL && !UNITY_EDITOR
+        if (storage == null || !webReady) yield break;
+#else
         if (storage == null || auth?.CurrentUser == null) yield break;
+#endif
 
         foreach (EventModel session in new List<EventModel>(storage.LoadEvents()))
         {
             if (session == null || synced.Contains(session.SessionId) || !CanUpload(session))
                 continue;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+            Dictionary<string, object> document = BuildDocument(session, webUid);
+#else
             Dictionary<string, object> document = BuildDocument(session, auth.CurrentUser.UserId);
+#endif
             var upload = UploadSessionAsync(document, session.SessionId);
             yield return new WaitUntil(() => upload.IsCompleted);
             if (upload.IsFaulted || upload.IsCanceled)
             {
                 LastError = "Sincronização pendente";
+#if UNITY_WEBGL && !UNITY_EDITOR
+                Debug.LogWarning(LastError + ": " + upload.Exception?.GetBaseException().Message);
+#endif
                 yield break;
             }
 
@@ -139,6 +175,9 @@ public sealed class FirebaseSessionSync : MonoBehaviour
 
     private Task UploadSessionAsync(Dictionary<string, object> document, string sessionId)
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        return FirebaseWebBridge.Call("upload", SerializeDocument(document));
+#else
         DocumentReference sessionRef = database.Collection("sessions").Document(sessionId);
         string basePath = "stores/" + document["storeKey"] + "/months/" +
             document["monthKey"] + "/shifts/";
@@ -159,8 +198,10 @@ public sealed class FirebaseSessionSync : MonoBehaviour
             transaction.Set(allRef, AddMetrics(all, metrics, sessionId), SetOptions.Overwrite);
             transaction.Set(shiftRef, AddMetrics(shift, metrics, sessionId), SetOptions.Overwrite);
         });
+#endif
     }
 
+#if !UNITY_WEBGL || UNITY_EDITOR
     private static Dictionary<string, object> AddMetrics(
         DocumentSnapshot previous, Dictionary<string, object> metrics, string sessionId)
     {
@@ -175,6 +216,22 @@ public sealed class FirebaseSessionSync : MonoBehaviour
         updated["lastSessionId"] = sessionId;
         return updated;
     }
+#else
+    // The payload only contains string keys, strings, integers and nested dictionaries.
+    private static string SerializeDocument(object value)
+    {
+        if (value is string text)
+            return "\"" + text.Replace("\\", "\\\\").Replace("\"", "\\\"")
+                .Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t") + "\"";
+        if (value is Dictionary<string, object> fields)
+        {
+            var parts = new List<string>();
+            foreach (var field in fields) parts.Add(SerializeDocument(field.Key) + ":" + SerializeDocument(field.Value));
+            return "{" + string.Join(",", parts) + "}";
+        }
+        return Convert.ToString(value, CultureInfo.InvariantCulture);
+    }
+#endif
     private void SaveSyncState()
     {
         try
