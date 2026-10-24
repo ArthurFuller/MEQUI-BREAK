@@ -25,17 +25,17 @@ internal static class RushBalanceScenePolish
             GameObject Find(string name) => objects.Find(go => go.name == name);
 
             Sprite track = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/Art/ComboCrew/Polish/order_progress_track.png");
+                "Assets/Art/ComboCrew/UI/order_progress_track.png");
             Sprite fill = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/Art/ComboCrew/Polish/order_progress_fill.png");
+                "Assets/Art/ComboCrew/UI/order_progress_fill.png");
             Sprite panel = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/Art/ComboCrew/Polish/worker_profile_panel.png");
+                "Assets/Art/ComboCrew/UI/worker_profile_panel.png");
             Sprite slot = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/Art/ComboCrew/Polish/worker_card_clean.png");
+                "Assets/Art/ComboCrew/UI/worker_card_clean.png");
             Sprite bubbleRight = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/Art/ComboCrew/Polish/break_bubble_right.png");
+                "Assets/Art/ComboCrew/UI/break_bubble_right.png");
             Sprite bubbleLeft = AssetDatabase.LoadAssetAtPath<Sprite>(
-                "Assets/Art/ComboCrew/Polish/break_bubble_left.png");
+                "Assets/Art/ComboCrew/UI/break_bubble_left.png");
             if (track == null || fill == null || panel == null || slot == null
                 || bubbleRight == null || bubbleLeft == null)
                 throw new InvalidOperationException("Arte de interface do Combo Crew ausente.");
@@ -236,8 +236,8 @@ internal static class RushBalanceScenePolish
 
     private static void CorrectLayersAndBars(Scene scene)
     {
-        Sprite trackSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/ComboCrew/Polish/order_progress_track.png");
-        Sprite fillSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/ComboCrew/Polish/order_progress_fill.png");
+        Sprite trackSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/ComboCrew/UI/order_progress_track.png");
+        Sprite fillSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/ComboCrew/UI/order_progress_fill.png");
         Sprite outlineSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Resources/ComboCrew/order_progress_outline.png");
         if (trackSprite == null || fillSprite == null || outlineSprite == null)
             throw new InvalidOperationException("Sprites das barras do Combo Crew ausentes.");
@@ -282,8 +282,8 @@ internal static class RushBalanceScenePolish
 
     private static void ConfigureCustomerBubbleAndPatience(SerializedObject data)
     {
-        Sprite disk = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Characters/AvatarCustomization/body_base.png");
-        Sprite ring = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/ComboCrew/Runtime/break_ring.png");
+        Sprite disk = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Avatar/Bodies/body_base.png");
+        Sprite ring = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/ComboCrew/UI/break_ring.png");
         Sprite bubble = LoadRushBubble();
         if (disk == null || ring == null || bubble == null)
             throw new InvalidOperationException("Sprites do balao ou da paciencia circular ausentes.");
@@ -370,7 +370,7 @@ internal static class RushBalanceScenePolish
 
     private static Sprite LoadRushBubble()
     {
-        const string path = "Assets/Art/ComboCrew/Polish/rush_speech_bubble.png";
+        const string path = "Assets/Art/ComboCrew/UI/rush_speech_bubble.png";
         AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
         TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
         if (importer == null) throw new InvalidOperationException("Imagem do balao Rush Balance ausente.");

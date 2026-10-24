@@ -1,1 +1,3 @@
 Synchronized open scenes. Changes: 0
+HUB/Avatar/bodyImage: outline=True, width=10, active=True
+HUB/Avatar/hatImage: outline=True, width=10, active=True

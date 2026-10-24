@@ -118,10 +118,10 @@ public static class ResultPopupReferenceLayout
         var button = data.FindProperty("continueButton").objectReferenceValue as UnityEngine.UI.Button;
         if (panel == null || title == null || points == null || button == null)
             throw new System.InvalidOperationException("Referências incompletas em " + popup.name);
-        var panelSprite = SpriteAt("Assets/Art/EnergyStaion/popup_resultados_painel.png");
-        var buttonSprite = SpriteAt("Assets/Art/EnergyStaion/btn_continuar.png");
+        var panelSprite = SpriteAt("Assets/Art/EnergyStation/popup_resultados_painel.png");
+        var buttonSprite = SpriteAt("Assets/Art/EnergyStation/btn_continuar.png");
         var pillSprite = SpriteAt(Art + "pilula_pb.png");
-        var coinSprite = SpriteAt("Assets/Art/Group 1 (2).png");
+        var coinSprite = SpriteAt("Assets/Art/Shared/UI/break_points_coin.png");
         var blockSprite = SpriteAt(Art + "bloco_estatistica.png");
         var deliveredSprite = SpriteAt(Art + "icone_entregue.png");
         var missedSprite = SpriteAt(Art + "icone_nao_entregue.png");
@@ -288,9 +288,9 @@ public static class LevelUpReferenceLayout
         var button = Ref<UnityEngine.UI.Button>(data, "continueButton");
         if (panel == null || medal == null || button == null)
             throw new System.InvalidOperationException("Level up com referências incompletas: " + popup.name);
-        var panelSprite = SpriteAt("Assets/Art/EnergyStaion/popup_resultados_painel.png");
-        var buttonSprite = SpriteAt("Assets/Art/EnergyStaion/btn_continuar.png");
-        var cardSprite = SpriteAt("Assets/Art/Characters/Rush Balance e Icons/bloco_estatistica.png");
+        var panelSprite = SpriteAt("Assets/Art/EnergyStation/popup_resultados_painel.png");
+        var buttonSprite = SpriteAt("Assets/Art/EnergyStation/btn_continuar.png");
+        var cardSprite = SpriteAt("Assets/Art/RushBalance/UI/bloco_estatistica.png");
         UnityEditor.Undo.RegisterFullObjectHierarchyUndo(panel.root.gameObject, "Atualizar painel de level up");
         EditorSceneUI.Center(panel, new Vector2(800, 940), Vector2.zero);
         SetImage(panel.GetComponent<UnityEngine.UI.Image>(), panelSprite);
@@ -479,14 +479,14 @@ public static class RushVisualHierarchyRepair
             {
                 if (image.name == "Voltar")
                 {
-                    image.sprite = SpriteAt("Assets/Art/Characters/Combo crew/HUD/seta voltar.png"); image.color = Color.white; image.preserveAspect = true;
+                    image.sprite = SpriteAt("Assets/Art/ComboCrew/UI/seta_voltar.png"); image.color = Color.white; image.preserveAspect = true;
                     foreach (TMPro.TMP_Text old in image.GetComponentsInChildren<TMPro.TMP_Text>(true)) old.gameObject.SetActive(false);
                     var border = image.GetComponent<UnityEngine.UI.Outline>(); if (border != null) border.enabled = false;
                     var button = image.GetComponent<UnityEngine.UI.Button>(); if (button != null) button.transition = UnityEngine.UI.Selectable.Transition.None;
                 }
                 if (image.name == "TempoPill")
                 {
-                    image.sprite = SpriteAt("Assets/Art/Characters/Combo crew/HUD/relogio jogo.png"); image.color = Color.white;
+                    image.sprite = SpriteAt("Assets/Art/ComboCrew/UI/relogio_jogo.png"); image.color = Color.white;
                     image.rectTransform.sizeDelta = new Vector2(180, 70);
                     Vector2 position = image.rectTransform.anchoredPosition;
                     foreach (TMPro.TMP_Text label in root.GetComponentsInChildren<TMPro.TMP_Text>(true)) if (label.name == "Tempo")

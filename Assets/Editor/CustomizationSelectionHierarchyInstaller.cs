@@ -113,7 +113,7 @@ public static class CustomizationSelectionHierarchyInstaller
 [InitializeOnLoad]
 public static class AvatarContourHierarchyRepair
 {
-    private const string BodyPath = "Assets/Art/Characters/AvatarCustomization/body_base.png";
+    private const string BodyPath = "Assets/Art/Avatar/Bodies/body_base.png";
     static AvatarContourHierarchyRepair()
     {
         if (AssetDatabase.IsAssetImportWorkerProcess() || Application.isBatchMode) return;

@@ -167,15 +167,8 @@ public sealed class LevelUpPopupPreview : MonoBehaviour
             && (string.IsNullOrEmpty(objectName) || component.gameObject.name == objectName));
     }
 
-    private GameObject FindSceneObject(string objectName)
-    {
-        Scene targetScene = gameObject.scene;
-        Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
-        Transform match = transforms.FirstOrDefault(candidate => candidate != null
-            && candidate.gameObject.scene == targetScene
-            && candidate.gameObject.name == objectName);
-        return match != null ? match.gameObject : null;
-    }
+    private GameObject FindSceneObject(string objectName) =>
+        FindSceneComponent<Transform>(objectName)?.gameObject;
 
     private Button Resolve(Button current, string objectName) =>
         current != null ? current : FindSceneComponent<Button>(objectName);

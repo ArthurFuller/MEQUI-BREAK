@@ -37,7 +37,6 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
 
     [Header("Animação e feedback da estação")]
     [SerializeField, Min(1f)] private float barSmoothing = 10f;
-    [SerializeField, Min(.01f)] private float completionFlashSeconds = .16f;
     [SerializeField] private Color completionFlashColor = new Color(1f, .87f, .43f);
     [SerializeField] private Color warningStatusColor = new Color(1f, .78f, .25f);
     [SerializeField] private Color brokenStatusColor = new Color(1f, .36f, .24f);
@@ -63,7 +62,6 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     private Color progressColor;
     private Color statusColor;
     private Vector3 statusScale;
-    private bool completionPlayed;
     private bool dragHighlight;
     private bool dropHovered;
     private Image dropOutline;
@@ -114,7 +112,6 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
         progressFill.color = progressColor;
         status.color = statusColor;
         status.rectTransform.localScale = statusScale;
-        completionPlayed = false;
         progressFill.type = Image.Type.Sliced;
         ComboCrewProgressBorder.Ensure(progressFill);
         SetBar(0f);
@@ -280,7 +277,6 @@ public sealed class ComboCrewStationView : MonoBehaviour, IDropHandler, IPointer
     {
         progressFill.DOKill();
         progressFill.color = StartBarColor;
-        completionPlayed = false;
         shown = 0f;
         SetBar(0f);
     }

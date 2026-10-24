@@ -12,9 +12,7 @@ using DeviceScreen = UnityEngine.Device.Screen;
 /// Ponto central de navegação entre cenas.
 ///
 /// A API Load(string) é preservada para manter os callbacks configurados no Inspector.
-/// Cenas com a mesma orientação usam o deslizamento horizontal existente. Quando a
-/// navegação troca entre portrait e landscape, a orientação é resolvida antes do load
-/// para que a cena de destino nunca seja calculada no aspect ratio anterior.
+/// As cenas atuais usam retrato e mantêm o deslizamento horizontal existente.
 /// </summary>
 public sealed class SceneLoader : MonoBehaviour
 {
@@ -64,12 +62,6 @@ public sealed class SceneLoader : MonoBehaviour
 
         TransitionDirection direction = ResolveDirection(currentScene.name, targetSceneName);
 
-        if (UsesLandscapeLayout(currentScene.name) != UsesLandscapeLayout(targetSceneName))
-        {
-            StartCoroutine(LoadWithOrientationChange(currentScene, targetSceneName, direction));
-            return;
-        }
-
         if (ShouldUseSlideTransition(targetSceneName))
         {
             StartCoroutine(LoadWithSlideTransition(currentScene, targetSceneName, direction));
@@ -92,33 +84,13 @@ public sealed class SceneLoader : MonoBehaviour
             StartCoroutine(ReloadWithRequiredOrientation(current));
     }
 
-    private IEnumerator LoadWithOrientationChange(
-        Scene currentScene,
-        string targetSceneName,
-        TransitionDirection direction)
-    {
-        isTransitioning = true;
-        SetEventSystemsEnabled(currentScene, false);
-
-        // O controlador da cena atual pode restaurar sua orientação em SceneLeaving.
-        // Depois disso, aplicamos a orientação da cena de destino e aguardamos o SO.
-        SceneLeaving?.Invoke(currentScene);
-        ScreenOrientation targetOrientation = RequiredOrientationFor(targetSceneName);
-        DeviceScreen.orientation = targetOrientation;
-        yield return WaitForOrientation(targetOrientation);
-
-        CommitNavigation(currentScene.name, targetSceneName, direction);
-        isTransitioning = false;
-        SceneManager.LoadScene(targetSceneName);
-    }
-
     private IEnumerator ReloadWithRequiredOrientation(Scene currentScene)
     {
         isTransitioning = true;
         SetEventSystemsEnabled(currentScene, false);
         SceneLeaving?.Invoke(currentScene);
 
-        ScreenOrientation targetOrientation = RequiredOrientationFor(currentScene.name);
+        ScreenOrientation targetOrientation = ScreenOrientation.Portrait;
         DeviceScreen.orientation = targetOrientation;
         yield return WaitForOrientation(targetOrientation);
 
@@ -152,18 +124,6 @@ public sealed class SceneLoader : MonoBehaviour
             return DeviceScreen.height >= DeviceScreen.width;
 
         return true;
-    }
-
-    private static ScreenOrientation RequiredOrientationFor(string sceneName)
-    {
-        return UsesLandscapeLayout(sceneName)
-            ? ScreenOrientation.LandscapeLeft
-            : ScreenOrientation.Portrait;
-    }
-
-    private static bool UsesLandscapeLayout(string sceneName)
-    {
-        return false;
     }
 
     private IEnumerator LoadWithSlideTransition(

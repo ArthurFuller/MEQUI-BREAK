@@ -53,7 +53,6 @@ public sealed class RushCustomerView : MonoBehaviour, IPointerEnterHandler, IPoi
     [SerializeField, Min(0f)] private float balloonClickPunch = .07f;
     [SerializeField, Min(0f)] private float initialBalloonPopStrength = .055f;
     [Header("Reações do cliente")]
-    [SerializeField, Min(.01f)] private float balloonPopSeconds = .2f;
     [SerializeField, Min(0f)] private float moodPulseStrength = .05f;
     [SerializeField, Min(.01f)] private float moodPulseSeconds = .18f;
     [SerializeField, Min(0f)] private float deliveryReactionStrength = .075f;
